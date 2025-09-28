@@ -701,9 +701,7 @@ async writeToDataSheet(student, amount) {
   await this.searchStudent(student.id);
 
   return result;
-}
-
-                    
+}            
                     
                     else {
                         throw new Error(result.error || 'Errore sconosciuto');
