@@ -677,26 +677,45 @@
             }
 
             async writeToDataSheet(student, amount) {
-                try {
-                    const scriptUrl = 'https://script.google.com/macros/s/AKfycbxQze17UU8ktmdxFtYL1VP-wvcexliLd-TBVMhc6qxUibB-h4orQ6oQN4WoNRSZS-aiaQ/exec';
-                    
-                    const payload = {
-                        studentId: student.id,
-                        studentName: student.name,
-                        amount: amount,
-                        sheetName: student.sheetName
-                    };
-                    
-                    console.log('Inviando dati al script:', payload);
-                    this.showStatus('Salvando transazione...', 'info');
-                    
-                    const response = await fetch(scriptUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(payload)
-                    });
+  try {
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbxQze17UU8ktmdxFtYL1VP-wvcexliLd-TBVMhc6qxUibB-h4orQ6oQN4WoNRSZS-aiaQ/exec';
+
+    const payload = {
+      studentId: student.id,
+      studentName: student.name,
+      amount: amount,
+      sheetName: student.sheetName
+    };
+
+    this.showStatus('Salvando transazione...', 'info');
+
+    const response = await fetch(scriptUrl, {
+      method: 'POST',
+      // 👇 niente headers custom (evitiamo il preflight)
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload) // verrà letto da e.postData.contents
+      // niente 'mode: no-cors' (altrimenti non puoi leggere la risposta)
+    });
+
+    // Se Apps Script risponde 200, qui puoi leggere il JSON
+    const result = await response.json();
+
+    if (result.success) {
+      this.showStatus('Transazione salvata su Google Sheets!', 'success');
+      return result;
+    } else {
+      throw new Error(result.error || 'Errore sconosciuto');
+    }
+
+  } catch (error) {
+    console.error('Errore scrittura Google Sheets:', error);
+    this.showStatus('Errore: ' + error.message, 'error');
+    throw error;
+  }
+}
+
                     
                     console.log('Risposta script status:', response.status);
                     const result = await response.json();
