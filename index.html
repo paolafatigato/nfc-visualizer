@@ -5,93 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NFC Viewer</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 50%, #FFA500 100%);
-      min-height:100vh; padding:20px;
-    }
-    .container {
-      max-width:400px; margin:0 auto; background:white; border-radius:15px;
-      box-shadow:0 10px 30px rgba(0,0,0,0.2); overflow:hidden;
-    }
-    .header {
-      background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 100%);
-      color:white; padding:25px 20px 15px; text-align:center;
-    }
-    .header h1 { font-size:24px; margin-bottom:5px; font-weight:300; }
-    .header p { opacity:.9; font-size:14px; }
-    .content { padding:20px; }
-
-    #studentCard, .student-card {
-      background:white; border-radius:15px; padding:25px; margin:0 0 25px 0;
-      box-shadow:0 8px 25px rgba(0,0,0,0.15); display:none; border-left:5px solid #E85A4F;
-    }
-    #studentCard.show, .student-card.show { display:block; animation:slideIn .3s ease; }
-    .student-info { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-    .student-name { font-size:20px; font-weight:bold; color:#333; }
-    .student-balance { font-size:28px; font-weight:bold; color:#E85A4F; }
-    .student-id { font-size:12px; color:#8B5A9F; font-family:monospace; margin-top:5px; }
-
-    .quick-actions { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:20px; }
-    .action-button { padding:12px; border:none; border-radius:10px; font-weight:bold; cursor:pointer; transition:.3s; font-size:16px; }
-    .add-money { background:linear-gradient(135deg, #8B5A9F, #E85A4F); color:white; }
-    .remove-money { background:linear-gradient(135deg, #E85A4F, #FFA500); color:white; }
-
-    .custom-amount-section {
-      margin:20px 0; padding:15px; background:rgba(255,255,255,.1);
-      border-radius:10px; border:1px solid rgba(232,90,79,.3);
-    }
-    .custom-amount-section label { display:block; margin-bottom:10px; font-weight:500; color:#333; }
-    .amount-input-group { display:flex; flex-direction:column; gap:10px; }
-    #customAmount {
-      padding:12px; border:2px solid #E85A4F; border-radius:8px; font-size:16px; text-align:center; background:white;
-    }
-    .amount-buttons { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .amount-btn { padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; transition:.3s; font-size:14px; }
-    .add-btn { background:linear-gradient(135deg, #8B5A9F, #E85A4F); color:white; }
-    .remove-btn { background:linear-gradient(135deg, #E85A4F, #FFA500); color:white; }
-    .amount-btn:hover { transform:scale(1.05); box-shadow:0 3px 10px rgba(0,0,0,.2); }
-
-    .transaction-log { margin-top:20px; padding:15px; background:rgba(255,255,255,.05); border-radius:10px; border:1px solid rgba(139,90,159,.3); }
-    .transaction-log h4 { margin:0 0 10px 0; color:#8B5A9F; font-size:14px; }
-    .log-entry { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(232,90,79,.1); font-size:12px; }
-    .log-entry:last-child { border-bottom:none; }
-    .log-amount { font-weight:bold; }
-    .log-amount.positive { color:#8B5A9F; }
-    .log-amount.negative { color:#E85A4F; }
-
-    .status { padding:12px; border-radius:8px; margin:15px 0; font-weight:500; display:none; }
-    .status.success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-    .status.error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
-    .status.info { background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
-
-    .test-section {
-      background:rgba(255,255,255,.9); border:2px dashed #E85A4F; border-radius:12px; padding:20px; margin-bottom:25px; backdrop-filter:blur(10px);
-    }
-    .test-input { width:100%; padding:12px; border:2px solid #E85A4F; border-radius:8px; margin-bottom:15px; font-size:14px; }
-    .test-button {
-      background:linear-gradient(135deg, #8B5A9F, #E85A4F); color:white; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:500; transition:.3s;
-    }
-    .test-button:hover { transform:translateY(-2px); box-shadow:0 5px 15px rgba(139,90,159,.3); }
-
-    .config-section { margin-top:30px; padding-top:20px; border-top:1px solid #eee; }
-    .config-title { font-weight:bold; color:#333; margin-bottom:15px; }
-    .input-group { margin-bottom:15px; }
-    .input-group label { display:block; margin-bottom:5px; font-weight:500; color:#333; }
-    .input-group input { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; }
-    .save-button {
-      width:100%; background:linear-gradient(135deg, #8B5A9F, #E85A4F); color:white; border:none; padding:14px;
-      border-radius:8px; font-weight:500; cursor:pointer; transition:.3s;
-    }
-    .save-button:hover { transform:translateY(-2px); box-shadow:0 5px 15px rgba(139,90,159,.3); }
-
-    .disclaimer {
-      background:rgba(255,255,255,.9); color:#8B5A9F; padding:15px; border-radius:12px; margin:20px 0; font-size:14px;
-      text-align:center; backdrop-filter:blur(10px); border:2px solid #E85A4F;
-    }
-
-    @keyframes slideIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#8B5A9F 0%,#E85A4F 50%,#FFA500 100%);min-height:100vh;padding:20px}
+    .container{max-width:400px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden}
+    .header{background:linear-gradient(135deg,#8B5A9F 0%,#E85A4F 100%);color:#fff;padding:25px 20px 15px;text-align:center}
+    .header h1{font-size:24px;margin-bottom:5px;font-weight:300}
+    .header p{opacity:.9;font-size:14px}
+    .content{padding:20px}
+    #studentCard,.student-card{background:#fff;border-radius:15px;padding:25px;margin:0 0 25px;box-shadow:0 8px 25px rgba(0,0,0,.15);display:none;border-left:5px solid #E85A4F}
+    #studentCard.show,.student-card.show{display:block;animation:slideIn .3s ease}
+    .student-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .student-name{font-size:20px;font-weight:bold;color:#333}
+    .student-balance{font-size:28px;font-weight:bold;color:#E85A4F}
+    .student-id{font-size:12px;color:#8B5A9F;font-family:monospace;margin-top:5px}
+    .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px}
+    .action-button{padding:12px;border:none;border-radius:10px;font-weight:bold;cursor:pointer;transition:.3s;font-size:16px}
+    .add-money{background:linear-gradient(135deg,#8B5A9F,#E85A4F);color:#fff}
+    .remove-money{background:linear-gradient(135deg,#E85A4F,#FFA500);color:#fff}
+    .custom-amount-section{margin:20px 0;padding:15px;background:rgba(255,255,255,.1);border-radius:10px;border:1px solid rgba(232,90,79,.3)}
+    .custom-amount-section label{display:block;margin-bottom:10px;font-weight:500;color:#333}
+    .amount-input-group{display:flex;flex-direction:column;gap:10px}
+    #customAmount{padding:12px;border:2px solid #E85A4F;border-radius:8px;font-size:16px;text-align:center;background:#fff}
+    .amount-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .amount-btn{padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;transition:.3s;font-size:14px}
+    .add-btn{background:linear-gradient(135deg,#8B5A9F,#E85A4F);color:#fff}
+    .remove-btn{background:linear-gradient(135deg,#E85A4F,#FFA500);color:#fff}
+    .amount-btn:hover{transform:scale(1.05);box-shadow:0 3px 10px rgba(0,0,0,.2)}
+    .transaction-log{margin-top:20px;padding:15px;background:rgba(255,255,255,.05);border-radius:10px;border:1px solid rgba(139,90,159,.3)}
+    .transaction-log h4{margin:0 0 10px;color:#8B5A9F;font-size:14px}
+    .log-entry{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(232,90,79,.1);font-size:12px}
+    .log-entry:last-child{border-bottom:none}
+    .log-amount{font-weight:bold}
+    .log-amount.positive{color:#8B5A9F}
+    .log-amount.negative{color:#E85A4F}
+    .status{padding:12px;border-radius:8px;margin:15px 0;font-weight:500;display:none}
+    .status.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+    .status.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+    .status.info{background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
+    .test-section{background:rgba(255,255,255,.9);border:2px dashed #E85A4F;border-radius:12px;padding:20px;margin-bottom:25px;backdrop-filter:blur(10px)}
+    .test-input{width:100%;padding:12px;border:2px solid #E85A4F;border-radius:8px;margin-bottom:15px;font-size:14px}
+    .test-button{background:linear-gradient(135deg,#8B5A9F,#E85A4F);color:#fff;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:500;transition:.3s}
+    .test-button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(139,90,159,.3)}
+    .config-section{margin-top:30px;padding-top:20px;border-top:1px solid #eee}
+    .config-title{font-weight:bold;color:#333;margin-bottom:15px}
+    .input-group{margin-bottom:15px}
+    .input-group label{display:block;margin-bottom:5px;font-weight:500;color:#333}
+    .input-group input{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+    .save-button{width:100%;background:linear-gradient(135deg,#8B5A9F,#E85A4F);color:#fff;border:none;padding:14px;border-radius:8px;font-weight:500;cursor:pointer;transition:.3s}
+    .save-button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(139,90,159,.3)}
+    .disclaimer{background:rgba(255,255,255,.9);color:#8B5A9F;padding:15px;border-radius:12px;margin:20px 0;font-size:14px;text-align:center;backdrop-filter:blur(10px);border:2px solid #E85A4F}
+    @keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   </style>
 </head>
 <body>
@@ -135,7 +98,6 @@
 
       <div class="test-section">
         <strong>🧪 Test manuale:</strong>
-        <!-- ATTENZIONE: qui usiamo zero 0, non lettera O -->
         <input type="text" class="test-input" id="testId" placeholder="Inserisci ID carta per test" value="FF:0F:2A:6F:51:01:00">
         <button class="test-button" onclick="testSearch()">Cerca Studente</button>
       </div>
@@ -171,7 +133,6 @@
       constructor() {
         this.config = this.loadConfig();
         this.currentStudent = null;
-        // URL del tuo Web App di Apps Script
         this.SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQze17UU8ktmdxFtYL1VP-wvcexliLd-TBVMhc6qxUibB-h4orQ6oQN4WoNRSZS-aiaQ/exec';
         this.initializeApp();
       }
@@ -203,23 +164,6 @@
         this.showStatus('Usa il test manuale o scansiona NFC per aprire direttamente', 'info');
       }
 
-      startNFCScan() {
-        if (!this.validateConfig()) {
-          this.showStatus('Configura prima Google Sheets', 'error');
-          return;
-        }
-        if (typeof nfc === 'undefined') {
-          this.showStatus('Usa il test qui sotto per simulare', 'info');
-          return;
-        }
-        this.showStatus('Avvicina la carta NFC...', 'info');
-        nfc.addNdefListener(
-          (nfcEvent) => this.handleNFCRead(nfcEvent),
-          () => console.log('NFC listener aggiunto'),
-          (error) => this.showStatus('Errore NFC: ' + error, 'error')
-        );
-      }
-
       handleNFCRead(nfcEvent) {
         const tagId = this.extractTagId(nfcEvent);
         if (tagId) this.searchStudent(tagId);
@@ -227,7 +171,7 @@
       }
 
       extractTagId(nfcEvent) {
-        if (nfcEvent.tag && nfcEvent.tag.id) {
+        if (nfcEvent?.tag?.id) {
           return Array.from(nfcEvent.tag.id, b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').toUpperCase();
         }
         return null;
@@ -242,18 +186,26 @@
           const metadata = await metaRes.json();
           const sheets = metadata.sheets || [];
 
-          for (const sheet of sheets) {
-            const sheetName = sheet.properties.title;
+          for (const sh of sheets) {
+            const sheetName = sh.properties.title;
+
+            // 🔴 SALTA i fogli *data* (il saldo lo leggiamo dal foglio front, es. "1A")
+            if (/data$/i.test(sheetName)) continue;
+
             try {
               const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${this.config.apiKey}`;
               const res = await fetch(url);
               if (!res.ok) continue;
               const data = await res.json();
               const rows = data.values || [];
+
               for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 const cellId = row[0] ? row[0].toString().trim() : '';
+                if (!cellId) continue;
+
                 if (cellId === tagId.trim() || cellId.includes(tagId.trim())) {
+                  // row[2] = colonna C (saldo calcolato con la tua formula)
                   this.displayStudent({
                     id: cellId,
                     name: row[1] || 'Nome non trovato',
@@ -263,8 +215,8 @@
                   return;
                 }
               }
-            } catch (errSheet) {
-              console.log(`Errore nel foglio ${sheetName}:`, errSheet);
+            } catch (sheetErr) {
+              console.log(`Errore nel foglio ${sheetName}:`, sheetErr);
               continue;
             }
           }
@@ -303,14 +255,20 @@
         amountInput.value = '';
       }
 
+      async quickAction(type) {
+        if (!this.currentStudent) { this.showStatus('Nessuno studente selezionato', 'error'); return; }
+        const amount = type === 'add' ? 5 : -5;
+        await this.processTransaction(this.currentStudent, amount);
+      }
+
       async processTransaction(student, amount) {
         try {
-          // Aggiorna subito il saldo in UI (optimistic)
+          // Aggiorna subito la UI
           const newBalance = student.balance + amount;
           student.balance = newBalance;
           document.getElementById('studentBalance').textContent = '€' + newBalance.toFixed(2);
 
-          // Scrittura su Google Sheets
+          // Scrivi nel foglio *data*
           await this.writeToDataSheet(student, amount);
 
           const action = amount > 0 ? 'Aggiunto' : 'Sottratto';
@@ -325,42 +283,29 @@
         const payload = {
           studentId: student.id,
           studentName: student.name,
-          amount: amount,
-          sheetName: student.sheetName
+          amount: amount,                 // positivo o negativo
+          sheetName: student.sheetName    // es. "1A" → server scrive su "1Adata"
         };
+
         this.showStatus('Salvando transazione...', 'info');
 
-        const response = await fetch(this.SCRIPT_URL, {
+        const res = await fetch(this.SCRIPT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // simple request, niente preflight
           body: JSON.stringify(payload)
         });
-        // Se arriva qui, non è preflight; leggiamo la risposta
-        const result = await response.json();
+
+        const result = await res.json();
         if (!result.success) throw new Error(result.error || 'Errore sconosciuto');
         return result;
       }
 
-      addTransactionToLog(amount) {
-        const logEntries = document.getElementById('logEntries');
-        const now = new Date();
-        const timeStr = now.toLocaleString('it-IT');
-        const amountClass = amount > 0 ? 'positive' : 'negative';
-        const amountStr = amount > 0 ? `+€${amount.toFixed(2)}` : `-€${Math.abs(amount).toFixed(2)}`;
-        const newEntry = `
-          <div class="log-entry">
-            <span>${timeStr}</span>
-            <span class="log-amount ${amountClass}">${amountStr}</span>
-          </div>`;
-        logEntries.insertAdjacentHTML('afterbegin', newEntry);
-      }
-
       showStatus(message, type) {
-        const statusEl = document.getElementById('status');
-        statusEl.textContent = message;
-        statusEl.className = `status ${type}`;
-        statusEl.style.display = 'block';
-        if (type === 'success') setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        const el = document.getElementById('status');
+        el.textContent = message;
+        el.className = `status ${type}`;
+        el.style.display = 'block';
+        if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 3000);
       }
 
       validateConfig() {
@@ -368,7 +313,7 @@
       }
     }
 
-    // Proxy verso i metodi dell'istanza
+    // helpers per i bottoni
     function saveConfig(){ window.nfcViewer.saveConfig(); }
     function testSearch(){ const v = document.getElementById('testId').value; if (v) window.nfcViewer.searchStudent(v); }
     function quickAction(type){ if (window.nfcViewer) window.nfcViewer.quickAction(type); }
@@ -380,7 +325,6 @@
       const urlParams = new URLSearchParams(window.location.search);
       const cardId = urlParams.get('id');
       console.log('ID dalla URL:', cardId);
-
       if (cardId) {
         document.getElementById('testId').value = cardId;
         setTimeout(() => {
