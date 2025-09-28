@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 50%, #FFA500 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -28,15 +28,16 @@
         }
 
         .header {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
+            background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 100%);
             color: white;
-            padding: 25px 20px;
+            padding: 25px 20px 15px 20px;
             text-align: center;
         }
 
         .header h1 {
-            font-size: 22px;
+            font-size: 24px;
             margin-bottom: 5px;
+            font-weight: 300;
         }
 
         .header p {
@@ -45,7 +46,23 @@
         }
 
         .content {
-            padding: 25px 20px;
+            padding: 20px 20px;
+        }
+
+        /* Student Card in alto al centro */
+        #studentCard {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 0 0 25px 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            display: none;
+            border-left: 5px solid #E85A4F;
+        }
+
+        #studentCard.show {
+            display: block;
+            animation: slideIn 0.3s ease;
         }
 
         .scan-section {
@@ -60,56 +77,51 @@
         }
 
         .scan-button {
-            width: 100%;
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 15px;
-        }
-
-        .scan-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+            display: none; /* Nascondiamo il bottone NFC */
         }
 
         .test-section {
-            background: #f0f8ff;
-            border: 2px dashed #2196F3;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px dashed #E85A4F;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
         }
 
         .test-input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 10px;
+            padding: 12px;
+            border: 2px solid #E85A4F;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
 
         .test-button {
-            background: #2196F3;
+            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(139, 90, 159, 0.3);
         }
 
         .student-card {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 5px solid #4CAF50;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 0 0 25px 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
             display: none;
+            border-left: 5px solid #E85A4F;
         }
 
         .student-card.show {
@@ -121,55 +133,58 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .student-name {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: #333;
         }
 
         .student-balance {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            color: #4CAF50;
+            color: #E85A4F;
         }
 
         .student-id {
             font-size: 12px;
-            color: #666;
+            color: #8B5A9F;
             font-family: monospace;
+            margin-top: 5px;
         }
 
         .quick-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 15px;
+            margin-top: 20px;
         }
 
         .action-button {
-            padding: 10px;
+            padding: 12px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            font-size: 16px;
         }
 
         .add-money {
-            background: #4CAF50;
+            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
             color: white;
         }
 
         .remove-money {
-            background: #f44336;
+            background: linear-gradient(135deg, #E85A4F, #FFA500);
             color: white;
         }
 
         .action-button:hover {
             transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .status {
@@ -231,23 +246,31 @@
 
         .save-button {
             width: 100%;
-            background: #2196F3;
+            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 14px;
+            border-radius: 8px;
             font-weight: 500;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(139, 90, 159, 0.3);
         }
 
         .disclaimer {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(255, 255, 255, 0.9);
+            color: #8B5A9F;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 12px;
             margin: 20px 0;
             font-size: 14px;
             text-align: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid #E85A4F;
         }
 
         @keyframes slideIn {
@@ -259,28 +282,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📱 NFC Viewer</h1>
-            <p>Visualizza saldo studenti</p>
+            <h1>SchoolBank</h1>
+            <p>Ms Fatigato</p>
         </div>
 
         <div class="content">
-            <div class="scan-section">
-                <div class="nfc-icon">💳</div>
-                <button id="scanBtn" class="scan-button">
-                    Scansiona Carta NFC
-                </button>
-            </div>
-
-            <!-- Test Section -->
-            <div class="test-section">
-                <strong>🧪 Test senza NFC:</strong>
-                <input type="text" class="test-input" id="testId" placeholder="Inserisci ID carta per test" value="FF:OF:2A:6F:51:01:00">
-                <button class="test-button" onclick="testSearch()">Cerca Studente</button>
-            </div>
-
-            <div id="status" class="status"></div>
-
-            <!-- Student Card -->
+            <!-- Student Card - Ora in alto al centro -->
             <div id="studentCard" class="student-card">
                 <div class="student-info">
                     <div>
@@ -300,8 +307,17 @@
                 </div>
             </div>
 
+            <!-- Test Section -->
+            <div class="test-section">
+                <strong>🧪 Test manuale:</strong>
+                <input type="text" class="test-input" id="testId" placeholder="Inserisci ID carta per test" value="FF:OF:2A:6F:51:01:00">
+                <button class="test-button" onclick="testSearch()">Cerca Studente</button>
+            </div>
+
+            <div id="status" class="status"></div>
+
             <div class="disclaimer">
-                ℹ️ Questa app è solo per visualizzare i saldi.<br>
+                ℹ️ Questa app visualizza i saldi degli studenti.<br>
                 Per modifiche di massa usa Google Sheets.
             </div>
 
