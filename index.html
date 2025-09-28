@@ -550,6 +550,18 @@
         // Inizializza app
         document.addEventListener('DOMContentLoaded', () => {
             window.nfcViewer = new NFCViewer();
+            
+            // Controlla se c'è un ID nell'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const cardId = urlParams.get('id');
+            
+            if (cardId) {
+                // Imposta l'ID nel campo test e cerca automaticamente
+                document.getElementById('testId').value = cardId;
+                setTimeout(() => {
+                    window.nfcViewer.searchStudent(cardId);
+                }, 1000); // Aspetta 1 secondo per essere sicuri che la configurazione sia caricata
+            }
         });
     </script>
 </body>
