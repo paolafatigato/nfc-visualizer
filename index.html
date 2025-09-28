@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 25px 20px;
+        }
+
+        .scan-section {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .nfc-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+
+        .scan-button {
+            width: 100%;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .scan-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .test-section {
+            background: #f0f8ff;
+            border: 2px dashed #2196F3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .test-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .test-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .student-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 5px solid #4CAF50;
+            display: none;
+        }
+
+        .student-card.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .student-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .student-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .student-balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .student-id {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-money {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .remove-money {
+            background: #f44336;
+            color: white;
+        }
+
+        .action-button:hover {
+            transform: scale(1.05);
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .config-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .config-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .save-button {
+            width: 100%;
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .disclaimer {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 NFC Viewer</h1>
+            <p>Visualizza saldo studenti</p>
+        </div>
+
+        <div class="content">
+            <div class="scan-section">
+                <div class="nfc-icon">💳</div>
+                <button id="scanBtn" class="scan-button">
+                    Scansiona Carta NFC
+                </button>
+            </div>
+
+            <!-- Test Section -->
+            <div class="test-section">
+                <strong>🧪 Test senza NFC:</strong>
+                <input type="text" class="test-input" id="testId" placeholder="Inserisci ID carta per test" value="FF:OF:2A:6F:51:01:00">
+                <button class="test-button" onclick="testSearch()">Cerca Studente</button>
+            </div>
+
+            <div id="status" class="status"></div>
+
+            <!-- Student Card -->
+            <div id="studentCard" class="student-card">
+                <div class="student-info">
+                    <div>
+                        <div class="student-name" id="studentName">Nome Studente</div>
+                        <div class="student-id" id="studentId">ID: ABC123</div>
+                    </div>
+                    <div class="student-balance" id="studentBalance">€15.00</div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="action-button add-money" onclick="quickAction('add')">
+                        +5€
+                    </button>
+                    <button class="action-button remove-money" onclick="quickAction('remove')">
+                        -5€
+                    </button>
+                </div>
+            </div>
+
+            <div class="disclaimer">
+                ℹ️ Questa app è solo per visualizzare i saldi.<br>
+                Per modifiche di massa usa Google Sheets.
+            </div>
+
+            <!-- Configuration -->
+            <div class="config-section">
+                <div class="config-title">⚙️ Configurazione</div>
+                
+                <div class="input-group">
+                    <label>ID Google Sheet:</label>
+                    <input type="text" id="spreadsheetId" value="1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE">
+                </div>
+
+                <div class="input-group">
+                    <label>Nome Foglio:</label>
+                    <input type="text" id="sheetName" value="Foglio1">
+                </div>
+
+                <div class="input-group">
+                    <label>API Key Google:</label>
+                    <input type="text" id="apiKey" placeholder="AIzaSyC...">
+                </div>
+
+                <button class="save-button" onclick="saveConfig()">
+                    Salva Configurazione
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NFCViewer {
+            constructor() {
+                this.config = this.loadConfig();
+                this.currentStudent = null;
+                this.initializeApp();
+            }
+
+            loadConfig() {
+                const saved = localStorage.getItem('nfc_viewer_config');
+                return saved ? JSON.parse(saved) : {
+                    spreadsheetId: '1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE',
+                    sheetName: 'Foglio1',
+                    apiKey: ''
+                };
+            }
+
+            saveConfig() {
+                const config = {
+                    spreadsheetId: document.getElementById('spreadsheetId').value,
+                    sheetName: document.getElementById('sheetName').value,
+                    apiKey: document.getElementById('apiKey').value
+                };
+                
+                localStorage.setItem('nfc_viewer_config', JSON.stringify(config));
+                this.config = config;
+                this.showStatus('Configurazione salvata!', 'success');
+            }
+
+            initializeApp() {
+                document.getElementById('spreadsheetId').value = this.config.spreadsheetId;
+                document.getElementById('sheetName').value = this.config.sheetName;
+                document.getElementById('apiKey').value = this.config.apiKey;
+
+                document.getElementById('scanBtn').addEventListener('click', () => {
+                    this.startNFCScan();
+                });
+
+                this.checkNFCAvailability();
+            }
+
+            checkNFCAvailability() {
+                if (typeof nfc === 'undefined') {
+                    document.getElementById('scanBtn').textContent = 'NFC non disponibile (usa test)';
+                    return;
+                }
+
+                nfc.enabled(
+                    () => {
+                        this.showStatus('NFC attivo e pronto', 'success');
+                    },
+                    () => {
+                        this.showStatus('Attiva NFC nelle impostazioni', 'error');
+                    }
+                );
+            }
+
+            startNFCScan() {
+                if (!this.validateConfig()) {
+                    this.showStatus('Configura prima Google Sheets', 'error');
+                    return;
+                }
+
+                if (typeof nfc === 'undefined') {
+                    this.showStatus('Usa il test qui sotto per simulare', 'info');
+                    return;
+                }
+
+                this.showStatus('Avvicina la carta NFC...', 'info');
+
+                nfc.addNdefListener(
+                    (nfcEvent) => this.handleNFCRead(nfcEvent),
+                    () => console.log('NFC listener aggiunto'),
+                    (error) => this.showStatus('Errore NFC: ' + error, 'error')
+                );
+            }
+
+            handleNFCRead(nfcEvent) {
+                const tagId = this.extractTagId(nfcEvent);
+                if (tagId) {
+                    this.searchStudent(tagId);
+                } else {
+                    this.showStatus('Impossibile leggere ID carta', 'error');
+                }
+            }
+
+            extractTagId(nfcEvent) {
+                if (nfcEvent.tag && nfcEvent.tag.id) {
+                    return Array.from(nfcEvent.tag.id, byte => 
+                        ('0' + (byte & 0xFF).toString(16)).slice(-2)
+                    ).join('').toUpperCase();
+                }
+                return null;
+            }
+
+            async searchStudent(tagId) {
+                try {
+                    this.showStatus('Cercando studente in tutti i fogli...', 'info');
+
+                    // Prima ottieni la lista di tutti i fogli
+                    const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}?key=${this.config.apiKey}`;
+                    const metadataResponse = await fetch(metadataUrl);
+                    
+                    if (!metadataResponse.ok) {
+                        throw new Error(`Errore API metadata: ${metadataResponse.status}`);
+                    }
+
+                    const metadata = await metadataResponse.json();
+                    const sheets = metadata.sheets;
+
+                    // Cerca in ogni foglio
+                    for (const sheet of sheets) {
+                        const sheetName = sheet.properties.title;
+                        
+                        try {
+                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${this.config.apiKey}`;
+                            const response = await fetch(url);
+                            
+                            if (!response.ok) continue; // Salta fogli con errori
+                            
+                            const data = await response.json();
+                            const rows = data.values;
+
+                            if (!rows || rows.length === 0) continue;
+
+                            // Cerca l'ID nelle righe di questo foglio
+                            for (let i = 0; i < rows.length; i++) {
+                                const row = rows[i];
+                                const cellId = row[0] ? row[0].toString().trim() : '';
+                                
+                                if (cellId === tagId.trim() || cellId.includes(tagId.trim())) {
+                                    this.displayStudent({
+                                        id: cellId,
+                                        name: row[1] || 'Nome non trovato',
+                                        balance: parseFloat(row[2] || 0),
+                                        sheetName: sheetName
+                                    });
+                                    return;
+                                }
+                            }
+                        } catch (sheetError) {
+                            console.log(`Errore nel foglio ${sheetName}:`, sheetError);
+                            continue; // Continua con il prossimo foglio
+                        }
+                    }
+
+                    this.showStatus('Studente non trovato in nessun foglio: ' + tagId, 'error');
+
+                } catch (error) {
+                    this.showStatus('Errore: ' + error.message, 'error');
+                }
+            }
+
+            displayStudent(student) {
+                this.currentStudent = student;
+                
+                document.getElementById('studentName').textContent = student.name;
+                document.getElementById('studentId').textContent = 'ID: ' + student.id + (student.sheetName ? ' (Foglio: ' + student.sheetName + ')' : '');
+                document.getElementById('studentBalance').textContent = '€' + student.balance.toFixed(2);
+                
+                document.getElementById('studentCard').classList.add('show');
+                this.showStatus('Studente trovato nel foglio: ' + (student.sheetName || 'sconosciuto'), 'success');
+            }
+
+            async quickAction(type) {
+                if (!this.currentStudent) return;
+
+                const amount = type === 'add' ? 5 : -5;
+                const newBalance = this.currentStudent.balance + amount;
+
+                // Aggiorna visualizzazione locale
+                this.currentStudent.balance = newBalance;
+                document.getElementById('studentBalance').textContent = '€' + newBalance.toFixed(2);
+
+                this.showStatus(
+                    `${type === 'add' ? 'Aggiunto' : 'Rimosso'} €5 - Nuovo saldo: €${newBalance.toFixed(2)}`, 
+                    'success'
+                );
+
+                // Nota: qui dovresti implementare l'aggiornamento su Google Sheets
+                // Ma come da richiesta, manteniamo solo la visualizzazione
+            }
+
+            showStatus(message, type) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+                statusEl.style.display = 'block';
+
+                if (type === 'success') {
+                    setTimeout(() => {
+                        statusEl.style.display = 'none';
+                    }, 3000);
+                }
+            }
+
+            validateConfig() {
+                return this.config.spreadsheetId && this.config.apiKey;
+            }
+        }
+
+        function saveConfig() {
+            window.nfcViewer.saveConfig();
+        }
+
+        function testSearch() {
+            const testId = document.getElementById('testId').value;
+            if (testId) {
+                window.nfcViewer.searchStudent(testId);
+            }
+        }
+
+        function quickAction(type) {
+            window.nfcViewer.quickAction(type);
+        }
+
+        // Inizializza app
+        document.addEventListener('DOMContentLoaded', () => {
+            window.nfcViewer = new NFCViewer();
+        });
+    </script>
+</body>
+</html>
