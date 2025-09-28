@@ -687,6 +687,7 @@
                         sheetName: student.sheetName
                     };
                     
+                    console.log('Inviando dati al script:', payload);
                     this.showStatus('Salvando transazione...', 'info');
                     
                     const response = await fetch(scriptUrl, {
@@ -694,13 +695,17 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(payload),
+                        mode: 'cors'
                     });
                     
+                    console.log('Risposta script:', response.status);
                     const result = await response.json();
+                    console.log('Risultato script:', result);
                     
                     if (result.success) {
                         console.log('Transazione salvata:', result);
+                        this.showStatus('Transazione salvata su Google Sheets!', 'success');
                         return result;
                     } else {
                         throw new Error(result.error || 'Errore sconosciuto');
@@ -708,7 +713,8 @@
                     
                 } catch (error) {
                     console.error('Errore scrittura Google Sheets:', error);
-                    throw new Error('Impossibile salvare su Google Sheets: ' + error.message);
+                    this.showStatus('Errore: ' + error.message, 'error');
+                    throw error;
                 }
             }
 
