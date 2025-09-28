@@ -182,9 +182,104 @@
             color: white;
         }
 
-        .action-button:hover {
+        .custom-amount-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(232, 90, 79, 0.3);
+        }
+
+        .custom-amount-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .amount-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #customAmount {
+            padding: 12px;
+            border: 2px solid #E85A4F;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            background: white;
+        }
+
+        .amount-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .amount-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
+            color: white;
+        }
+
+        .remove-btn {
+            background: linear-gradient(135deg, #E85A4F, #FFA500);
+            color: white;
+        }
+
+        .amount-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .transaction-log {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(139, 90, 159, 0.3);
+        }
+
+        .transaction-log h4 {
+            margin: 0 0 10px 0;
+            color: #8B5A9F;
+            font-size: 14px;
+        }
+
+        .log-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(232, 90, 79, 0.1);
+            font-size: 12px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-amount {
+            font-weight: bold;
+        }
+
+        .log-amount.positive {
+            color: #8B5A9F;
+        }
+
+        .log-amount.negative {
+            color: #E85A4F;
         }
 
         .status {
@@ -297,6 +392,18 @@
                     <div class="student-balance" id="studentBalance">€15.00</div>
                 </div>
 
+                <!-- Sezione importo personalizzato -->
+                <div class="custom-amount-section">
+                    <label>Importo personalizzato:</label>
+                    <div class="amount-input-group">
+                        <input type="number" id="customAmount" placeholder="0.00" step="0.01" min="0">
+                        <div class="amount-buttons">
+                            <button class="amount-btn add-btn" onclick="customTransaction('add')">+ Aggiungi</button>
+                            <button class="amount-btn remove-btn" onclick="customTransaction('remove')">- Sottrai</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="quick-actions">
                     <button class="action-button add-money" onclick="quickAction('add')">
                         +5€
@@ -304,6 +411,12 @@
                     <button class="action-button remove-money" onclick="quickAction('remove')">
                         -5€
                     </button>
+                </div>
+
+                <!-- Log delle transazioni -->
+                <div id="transactionLog" class="transaction-log">
+                    <h4>Ultime transazioni:</h4>
+                    <div id="logEntries"></div>
                 </div>
             </div>
 
@@ -381,27 +494,13 @@
                 document.getElementById('sheetName').value = this.config.sheetName;
                 document.getElementById('apiKey').value = this.config.apiKey;
 
-                document.getElementById('scanBtn').addEventListener('click', () => {
-                    this.startNFCScan();
-                });
-
+                // Rimuovo il listener del bottone scan che non esiste più
                 this.checkNFCAvailability();
             }
 
             checkNFCAvailability() {
-                if (typeof nfc === 'undefined') {
-                    document.getElementById('scanBtn').textContent = 'NFC non disponibile (usa test)';
-                    return;
-                }
-
-                nfc.enabled(
-                    () => {
-                        this.showStatus('NFC attivo e pronto', 'success');
-                    },
-                    () => {
-                        this.showStatus('Attiva NFC nelle impostazioni', 'error');
-                    }
-                );
+                // Rimuovo il controllo NFC che causava problemi
+                this.showStatus('Usa il test manuale o scansiona NFC per aprire direttamente', 'info');
             }
 
             startNFCScan() {
@@ -509,25 +608,113 @@
                 
                 document.getElementById('studentCard').classList.add('show');
                 this.showStatus('Studente trovato nel foglio: ' + (student.sheetName || 'sconosciuto'), 'success');
+                
+                // Carica il log delle transazioni
+                this.loadTransactionLog(student.id);
+            }
+
+            async loadTransactionLog(studentId) {
+                // Simula il caricamento del log delle transazioni
+                const logEntries = document.getElementById('logEntries');
+                logEntries.innerHTML = `
+                    <div class="log-entry">
+                        <span>28/09/2024 - 14:30</span>
+                        <span class="log-amount positive">+€5.00</span>
+                    </div>
+                    <div class="log-entry">
+                        <span>27/09/2024 - 09:15</span>
+                        <span class="log-amount negative">-€3.50</span>
+                    </div>
+                    <div class="log-entry">
+                        <span>25/09/2024 - 11:45</span>
+                        <span class="log-amount positive">+€10.00</span>
+                    </div>
+                `;
+            }
+
+            async customTransaction(type) {
+                const amountInput = document.getElementById('customAmount');
+                const amount = parseFloat(amountInput.value);
+                
+                if (!amount || amount <= 0) {
+                    this.showStatus('Inserisci un importo valido', 'error');
+                    return;
+                }
+
+                if (!this.currentStudent) {
+                    this.showStatus('Nessuno studente selezionato', 'error');
+                    return;
+                }
+
+                const finalAmount = type === 'add' ? amount : -amount;
+                await this.processTransaction(this.currentStudent, finalAmount);
+                
+                // Pulisci il campo input
+                amountInput.value = '';
+            }
+
+            async processTransaction(student, amount) {
+                try {
+                    // Aggiorna saldo locale
+                    const newBalance = student.balance + amount;
+                    student.balance = newBalance;
+                    
+                    // Aggiorna visualizzazione
+                    document.getElementById('studentBalance').textContent = '€' + newBalance.toFixed(2);
+                    
+                    // Simula scrittura su Google Sheets (per ora)
+                    await this.writeToDataSheet(student, amount);
+                    
+                    const action = amount > 0 ? 'Aggiunto' : 'Sottratto';
+                    this.showStatus(`${action} €${Math.abs(amount).toFixed(2)} - Nuovo saldo: €${newBalance.toFixed(2)}`, 'success');
+                    
+                    // Aggiorna log transazioni
+                    this.addTransactionToLog(amount);
+                    
+                } catch (error) {
+                    this.showStatus('Errore nella transazione: ' + error.message, 'error');
+                }
+            }
+
+            async writeToDataSheet(student, amount) {
+                // SIMULAZIONE - sostituiremo con API reale
+                console.log(`Scrittura simulata su foglio ${student.sheetName}data:`);
+                console.log(`Studente: ${student.name}`);
+                console.log(`Importo: €${amount}`);
+                console.log(`Nuova colonna dalla Z in poi`);
+                
+                // Qui andrà la logica per trovare la prima colonna libera
+                // dalla colonna Z (26) in poi e scrivere l'importo
+                
+                return new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            addTransactionToLog(amount) {
+                const logEntries = document.getElementById('logEntries');
+                const now = new Date();
+                const timeStr = now.toLocaleString('it-IT');
+                const amountClass = amount > 0 ? 'positive' : 'negative';
+                const amountStr = amount > 0 ? `+€${amount.toFixed(2)}` : `-€${Math.abs(amount).toFixed(2)}`;
+                
+                const newEntry = `
+                    <div class="log-entry">
+                        <span>${timeStr}</span>
+                        <span class="log-amount ${amountClass}">${amountStr}</span>
+                    </div>
+                `;
+                
+                logEntries.insertAdjacentHTML('afterbegin', newEntry);
             }
 
             async quickAction(type) {
-                if (!this.currentStudent) return;
-
                 const amount = type === 'add' ? 5 : -5;
-                const newBalance = this.currentStudent.balance + amount;
-
-                // Aggiorna visualizzazione locale
-                this.currentStudent.balance = newBalance;
-                document.getElementById('studentBalance').textContent = '€' + newBalance.toFixed(2);
-
-                this.showStatus(
-                    `${type === 'add' ? 'Aggiunto' : 'Rimosso'} €5 - Nuovo saldo: €${newBalance.toFixed(2)}`, 
-                    'success'
-                );
-
-                // Nota: qui dovresti implementare l'aggiornamento su Google Sheets
-                // Ma come da richiesta, manteniamo solo la visualizzazione
+                
+                if (!this.currentStudent) {
+                    this.showStatus('Nessuno studente selezionato', 'error');
+                    return;
+                }
+                
+                await this.processTransaction(this.currentStudent, amount);
             }
 
             showStatus(message, type) {
@@ -560,23 +747,43 @@
         }
 
         function quickAction(type) {
-            window.nfcViewer.quickAction(type);
+            if (window.nfcViewer) {
+                window.nfcViewer.quickAction(type);
+            }
+        }
+
+        function customTransaction(type) {
+            if (window.nfcViewer) {
+                window.nfcViewer.customTransaction(type);
+            }
         }
 
         // Inizializza app
         document.addEventListener('DOMContentLoaded', () => {
             window.nfcViewer = new NFCViewer();
             
+            // Debug: controlla URL immediatamente
+            console.log('URL corrente:', window.location.search);
+            
             // Controlla se c'è un ID nell'URL
             const urlParams = new URLSearchParams(window.location.search);
             const cardId = urlParams.get('id');
             
+            console.log('ID dalla URL:', cardId);
+            
             if (cardId) {
-                // Imposta l'ID nel campo test e cerca automaticamente
+                // Imposta l'ID nel campo test
                 document.getElementById('testId').value = cardId;
+                
+                // Aspetta che la configurazione sia pronta e poi cerca
                 setTimeout(() => {
-                    window.nfcViewer.searchStudent(cardId);
-                }, 1000); // Aspetta 1 secondo per essere sicuri che la configurazione sia caricata
+                    console.log('Cercando studente con ID:', cardId);
+                    if (window.nfcViewer.validateConfig()) {
+                        window.nfcViewer.searchStudent(cardId);
+                    } else {
+                        window.nfcViewer.showStatus('Configura prima l\'API Key per la ricerca automatica', 'error');
+                    }
+                }, 2000); // Aumento il tempo di attesa
             }
         });
     </script>
