@@ -676,37 +676,36 @@
                 }
             }
 
-            async writeToDataSheet(student, amount) {
-                try {
-                    const scriptUrl = 'https://script.google.com/macros/s/AKfycbxQze17UU8ktmdxFtYL1VP-wvcexliLd-TBVMhc6qxUibB-h4orQ6oQN4WoNRSZS-aiaQ/exec';
+async writeToDataSheet(student, amount) {
+  const scriptUrl = 'https://script.google.com/macros/s/AKfycbxQze17UU8ktmdxFtYL1VP-wvcexliLd-TBVMhc6qxUibB-h4orQ6oQN4WoNRSZS-aiaQ/exec';
+
+  const payload = {
+    studentId: student.id,
+    studentName: student.name,
+    amount: amount,              // positivo o negativo
+    sheetName: student.sheetName // es. "1A"
+  };
+
+  this.showStatus('Salvando transazione...', 'info');
+
+  const res = await fetch(scriptUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ← NIENTE application/json
+    body: JSON.stringify(payload)
+  });
+
+  const result = await res.json();
+  if (!result.success) throw new Error(result.error || 'Errore sconosciuto');
+
+  // ricarica il saldo dal foglio front
+  await this.searchStudent(student.id);
+
+  return result;
+}
+
                     
-                    const payload = {
-                        studentId: student.id,
-                        studentName: student.name,
-                        amount: amount,
-                        sheetName: student.sheetName
-                    };
                     
-                    console.log('Inviando dati al script:', payload);
-                    this.showStatus('Salvando transazione...', 'info');
-                    
-                    const response = await fetch(scriptUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    console.log('Risposta script status:', response.status);
-                    const result = await response.json();
-                    console.log('Risultato script:', result);
-                    
-                    if (result.success) {
-                        console.log('Transazione salvata:', result);
-                        this.showStatus('Transazione salvata su Google Sheets!', 'success');
-                        return result;
-                    } else {
+                    else {
                         throw new Error(result.error || 'Errore sconosciuto');
                     }
                     
