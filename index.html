@@ -695,11 +695,10 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(payload),
-                        mode: 'cors'
+                        body: JSON.stringify(payload)
                     });
                     
-                    console.log('Risposta script:', response.status);
+                    console.log('Risposta script status:', response.status);
                     const result = await response.json();
                     console.log('Risultato script:', result);
                     
