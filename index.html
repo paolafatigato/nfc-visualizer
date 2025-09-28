@@ -208,9 +208,10 @@
                     id: cellId,
                     name: row[1] || 'Nome non trovato',
                     balance: parseFloat(row[2] || 0),
-                    sheetName
-                  });
-                  return;
+    sheetName: sheetName,
+    row: i + 1          // 👈 aggiungi questo
+  });
+  return;
                 }
               }
             } catch (sheetErr) {
