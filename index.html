@@ -279,26 +279,31 @@
         }
       }
 
-      async writeToDataSheet(student, amount) {
-        const payload = {
-          studentId: student.id,
-          studentName: student.name,
-          amount: amount,                 // positivo o negativo
-          sheetName: student.sheetName    // es. "1A" → server scrive su "1Adata"
-        };
+async writeToDataSheet(student, amount) {
+  const payload = {
+    studentId: student.id,
+    studentName: student.name,
+    amount: amount,            // positivo o negativo
+    sheetName: student.sheetName // es. "1A" → scrive su "1Adata"
+  };
 
-        this.showStatus('Salvando transazione...', 'info');
+  this.showStatus('Salvando transazione...', 'info');
 
-        const res = await fetch(this.SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // simple request, niente preflight
-          body: JSON.stringify(payload)
-        });
+  const res = await fetch(this.SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // simple request, niente preflight
+    body: JSON.stringify(payload)
+  });
 
-        const result = await res.json();
-        if (!result.success) throw new Error(result.error || 'Errore sconosciuto');
-        return result;
-      }
+  const result = await res.json();
+  if (!result.success) throw new Error(result.error || 'Errore sconosciuto');
+
+  // 🔄 ricarica il saldo (leggendolo dal foglio front con la formula)
+  await this.searchStudent(student.id);
+
+  return result;
+}
+
 
       showStatus(message, type) {
         const el = document.getElementById('status');
