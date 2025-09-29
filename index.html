@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -24,6 +24,7 @@
     @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .student-info{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}
     .student-name{font-weight:700;color:#333;font-size:18px}
+    .student-id{font-size:12px;color:#8B5A9F;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
     .student-balance{font-size:26px;font-weight:800;color:#E85A4F;white-space:nowrap}
     .transaction-log{margin-top:10px;padding-top:8px;border-top:1px solid #eee}
     .transaction-log h4{font-size:13px;color:#8B5A9F;margin-bottom:8px}
@@ -37,19 +38,8 @@
     .status.info{display:block;background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
     .status.success{display:block;background:#d4edda;color:#155724;border:1px solid #c3e6cb}
     .status.error{display:block;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
-    .motivation {
-      margin: 18px auto;
-      max-width: 420px;
-      text-align: center;
-      padding: 14px 18px;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: 600;
-      font-style: italic;
-      background: #FFE28A; /* giallo tenue */
-      color: #333;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
+    .disclaimer{margin-top:14px;background:#fff9;border:2px solid #FDA104;border-radius:12px;padding:14px;
+      color:#8B5A9F;font-size:14px;text-align:center}
   </style>
 </head>
 <body>
@@ -61,4 +51,198 @@
 
     <div class="content">
       <!-- Card studente: sola lettura -->
-      <div id="studentCard
+      <div id="studentCard" class="student-card">
+        <div class="student-info">
+          <div>
+            <div id="studentName" class="student-name">Nome Studente</div>
+            <div id="studentId" class="student-id">ID: —</div>
+          </div>
+          <div id="studentBalance" class="student-balance">€0</div>
+        </div>
+
+        <div id="transactionLog" class="transaction-log">
+          <h4>Last transactions</h4>
+          <div id="logEntries"></div>
+        </div>
+      </div>
+
+      <div id="status" class="status info">Apri con un QR del tipo <code>?id=FF:…</code></div>
+      <div class="disclaimer">Spend it wisely!</div>
+    </div>
+  </div>
+
+  <script>
+    // === CONFIG FISSA (hardcoded) ===
+    const CONFIG = {
+      spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
+      apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
+    };
+
+    // ==== Utility Sheets API ====
+    async function fetchJSON(url){
+      const r = await fetch(url);
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+    function metaURL(){ 
+      return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
+    }
+    function valuesURL(sheetName){
+      return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${CONFIG.apiKey}`;
+    }
+
+    // ==== App Viewer ====
+    class Viewer {
+      constructor(){
+        this.currentStudent = null;
+        this.init();
+      }
+
+      status(msg,type='info'){
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = `status ${type}`;
+        el.style.display = 'block';
+        if(type==='success') setTimeout(()=> el.style.display='none', 2500);
+      }
+
+      showCard(){
+        document.getElementById('studentCard').classList.add('show');
+      }
+
+      setStudentInfo(st){
+        document.getElementById('studentName').textContent = st.name;
+        document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
+        document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
+      }
+
+      renderLog(items){
+        const box = document.getElementById('logEntries');
+        if(!items.length){
+          box.innerHTML = `<div class="log-entry"><div class="log-left"><span class="log-label">Nessuna voce trovata</span></div><span class="log-amount">—</span></div>`;
+          return;
+        }
+        box.innerHTML = items.map(it => {
+          const amt = (''+it.value).trim();
+          const label = (it.label||'').trim();
+          return `
+            <div class="log-entry">
+              <div class="log-left"><span class="log-label">${label || '&nbsp;'}</span></div>
+              <span class="log-amount">${amt}</span>
+            </div>`;
+        }).join('');
+      }
+
+      async init(){
+        const params = new URLSearchParams(location.search);
+        const id = params.get('id');
+        if(!id){
+          this.status('Manca il parametro ?id=...', 'info');
+          return;
+        }
+        try{
+          await this.loadStudentById(id);
+        }catch(e){
+          console.error(e);
+          this.status('Errore: ' + e.message, 'error');
+        }
+      }
+
+      async loadStudentById(tagId){
+        this.status('Cerco lo studente…', 'info');
+        const meta = await fetchJSON(metaURL());
+        const titles = (meta.sheets||[]).map(s => s.properties.title);
+
+        // 1) Cerca lo studente nei fogli classe (tutti quelli che NON terminano con "data")
+        for(const sheetName of titles){
+          if(/data$/i.test(sheetName)) continue;
+          const data = await fetchJSON(valuesURL(sheetName));
+          const rows = data.values || [];
+          for(const row of rows){
+            const cellId = (row[0]||'').toString().trim();
+            if(!cellId) continue;
+            // match tollerante (molti UID con i ":")
+            if(cellId.toUpperCase().includes(tagId.trim().toUpperCase())){
+              const student = {
+                id: cellId,
+                name: row[1] || 'Nome non trovato',
+                balance: parseFloat((row[2]||'0').toString().replace(',','.')) || 0,
+                classSheet: sheetName
+              };
+              this.currentStudent = student;
+              this.setStudentInfo(student);
+              this.showCard();
+              this.status(`Trovato in: ${sheetName}`, 'success');
+
+              // 2) Trova il foglio dati relativo (…data) e carica le ultime 3 colonne non vuote da Z in poi
+              const dataSheet = this.findDataSheetName(titles, sheetName);
+              if(dataSheet){
+                await this.loadLastThreeFromDataSheet(student, dataSheet);
+              } else {
+                this.renderLog([]);
+              }
+              return; // stop: studente trovato
+            }
+          }
+        }
+        this.status('Studente non trovato: ' + tagId, 'error');
+      }
+
+      findDataSheetName(allTitles, classSheet){
+        // priorità: "<classSheet>data" esatto (spazi o camel-case)
+        const candidates = [
+          `${classSheet}data`,
+          `${classSheet} data`,
+          `${classSheet.trim()}Data`
+        ];
+        for(const c of candidates){
+          if(allTitles.includes(c)) return c;
+        }
+        const lc = classSheet.toLowerCase();
+        const m = allTitles.find(t => t.toLowerCase().startsWith(lc) && /data$/.test(t.toLowerCase()));
+        return m || null;
+      }
+
+      async loadLastThreeFromDataSheet(student, dataSheetName){
+        try{
+          const data = await fetchJSON(valuesURL(dataSheetName));
+          const rows = data.values || [];
+          if(rows.length < 3){ this.renderLog([]); return; }
+
+          const headerRow2 = rows[1] || []; // etichette in riga 2
+
+          // Cerca la riga dello studente per NOME (match esatto, case-insensitive)
+          const target = (student.name||'').trim().toLowerCase();
+          let studentRow = [];
+          for(const r of rows){
+            if((r||[]).some(c => String(c||'').trim().toLowerCase() === target)){
+              studentRow = r; break;
+            }
+          }
+          if(studentRow.length === 0){ this.renderLog([]); return; }
+
+          // Prendi le colonne non vuote da Z in poi (Z = indice 25)
+          const filled = [];
+          const maxLen = Math.max(studentRow.length, headerRow2.length);
+          for(let c=25; c<maxLen; c++){
+            const raw = (studentRow[c]!==undefined && studentRow[c]!==null) ? String(studentRow[c]).trim() : '';
+            if(raw!==''){
+              filled.push({ col:c, value: raw, label: headerRow2[c] || '' });
+            }
+          }
+          // Seleziona le ultime 3 (più a destra)
+          const last3 = filled.slice(-3);
+          this.renderLog(last3);
+        }catch(e){
+          console.error(e);
+          this.status(`Errore lettura "${dataSheetName}": ${e.message}`, 'error');
+          this.renderLog([]);
+        }
+      }
+    }
+
+    // Avvio
+    document.addEventListener('DOMContentLoaded', ()=> new Viewer());
+  </script>
+</body>
+</html>
