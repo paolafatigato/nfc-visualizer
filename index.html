@@ -432,9 +432,9 @@
                     // Prendi la riga dello studente
                     const studentRow = rows[student.rowIndex - 1] || [];
                     
-                    // Trova le ultime 3 colonne piene (dalla Z=26 in poi)
+                    // Trova le ultime 3 colonne piene (dalla Z=25 in poi)
                     const transactions = [];
-                    for (let col = studentRow.length - 1; col >= 26 && transactions.length < 3; col--) {
+                    for (let col = studentRow.length - 1; col >= 25 && transactions.length < 3; col--) {
                         const value = studentRow[col];
                         if (value !== null && value !== undefined && value !== '') {
                             const amount = parseFloat(value);
