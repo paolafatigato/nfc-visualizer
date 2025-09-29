@@ -291,31 +291,25 @@
     </div>
 
     <script>
-        class NFCViewer {
-            constructor() {
-                this.config = this.loadConfig();
-                this.currentStudent = null;
-                this.initializeApp();
-            }
+class NFCViewer {
+    constructor() {
+        // Config fissa (non più presa da localStorage)
+        this.config = {
+            spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
+            apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
+        };
+        
+        this.currentStudent = null;
+        this.initializeApp();
+    }
 
-            loadConfig() {
-                const saved = localStorage.getItem('nfc_viewer_config');
-                return saved ? JSON.parse(saved) : {
-                    spreadsheetId: '1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE',
-                    apiKey: ''
-                };
-            }
+    initializeApp() {
+        // qui puoi togliere tutto ciò che aggiornava i campi di input
+        this.showStatus('App pronta. Scansiona QR per aprire la scheda.', 'info');
+    }
 
-            saveConfig() {
-                const config = {
-                    spreadsheetId: document.getElementById('spreadsheetId').value,
-                    apiKey: document.getElementById('apiKey').value
-                };
-                
-                localStorage.setItem('nfc_viewer_config', JSON.stringify(config));
-                this.config = config;
-                this.showStatus('Configurazione salvata', 'success');
-            }
+}
+
 
             initializeApp() {
                 document.getElementById('spreadsheetId').value = this.config.spreadsheetId;
