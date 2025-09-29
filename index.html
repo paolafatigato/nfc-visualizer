@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -24,7 +24,6 @@
     @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .student-info{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}
     .student-name{font-weight:700;color:#333;font-size:18px}
-    .student-id{font-size:12px;color:#8B5A9F;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
     .student-balance{font-size:26px;font-weight:800;color:#E85A4F;white-space:nowrap}
     .transaction-log{margin-top:10px;padding-top:8px;border-top:1px solid #eee}
     .transaction-log h4{font-size:13px;color:#8B5A9F;margin-bottom:8px}
@@ -38,8 +37,7 @@
     .status.info{display:block;background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
     .status.success{display:block;background:#d4edda;color:#155724;border:1px solid #c3e6cb}
     .status.error{display:block;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
-    .disclaimer{margin-top:14px;background:#fff9;border:2px solid #E85A4F;border-radius:12px;padding:14px;
-      color:#8B5A9F;font-size:14px;text-align:center}
+    .motivation{margin-top:16px;text-align:center;font-size:14px;font-weight:500;color:#8B5A9F;font-style:italic}
   </style>
 </head>
 <body>
@@ -53,32 +51,31 @@
       <!-- Card studente: sola lettura -->
       <div id="studentCard" class="student-card">
         <div class="student-info">
-          <div>
-            <div id="studentName" class="student-name">Nome Studente</div>
-            <div id="studentId" class="student-id">ID: —</div>
-          </div>
+          <div id="studentName" class="student-name">Nome Studente</div>
           <div id="studentBalance" class="student-balance">€0</div>
         </div>
 
         <div id="transactionLog" class="transaction-log">
-          <h4>Last transactions</h4>
+          <h4>Latest entries:</h4>
           <div id="logEntries"></div>
+        </div>
+
+        <div class="motivation">
+          🌟 "Every effort you make brings you closer to success." 🌟
         </div>
       </div>
 
-      <div id="status" class="status info">Apri con un QR del tipo <code>?id=FF:…</code></div>
-      <div class="disclaimer">Spend it wisely!</div>
+      <div id="status" class="status info">Open with a QR like <code>?id=FF:…</code></div>
     </div>
   </div>
 
   <script>
-    // === CONFIG FISSA (hardcoded) ===
+    // === CONFIG FISSA ===
     const CONFIG = {
       spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
       apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
     };
 
-    // ==== Utility Sheets API ====
     async function fetchJSON(url){
       const r = await fetch(url);
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -91,158 +88,96 @@
       return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${CONFIG.apiKey}`;
     }
 
-    // ==== App Viewer ====
     class Viewer {
       constructor(){
         this.currentStudent = null;
         this.init();
       }
-
       status(msg,type='info'){
-        const el = document.getElementById('status');
-        el.textContent = msg;
-        el.className = `status ${type}`;
-        el.style.display = 'block';
-        if(type==='success') setTimeout(()=> el.style.display='none', 2500);
+        const el=document.getElementById('status');
+        el.textContent=msg;
+        el.className=`status ${type}`;
+        el.style.display='block';
+        if(type==='success') setTimeout(()=> el.style.display='none',2500);
       }
-
-      showCard(){
-        document.getElementById('studentCard').classList.add('show');
-      }
-
+      showCard(){ document.getElementById('studentCard').classList.add('show'); }
       setStudentInfo(st){
-        document.getElementById('studentName').textContent = st.name;
-        document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
-        document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
+        document.getElementById('studentName').textContent=st.name;
+        document.getElementById('studentBalance').textContent='€'+st.balance.toFixed(2);
       }
-
       renderLog(items){
-        const box = document.getElementById('logEntries');
-        if(!items.length){
-          box.innerHTML = `<div class="log-entry"><div class="log-left"><span class="log-label">Nessuna voce trovata</span></div><span class="log-amount">—</span></div>`;
-          return;
-        }
-        box.innerHTML = items.map(it => {
-          const amt = (''+it.value).trim();
-          const label = (it.label||'').trim();
-          return `
-            <div class="log-entry">
-              <div class="log-left"><span class="log-label">${label || '&nbsp;'}</span></div>
-              <span class="log-amount">${amt}</span>
-            </div>`;
-        }).join('');
+        const box=document.getElementById('logEntries');
+        if(!items.length){ box.innerHTML='<div class="log-entry"><div class="log-left"><span class="log-label">No entries found</span></div><span class="log-amount">—</span></div>'; return; }
+        box.innerHTML=items.map(it=>`
+          <div class="log-entry">
+            <div class="log-left"><span class="log-label">${it.label||'&nbsp;'}</span></div>
+            <span class="log-amount">${it.value}</span>
+          </div>`).join('');
       }
-
       async init(){
-        const params = new URLSearchParams(location.search);
-        const id = params.get('id');
-        if(!id){
-          this.status('Manca il parametro ?id=...', 'info');
-          return;
-        }
-        try{
-          await this.loadStudentById(id);
-        }catch(e){
-          console.error(e);
-          this.status('Errore: ' + e.message, 'error');
-        }
+        const params=new URLSearchParams(location.search);
+        const id=params.get('id');
+        if(!id){ this.status('Missing ?id=…','info'); return; }
+        try{ await this.loadStudentById(id);}catch(e){console.error(e);this.status('Error: '+e.message,'error');}
       }
-
       async loadStudentById(tagId){
-        this.status('Cerco lo studente…', 'info');
-        const meta = await fetchJSON(metaURL());
-        const titles = (meta.sheets||[]).map(s => s.properties.title);
-
-        // 1) Cerca lo studente nei fogli classe (tutti quelli che NON terminano con "data")
+        this.status('Searching student…','info');
+        const meta=await fetchJSON(metaURL());
+        const titles=(meta.sheets||[]).map(s=>s.properties.title);
         for(const sheetName of titles){
           if(/data$/i.test(sheetName)) continue;
-          const data = await fetchJSON(valuesURL(sheetName));
-          const rows = data.values || [];
+          const data=await fetchJSON(valuesURL(sheetName));
+          const rows=data.values||[];
           for(const row of rows){
-            const cellId = (row[0]||'').toString().trim();
+            const cellId=(row[0]||'').toString().trim();
             if(!cellId) continue;
-            // match tollerante (molti UID con i ":")
             if(cellId.toUpperCase().includes(tagId.trim().toUpperCase())){
-              const student = {
-                id: cellId,
-                name: row[1] || 'Nome non trovato',
-                balance: parseFloat((row[2]||'0').toString().replace(',','.')) || 0,
-                classSheet: sheetName
+              const student={
+                id:cellId,
+                name:row[1]||'Name not found',
+                balance:parseFloat((row[2]||'0').toString().replace(',','.'))||0,
+                classSheet:sheetName
               };
-              this.currentStudent = student;
+              this.currentStudent=student;
               this.setStudentInfo(student);
               this.showCard();
-              this.status(`Trovato in: ${sheetName}`, 'success');
-
-              // 2) Trova il foglio dati relativo (…data) e carica le ultime 3 colonne non vuote da Z in poi
-              const dataSheet = this.findDataSheetName(titles, sheetName);
-              if(dataSheet){
-                await this.loadLastThreeFromDataSheet(student, dataSheet);
-              } else {
-                this.renderLog([]);
-              }
-              return; // stop: studente trovato
+              this.status(`Found in: ${sheetName}`,'success');
+              const dataSheet=this.findDataSheetName(titles,sheetName);
+              if(dataSheet){ await this.loadLastThreeFromDataSheet(student,dataSheet);} else this.renderLog([]);
+              return;
             }
           }
         }
-        this.status('Studente non trovato: ' + tagId, 'error');
+        this.status('Student not found: '+tagId,'error');
       }
-
-      findDataSheetName(allTitles, classSheet){
-        // priorità: "<classSheet>data" esatto (spazi o camel-case)
-        const candidates = [
-          `${classSheet}data`,
-          `${classSheet} data`,
-          `${classSheet.trim()}Data`
-        ];
-        for(const c of candidates){
-          if(allTitles.includes(c)) return c;
-        }
-        const lc = classSheet.toLowerCase();
-        const m = allTitles.find(t => t.toLowerCase().startsWith(lc) && /data$/.test(t.toLowerCase()));
-        return m || null;
+      findDataSheetName(allTitles,classSheet){
+        const candidates=[`${classSheet}data`,`${classSheet} data`,`${classSheet.trim()}Data`];
+        for(const c of candidates){ if(allTitles.includes(c)) return c; }
+        const lc=classSheet.toLowerCase();
+        return allTitles.find(t=>t.toLowerCase().startsWith(lc)&&/data$/.test(t.toLowerCase()))||null;
       }
-
-      async loadLastThreeFromDataSheet(student, dataSheetName){
+      async loadLastThreeFromDataSheet(student,dataSheetName){
         try{
-          const data = await fetchJSON(valuesURL(dataSheetName));
-          const rows = data.values || [];
-          if(rows.length < 3){ this.renderLog([]); return; }
-
-          const headerRow2 = rows[1] || []; // etichette in riga 2
-
-          // Cerca la riga dello studente per NOME (match esatto, case-insensitive)
-          const target = (student.name||'').trim().toLowerCase();
-          let studentRow = [];
-          for(const r of rows){
-            if((r||[]).some(c => String(c||'').trim().toLowerCase() === target)){
-              studentRow = r; break;
-            }
+          const data=await fetchJSON(valuesURL(dataSheetName));
+          const rows=data.values||[];
+          if(rows.length<3){ this.renderLog([]);return; }
+          const headerRow2=rows[1]||[];
+          const target=(student.name||'').trim().toLowerCase();
+          let studentRow=[];
+          for(const r of rows){ if((r||[]).some(c=>String(c||'').trim().toLowerCase()===target)){studentRow=r;break;} }
+          if(studentRow.length===0){ this.renderLog([]);return; }
+          const filled=[];
+          const maxLen=Math.max(studentRow.length,headerRow2.length);
+          for(let c=25;c<maxLen;c++){
+            const raw=(studentRow[c]!==undefined&&studentRow[c]!==null)?String(studentRow[c]).trim():'';
+            if(raw!==''){ filled.push({col:c,value:raw,label:headerRow2[c]||''}); }
           }
-          if(studentRow.length === 0){ this.renderLog([]); return; }
-
-          // Prendi le colonne non vuote da Z in poi (Z = indice 25)
-          const filled = [];
-          const maxLen = Math.max(studentRow.length, headerRow2.length);
-          for(let c=25; c<maxLen; c++){
-            const raw = (studentRow[c]!==undefined && studentRow[c]!==null) ? String(studentRow[c]).trim() : '';
-            if(raw!==''){
-              filled.push({ col:c, value: raw, label: headerRow2[c] || '' });
-            }
-          }
-          // Seleziona le ultime 3 (più a destra)
-          const last3 = filled.slice(-3);
+          const last3=filled.slice(-3);
           this.renderLog(last3);
-        }catch(e){
-          console.error(e);
-          this.status(`Errore lettura "${dataSheetName}": ${e.message}`, 'error');
-          this.renderLog([]);
-        }
+        }catch(e){console.error(e);this.status(`Error reading "${dataSheetName}": ${e.message}`,'error');this.renderLog([]);}
       }
     }
-
-    // Avvio
-    document.addEventListener('DOMContentLoaded', ()=> new Viewer());
+    document.addEventListener('DOMContentLoaded',()=>new Viewer());
   </script>
 </body>
 </html>
