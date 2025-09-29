@@ -56,19 +56,73 @@
         </div>
 
         <div id="transactionLog" class="transaction-log">
-          <h4>Latest entries:</h4>
+          <h4>Latest transactions:</h4>
           <div id="logEntries"></div>
         </div>
 
-        <div class="motivation">
-          🌟 "Every effort you make brings you closer to success." 🌟
-        </div>
       </div>
 
       <div id="status" class="status info">Open with a QR like <code>?id=FF:…</code></div>
     </div>
   </div>
 
+<!-- ... (resto del codice identico alla tua versione) ... -->
+
+<div id="status" class="status info">Open with a QR like <code>?id=FF:…</code></div>
+</div>
+</div>
+
+<!-- Motivational message -->
+<div id="motivationBox" class="motivation"></div>
+
+<script>
+  // === CONFIG FISSA ===
+  const CONFIG = {
+    spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
+    apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
+  };
+
+  // === FRASES MOTIVAZIONALI ===
+  const MOTIVATION_QUOTES = [
+    "🌟 Believe in yourself and all that you are. 🌟",
+    "💪 Small steps every day create big changes. 💪",
+    "🚀 Learning today builds your future tomorrow. 🚀",
+    "✨ Mistakes are proof that you are trying. ✨"
+  ];
+
+  // Mostra frase random
+  function showRandomMotivation() {
+    const box = document.getElementById('motivationBox');
+    const randomIndex = Math.floor(Math.random() * MOTIVATION_QUOTES.length);
+    box.textContent = MOTIVATION_QUOTES[randomIndex];
+  }
+
+  // ... qui rimane la tua classe Viewer ...
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    new Viewer();
+    showRandomMotivation(); // mostra una frase quando si carica la pagina
+  });
+</script>
+
+<style>
+  /* aggiungi in fondo al tuo <style> */
+  .motivation {
+    margin: 18px auto;
+    max-width: 420px;
+    text-align: center;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    font-style: italic;
+    background: #FFE28A; /* giallo tenue */
+    color: #333;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+</style>
+
+  
   <script>
     // === CONFIG FISSA ===
     const CONFIG = {
