@@ -38,8 +38,18 @@
     .status.info{display:block;background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
     .status.success{display:block;background:#d4edda;color:#155724;border:1px solid #c3e6cb}
     .status.error{display:block;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
-    .disclaimer{margin-top:14px;background:#fff9;border:2px solid #FDA104;border-radius:12px;padding:14px;
-      color:#8B5A9F;font-size:14px;text-align:center}
+    .disclaimer{
+      margin-top:14px;
+      background:#fff9;
+      border:2px solid #FDA104;
+      border-radius:12px;
+      padding:14px;
+      color:#8B5A9F;
+      font-size:14px;
+      text-align:center;
+      font-weight:600;
+      font-style:italic;
+    }
   </style>
 </head>
 <body>
@@ -67,7 +77,7 @@
       </div>
 
       <div id="status" class="status info">Apri con un QR del tipo <code>?id=FF:…</code></div>
-      <div class="disclaimer">Spend it wisely!</div>
+      <div id="disclaimer" class="disclaimer"></div>
     </div>
   </div>
 
@@ -77,6 +87,20 @@
       spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
       apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
     };
+
+    // === FRASES MOTIVAZIONALI ===
+    const MOTIVATION_QUOTES = [
+      "💡 Spend it wisely!",
+      "✅ Good choices always pay off.",
+      "🌟 Believe in yourself and all that you are.",
+      "🚀 Every effort today builds your tomorrow."
+    ];
+
+    function showRandomMotivation() {
+      const box = document.getElementById('disclaimer');
+      const randomIndex = Math.floor(Math.random() * MOTIVATION_QUOTES.length);
+      box.textContent = MOTIVATION_QUOTES[randomIndex];
+    }
 
     // ==== Utility Sheets API ====
     async function fetchJSON(url){
@@ -97,7 +121,6 @@
         this.currentStudent = null;
         this.init();
       }
-
       status(msg,type='info'){
         const el = document.getElementById('status');
         el.textContent = msg;
@@ -105,144 +128,92 @@
         el.style.display = 'block';
         if(type==='success') setTimeout(()=> el.style.display='none', 2500);
       }
-
-      showCard(){
-        document.getElementById('studentCard').classList.add('show');
-      }
-
+      showCard(){ document.getElementById('studentCard').classList.add('show'); }
       setStudentInfo(st){
         document.getElementById('studentName').textContent = st.name;
         document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
         document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
       }
-
       renderLog(items){
         const box = document.getElementById('logEntries');
         if(!items.length){
           box.innerHTML = `<div class="log-entry"><div class="log-left"><span class="log-label">Nessuna voce trovata</span></div><span class="log-amount">—</span></div>`;
           return;
         }
-        box.innerHTML = items.map(it => {
-          const amt = (''+it.value).trim();
-          const label = (it.label||'').trim();
-          return `
+        box.innerHTML = items.map(it => `
             <div class="log-entry">
-              <div class="log-left"><span class="log-label">${label || '&nbsp;'}</span></div>
-              <span class="log-amount">${amt}</span>
-            </div>`;
-        }).join('');
+              <div class="log-left"><span class="log-label">${it.label||''}</span></div>
+              <span class="log-amount">${it.value}</span>
+            </div>`).join('');
       }
-
       async init(){
         const params = new URLSearchParams(location.search);
         const id = params.get('id');
-        if(!id){
-          this.status('Manca il parametro ?id=...', 'info');
-          return;
-        }
-        try{
-          await this.loadStudentById(id);
-        }catch(e){
-          console.error(e);
-          this.status('Errore: ' + e.message, 'error');
-        }
+        if(!id){ this.status('Manca il parametro ?id=...', 'info'); return; }
+        try{ await this.loadStudentById(id); }catch(e){ console.error(e); this.status('Errore: '+e.message,'error');}
       }
-
       async loadStudentById(tagId){
-        this.status('Cerco lo studente…', 'info');
+        this.status('Cerco lo studente…','info');
         const meta = await fetchJSON(metaURL());
-        const titles = (meta.sheets||[]).map(s => s.properties.title);
-
-        // 1) Cerca lo studente nei fogli classe (tutti quelli che NON terminano con "data")
+        const titles = (meta.sheets||[]).map(s=>s.properties.title);
         for(const sheetName of titles){
           if(/data$/i.test(sheetName)) continue;
           const data = await fetchJSON(valuesURL(sheetName));
-          const rows = data.values || [];
+          const rows = data.values||[];
           for(const row of rows){
             const cellId = (row[0]||'').toString().trim();
             if(!cellId) continue;
-            // match tollerante (molti UID con i ":")
             if(cellId.toUpperCase().includes(tagId.trim().toUpperCase())){
               const student = {
-                id: cellId,
-                name: row[1] || 'Nome non trovato',
-                balance: parseFloat((row[2]||'0').toString().replace(',','.')) || 0,
-                classSheet: sheetName
+                id:cellId,
+                name:row[1]||'Nome non trovato',
+                balance:parseFloat((row[2]||'0').toString().replace(',','.'))||0,
+                classSheet:sheetName
               };
-              this.currentStudent = student;
+              this.currentStudent=student;
               this.setStudentInfo(student);
               this.showCard();
-              this.status(`Trovato in: ${sheetName}`, 'success');
-
-              // 2) Trova il foglio dati relativo (…data) e carica le ultime 3 colonne non vuote da Z in poi
-              const dataSheet = this.findDataSheetName(titles, sheetName);
-              if(dataSheet){
-                await this.loadLastThreeFromDataSheet(student, dataSheet);
-              } else {
-                this.renderLog([]);
-              }
-              return; // stop: studente trovato
+              this.status(`Trovato in: ${sheetName}`,'success');
+              const dataSheet=this.findDataSheetName(titles,sheetName);
+              if(dataSheet){ await this.loadLastThreeFromDataSheet(student,dataSheet);} else this.renderLog([]);
+              return;
             }
           }
         }
-        this.status('Studente non trovato: ' + tagId, 'error');
+        this.status('Studente non trovato: '+tagId,'error');
       }
-
-      findDataSheetName(allTitles, classSheet){
-        // priorità: "<classSheet>data" esatto (spazi o camel-case)
-        const candidates = [
-          `${classSheet}data`,
-          `${classSheet} data`,
-          `${classSheet.trim()}Data`
-        ];
-        for(const c of candidates){
-          if(allTitles.includes(c)) return c;
-        }
-        const lc = classSheet.toLowerCase();
-        const m = allTitles.find(t => t.toLowerCase().startsWith(lc) && /data$/.test(t.toLowerCase()));
-        return m || null;
+      findDataSheetName(allTitles,classSheet){
+        const candidates=[`${classSheet}data`,`${classSheet} data`,`${classSheet.trim()}Data`];
+        for(const c of candidates){ if(allTitles.includes(c)) return c; }
+        const lc=classSheet.toLowerCase();
+        return allTitles.find(t=>t.toLowerCase().startsWith(lc)&&/data$/.test(t.toLowerCase()))||null;
       }
-
-      async loadLastThreeFromDataSheet(student, dataSheetName){
+      async loadLastThreeFromDataSheet(student,dataSheetName){
         try{
-          const data = await fetchJSON(valuesURL(dataSheetName));
-          const rows = data.values || [];
-          if(rows.length < 3){ this.renderLog([]); return; }
-
-          const headerRow2 = rows[1] || []; // etichette in riga 2
-
-          // Cerca la riga dello studente per NOME (match esatto, case-insensitive)
-          const target = (student.name||'').trim().toLowerCase();
-          let studentRow = [];
-          for(const r of rows){
-            if((r||[]).some(c => String(c||'').trim().toLowerCase() === target)){
-              studentRow = r; break;
-            }
+          const data=await fetchJSON(valuesURL(dataSheetName));
+          const rows=data.values||[];
+          if(rows.length<3){ this.renderLog([]); return; }
+          const headerRow2=rows[1]||[];
+          const target=(student.name||'').trim().toLowerCase();
+          let studentRow=[];
+          for(const r of rows){ if((r||[]).some(c=>String(c||'').trim().toLowerCase()===target)){studentRow=r;break;} }
+          if(studentRow.length===0){ this.renderLog([]); return; }
+          const filled=[];
+          const maxLen=Math.max(studentRow.length,headerRow2.length);
+          for(let c=25;c<maxLen;c++){
+            const raw=(studentRow[c]!==undefined&&studentRow[c]!==null)?String(studentRow[c]).trim():'';
+            if(raw!==''){ filled.push({col:c,value:raw,label:headerRow2[c]||''}); }
           }
-          if(studentRow.length === 0){ this.renderLog([]); return; }
-
-          // Prendi le colonne non vuote da Z in poi (Z = indice 25)
-          const filled = [];
-          const maxLen = Math.max(studentRow.length, headerRow2.length);
-          for(let c=25; c<maxLen; c++){
-            const raw = (studentRow[c]!==undefined && studentRow[c]!==null) ? String(studentRow[c]).trim() : '';
-            if(raw!==''){
-              filled.push({ col:c, value: raw, label: headerRow2[c] || '' });
-            }
-          }
-          // Seleziona le ultime 3 (più a destra)
-          const last3 = filled.slice(-3);
+          const last3=filled.slice(-3);
           this.renderLog(last3);
-        }catch(e){
-          console.error(e);
-          this.status(`Errore lettura "${dataSheetName}": ${e.message}`, 'error');
-          this.renderLog([]);
-        }
+        }catch(e){ console.error(e); this.status(`Errore lettura "${dataSheetName}": ${e.message}`,'error'); this.renderLog([]);}
       }
     }
 
-    // Avvio
-    document.addEventListener('DOMContentLoaded', ()=> new Viewer());
+    document.addEventListener('DOMContentLoaded',()=>{
+      new Viewer();
+      showRandomMotivation(); // Mostra frase random nel disclaimer
+    });
   </script>
 </body>
 </html>
