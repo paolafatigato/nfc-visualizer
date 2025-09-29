@@ -1,523 +1,248 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SchoolBank Viewer</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 50%, #FFA500 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #8B5A9F 0%, #E85A4F 100%);
-            color: white;
-            padding: 25px 20px 15px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-            font-weight: 300;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-
-        .content {
-            padding: 20px;
-        }
-
-        .student-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin: 0 0 25px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            display: none;
-            border-left: 5px solid #E85A4F;
-        }
-
-        .student-card.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        .student-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .student-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .student-balance {
-            font-size: 32px;
-            font-weight: bold;
-            color: #E85A4F;
-        }
-
-        .student-id {
-            font-size: 12px;
-            color: #8B5A9F;
-            font-family: monospace;
-            margin-top: 5px;
-        }
-
-        .transaction-log {
-            margin-top: 20px;
-        }
-
-        .transaction-log h4 {
-            margin: 0 0 15px;
-            color: #8B5A9F;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .log-entry {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            margin-bottom: 10px;
-            background: rgba(139, 90, 159, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid #8B5A9F;
-        }
-
-        .log-description {
-            font-size: 13px;
-            color: #666;
-            font-style: italic;
-        }
-
-        .log-amount {
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .log-amount.positive {
-            color: #8B5A9F;
-        }
-
-        .log-amount.negative {
-            color: #E85A4F;
-        }
-
-        .status {
-            padding: 12px;
-            border-radius: 8px;
-            margin: 15px 0;
-            font-weight: 500;
-            display: none;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .test-section {
-            background: rgba(255,255,255,0.9);
-            border: 2px dashed #E85A4F;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            backdrop-filter: blur(10px);
-        }
-
-        .test-input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #E85A4F;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .test-button {
-            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .test-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(139,90,159,0.3);
-        }
-
-        .config-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-
-        .config-title {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .save-button {
-            width: 100%;
-            background: linear-gradient(135deg, #8B5A9F, #E85A4F);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .save-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(139,90,159,0.3);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #8B5A9F;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SchoolBank Viewer</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg,#8B5A9F 0%,#E85A4F 50%,#FFA500 100%);
+      min-height:100vh;padding:20px
+    }
+    .container{max-width:420px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;
+      box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    .header{background:linear-gradient(135deg,#8B5A9F 0%,#E85A4F 100%);color:#fff;padding:24px 20px 16px;
+      text-align:center}
+    .header h1{font-size:22px;font-weight:600;letter-spacing:.2px}
+    .header p{opacity:.9;font-size:13px;margin-top:6px}
+    .content{padding:20px}
+    .student-card{background:#fff;border-left:5px solid #E85A4F;border-radius:14px;padding:22px;
+      box-shadow:0 8px 25px rgba(0,0,0,.12);display:none}
+    .student-card.show{display:block;animation:fade .25s ease-out}
+    @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .student-info{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .student-name{font-weight:700;color:#333;font-size:18px}
+    .student-id{font-size:12px;color:#8B5A9F;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
+    .student-balance{font-size:26px;font-weight:800;color:#E85A4F;white-space:nowrap}
+    .transaction-log{margin-top:10px;padding-top:8px;border-top:1px solid #eee}
+    .transaction-log h4{font-size:13px;color:#8B5A9F;margin-bottom:8px}
+    .log-entry{display:flex;justify-content:space-between;align-items:center;padding:10px 0;
+      border-bottom:1px solid #f1e3e3}
+    .log-entry:last-child{border-bottom:none}
+    .log-left{display:flex;flex-direction:column}
+    .log-label{font-size:12px;color:#555}
+    .log-amount{font-weight:700}
+    .status{display:none;margin:14px 0;padding:12px;border-radius:8px;font-weight:500}
+    .status.info{display:block;background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
+    .status.success{display:block;background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+    .status.error{display:block;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+    .disclaimer{margin-top:14px;background:#fff9;border:2px solid #E85A4F;border-radius:12px;padding:14px;
+      color:#8B5A9F;font-size:14px;text-align:center}
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>SchoolBank</h1>
-            <p>Ms Fatigato</p>
-        </div>
-
-        <div class="content">
-            <div id="studentCard" class="student-card">
-                <div class="student-info">
-                    <div>
-                        <div class="student-name" id="studentName">Nome Studente</div>
-                        <div class="student-id" id="studentId">ID: ABC123</div>
-                    </div>
-                    <div class="student-balance" id="studentBalance">€0.00</div>
-                </div>
-
-                <div class="transaction-log">
-                    <h4>Ultime Transazioni:</h4>
-                    <div id="logEntries" class="loading">Caricamento transazioni...</div>
-                </div>
-            </div>
-
-            <div class="test-section">
-                <strong>Test manuale:</strong>
-                <input type="text" class="test-input" id="testId" placeholder="Inserisci ID carta per test" value="FF:0F:8A:70:51:01:00">
-                <button class="test-button" onclick="testSearch()">Cerca Studente</button>
-            </div>
-
-            <div id="status" class="status"></div>
-
-            <div class="config-section">
-                <div class="config-title">Configurazione</div>
-                
-                <div class="input-group">
-                    <label>ID Google Sheet:</label>
-                    <input type="text" id="spreadsheetId" value="1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE">
-                </div>
-
-                <div class="input-group">
-                    <label>API Key Google:</label>
-                    <input type="text" id="apiKey" placeholder="AIzaSyC...">
-                </div>
-
-                <button class="save-button" onclick="saveConfig()">Salva Configurazione</button>
-            </div>
-        </div>
+  <div class="container">
+    <div class="header">
+      <h1>SchoolBank</h1>
+      <p>Ms Fatigato</p>
     </div>
 
-    <script>
-        class NFCViewer {
-            constructor() {
-                this.config = this.loadConfig();
-                this.currentStudent = null;
-                this.initializeApp();
-            }
+    <div class="content">
+      <!-- Card studente: sola lettura -->
+      <div id="studentCard" class="student-card">
+        <div class="student-info">
+          <div>
+            <div id="studentName" class="student-name">Nome Studente</div>
+            <div id="studentId" class="student-id">ID: —</div>
+          </div>
+          <div id="studentBalance" class="student-balance">€0</div>
+        </div>
 
-            loadConfig() {
-                const saved = localStorage.getItem('nfc_viewer_config');
-                return saved ? JSON.parse(saved) : {
-                    spreadsheetId: '1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE',
-                    apiKey: ''
-                };
-            }
+        <div id="transactionLog" class="transaction-log">
+          <h4>Ultime voci (dal foglio “*data*”):</h4>
+          <div id="logEntries"></div>
+        </div>
+      </div>
 
-            saveConfig() {
-                const config = {
-                    spreadsheetId: document.getElementById('spreadsheetId').value,
-                    apiKey: document.getElementById('apiKey').value
-                };
-                
-                localStorage.setItem('nfc_viewer_config', JSON.stringify(config));
-                this.config = config;
-                this.showStatus('Configurazione salvata', 'success');
-            }
+      <div id="status" class="status info">Apri con un QR del tipo <code>?id=FF:…</code></div>
+      <div class="disclaimer">Visualizzazione sola lettura. Le modifiche si fanno su Google Sheets.</div>
+    </div>
+  </div>
 
-            initializeApp() {
-                document.getElementById('spreadsheetId').value = this.config.spreadsheetId;
-                document.getElementById('apiKey').value = this.config.apiKey;
-            }
+  <script>
+    // === CONFIG FISSA (hardcoded) ===
+    const CONFIG = {
+      spreadsheetId: "1sZAEWeKau-ji0sjh_snbhfF2hJjjktHhBdrqhenhzvE",
+      apiKey: "AIzaSyCTeDHmE87_9UO31pFLJ5w0keXVDr6-bRA"
+    };
 
-            async searchStudent(tagId) {
-                try {
-                    this.showStatus('Cercando studente...', 'info');
+    // ==== Utility Sheets API ====
+    async function fetchJSON(url){
+      const r = await fetch(url);
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+    function metaURL(){ 
+      return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
+    }
+    function valuesURL(sheetName){
+      return `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${CONFIG.apiKey}`;
+    }
 
-                    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}?key=${this.config.apiKey}`;
-                    const metaRes = await fetch(metaUrl);
-                    
-                    if (!metaRes.ok) throw new Error(`Errore API: ${metaRes.status}`);
+    // ==== App Viewer ====
+    class Viewer {
+      constructor(){
+        this.currentStudent = null;
+        this.init();
+      }
 
-                    const metadata = await metaRes.json();
-                    const sheets = metadata.sheets || [];
+      status(msg,type='info'){
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = `status ${type}`;
+        el.style.display = 'block';
+        if(type==='success') setTimeout(()=> el.style.display='none', 2500);
+      }
 
-                    for (const sh of sheets) {
-                        const sheetName = sh.properties.title;
-                        if (/data$/i.test(sheetName)) continue;
+      showCard(){
+        document.getElementById('studentCard').classList.add('show');
+      }
 
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${this.config.apiKey}`;
-                            const res = await fetch(url);
-                            if (!res.ok) continue;
-                            
-                            const data = await res.json();
-                            const rows = data.values || [];
+      setStudentInfo(st){
+        document.getElementById('studentName').textContent = st.name;
+        document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
+        document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
+      }
 
-                            for (let i = 0; i < rows.length; i++) {
-                                const row = rows[i];
-                                const cellId = row[0] ? row[0].toString().trim() : '';
-                                
-                                if (cellId === tagId.trim() || cellId.includes(tagId.trim())) {
-                                    const student = {
-                                        id: cellId,
-                                        name: row[1] || 'Nome non trovato',
-                                        balance: parseFloat(row[2] || 0),
-                                        sheetName,
-                                        rowIndex: i + 1
-                                    };
-                                    
-                                    this.displayStudent(student);
-                                    await this.loadTransactions(student);
-                                    return;
-                                }
-                            }
-                        } catch (err) {
-                            console.log(`Errore foglio ${sheetName}:`, err);
-                            continue;
-                        }
-                    }
-
-                    this.showStatus('Studente non trovato', 'error');
-                } catch (error) {
-                    this.showStatus('Errore: ' + error.message, 'error');
-                }
-            }
-
-            displayStudent(student) {
-                this.currentStudent = student;
-                
-                document.getElementById('studentName').textContent = student.name;
-                document.getElementById('studentId').textContent = `ID: ${student.id} (Foglio: ${student.sheetName})`;
-                document.getElementById('studentBalance').textContent = '€' + student.balance.toFixed(2);
-                
-                document.getElementById('studentCard').classList.add('show');
-                this.showStatus('Studente trovato', 'success');
-            }
-
-            async loadTransactions(student) {
-                const logEntries = document.getElementById('logEntries');
-                logEntries.innerHTML = '<div class="loading">Caricamento transazioni...</div>';
-
-                try {
-                    const dataSheetName = student.sheetName + 'data';
-                    
-                    // Carica il foglio data
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${encodeURIComponent(dataSheetName)}?key=${this.config.apiKey}`;
-                    const res = await fetch(url);
-                    
-                    if (!res.ok) throw new Error('Foglio data non trovato');
-                    
-                    const data = await res.json();
-                    const rows = data.values || [];
-                    
-                    if (student.rowIndex > rows.length) {
-                        logEntries.innerHTML = '<div style="text-align:center;color:#999">Nessuna transazione registrata</div>';
-                        return;
-                    }
-                    
-                    // Prendi le descrizioni dalla riga 2 (indice 1)
-                    const descriptions = rows[1] || [];
-                    
-                    // Prendi la riga dello studente
-                    const studentRow = rows[student.rowIndex - 1] || [];
-                    
-                    // Trova le ultime 3 colonne piene (dalla Z=25 in poi)
-                    const transactions = [];
-                    for (let col = studentRow.length - 1; col >= 25 && transactions.length < 3; col--) {
-                        const value = studentRow[col];
-                        if (value !== null && value !== undefined && value !== '') {
-                            const amount = parseFloat(value);
-                            const description = descriptions[col] || 'Transazione';
-                            
-                            transactions.push({
-                                amount: amount,
-                                description: description
-                            });
-                        }
-                    }
-                    
-                    if (transactions.length === 0) {
-                        logEntries.innerHTML = '<div style="text-align:center;color:#999">Nessuna transazione registrata</div>';
-                        return;
-                    }
-                    
-                    // Mostra le transazioni (dalla più recente alla meno recente)
-                    let html = '';
-                    for (const trans of transactions) {
-                        const amountClass = trans.amount >= 0 ? 'positive' : 'negative';
-                        const amountStr = trans.amount >= 0 ? `+€${trans.amount.toFixed(2)}` : `-€${Math.abs(trans.amount).toFixed(2)}`;
-                        
-                        html += `
-                            <div class="log-entry">
-                                <div>
-                                    <div class="log-amount ${amountClass}">${amountStr}</div>
-                                    <div class="log-description">${trans.description}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    logEntries.innerHTML = html;
-                    
-                } catch (error) {
-                    console.error('Errore caricamento transazioni:', error);
-                    logEntries.innerHTML = '<div style="text-align:center;color:#E85A4F">Errore caricamento transazioni</div>';
-                }
-            }
-
-            showStatus(message, type) {
-                const el = document.getElementById('status');
-                el.textContent = message;
-                el.className = `status ${type}`;
-                el.style.display = 'block';
-                
-                if (type === 'success') {
-                    setTimeout(() => { el.style.display = 'none'; }, 3000);
-                }
-            }
-
-            validateConfig() {
-                return this.config.spreadsheetId && this.config.apiKey;
-            }
+      renderLog(items){
+        const box = document.getElementById('logEntries');
+        if(!items.length){
+          box.innerHTML = `<div class="log-entry"><div class="log-left"><span class="log-label">Nessuna voce trovata</span></div><span class="log-amount">—</span></div>`;
+          return;
         }
+        box.innerHTML = items.map(it => {
+          const amt = (''+it.value).trim();
+          const label = (it.label||'').trim();
+          return `
+            <div class="log-entry">
+              <div class="log-left"><span class="log-label">${label || '&nbsp;'}</span></div>
+              <span class="log-amount">${amt}</span>
+            </div>`;
+        }).join('');
+      }
 
-        function saveConfig() {
-            window.nfcViewer.saveConfig();
+      async init(){
+        const params = new URLSearchParams(location.search);
+        const id = params.get('id');
+        if(!id){
+          this.status('Manca il parametro ?id=...', 'info');
+          return;
         }
-
-        function testSearch() {
-            const v = document.getElementById('testId').value;
-            if (v) window.nfcViewer.searchStudent(v);
+        try{
+          await this.loadStudentById(id);
+        }catch(e){
+          console.error(e);
+          this.status('Errore: ' + e.message, 'error');
         }
+      }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            window.nfcViewer = new NFCViewer();
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            const cardId = urlParams.get('id');
-            
-            if (cardId) {
-                document.getElementById('testId').value = cardId;
-                setTimeout(() => {
-                    if (window.nfcViewer.validateConfig()) {
-                        window.nfcViewer.searchStudent(cardId);
-                    } else {
-                        window.nfcViewer.showStatus('Configura prima l\'API Key', 'error');
-                    }
-                }, 1200);
+      async loadStudentById(tagId){
+        this.status('Cerco lo studente…', 'info');
+        const meta = await fetchJSON(metaURL());
+        const titles = (meta.sheets||[]).map(s => s.properties.title);
+
+        // 1) Cerca lo studente nei fogli classe (tutti quelli che NON terminano con "data")
+        for(const sheetName of titles){
+          if(/data$/i.test(sheetName)) continue;
+          const data = await fetchJSON(valuesURL(sheetName));
+          const rows = data.values || [];
+          for(const row of rows){
+            const cellId = (row[0]||'').toString().trim();
+            if(!cellId) continue;
+            // match tollerante (molti UID con i ":")
+            if(cellId.toUpperCase().includes(tagId.trim().toUpperCase())){
+              const student = {
+                id: cellId,
+                name: row[1] || 'Nome non trovato',
+                balance: parseFloat((row[2]||'0').toString().replace(',','.')) || 0,
+                classSheet: sheetName
+              };
+              this.currentStudent = student;
+              this.setStudentInfo(student);
+              this.showCard();
+              this.status(`Trovato in: ${sheetName}`, 'success');
+
+              // 2) Trova il foglio dati relativo (…data) e carica le ultime 3 colonne non vuote da Z in poi
+              const dataSheet = this.findDataSheetName(titles, sheetName);
+              if(dataSheet){
+                await this.loadLastThreeFromDataSheet(student, dataSheet);
+              } else {
+                this.renderLog([]);
+              }
+              return; // stop: studente trovato
             }
-        });
-    </script>
+          }
+        }
+        this.status('Studente non trovato: ' + tagId, 'error');
+      }
+
+      findDataSheetName(allTitles, classSheet){
+        // priorità: "<classSheet>data" esatto (spazi o camel-case)
+        const candidates = [
+          `${classSheet}data`,
+          `${classSheet} data`,
+          `${classSheet.trim()}Data`
+        ];
+        for(const c of candidates){
+          if(allTitles.includes(c)) return c;
+        }
+        const lc = classSheet.toLowerCase();
+        const m = allTitles.find(t => t.toLowerCase().startsWith(lc) && /data$/.test(t.toLowerCase()));
+        return m || null;
+      }
+
+      async loadLastThreeFromDataSheet(student, dataSheetName){
+        try{
+          const data = await fetchJSON(valuesURL(dataSheetName));
+          const rows = data.values || [];
+          if(rows.length < 3){ this.renderLog([]); return; }
+
+          const headerRow2 = rows[1] || []; // etichette in riga 2
+
+          // Cerca la riga dello studente per NOME (match esatto, case-insensitive)
+          const target = (student.name||'').trim().toLowerCase();
+          let studentRow = [];
+          for(const r of rows){
+            if((r||[]).some(c => String(c||'').trim().toLowerCase() === target)){
+              studentRow = r; break;
+            }
+          }
+          if(studentRow.length === 0){ this.renderLog([]); return; }
+
+          // Prendi le colonne non vuote da Z in poi (Z = indice 25)
+          const filled = [];
+          const maxLen = Math.max(studentRow.length, headerRow2.length);
+          for(let c=25; c<maxLen; c++){
+            const raw = (studentRow[c]!==undefined && studentRow[c]!==null) ? String(studentRow[c]).trim() : '';
+            if(raw!==''){
+              filled.push({ col:c, value: raw, label: headerRow2[c] || '' });
+            }
+          }
+          // Seleziona le ultime 3 (più a destra)
+          const last3 = filled.slice(-3);
+          this.renderLog(last3);
+        }catch(e){
+          console.error(e);
+          this.status(`Errore lettura "${dataSheetName}": ${e.message}`, 'error');
+          this.renderLog([]);
+        }
+      }
+    }
+
+    // Avvio
+    document.addEventListener('DOMContentLoaded', ()=> new Viewer());
+  </script>
 </body>
 </html>
