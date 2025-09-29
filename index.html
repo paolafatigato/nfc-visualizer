@@ -65,7 +65,7 @@
         <div class="student-info">
           <div>
             <div id="studentName" class="student-name">Nome Studente</div>
-            <div id="studentId" class="student-id">ID: —</div>
+
           </div>
           <div id="studentBalance" class="student-balance">€0</div>
         </div>
@@ -131,7 +131,7 @@
       showCard(){ document.getElementById('studentCard').classList.add('show'); }
       setStudentInfo(st){
         document.getElementById('studentName').textContent = st.name;
-        document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
+        //document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
         document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
       }
       renderLog(items){
