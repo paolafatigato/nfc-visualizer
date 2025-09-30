@@ -200,7 +200,7 @@
           if(studentRow.length===0){ this.renderLog([]); return; }
           const filled=[];
           const maxLen=Math.max(studentRow.length,headerRow2.length);
-          for(let c=3;c<maxLen;c++){   //colonna n 3 
+          for(let c=6;c<maxLen;c++){   //colonna n 6
             const raw=(studentRow[c]!==undefined&&studentRow[c]!==null)?String(studentRow[c]).trim():'';
             if(raw!==''){ filled.push({col:c,value:raw,label:headerRow2[c]||''}); }
           }
