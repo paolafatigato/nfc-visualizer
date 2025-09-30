@@ -200,11 +200,11 @@
           if(studentRow.length===0){ this.renderLog([]); return; }
           const filled=[];
           const maxLen=Math.max(studentRow.length,headerRow2.length);
-          for(let c=25;c<maxLen;c++){
+          for(let c=3;c<maxLen;c++){   //colonna n 3 
             const raw=(studentRow[c]!==undefined&&studentRow[c]!==null)?String(studentRow[c]).trim():'';
             if(raw!==''){ filled.push({col:c,value:raw,label:headerRow2[c]||''}); }
           }
-          const last3=filled.slice(-3);
+          const last3=filled.slice(-5); //le ultime 5 transazioni
           this.renderLog(last3);
         }catch(e){ console.error(e); this.status(`Errore lettura "${dataSheetName}": ${e.message}`,'error'); this.renderLog([]);}
       }
