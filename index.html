@@ -67,7 +67,7 @@
             <div id="studentName" class="student-name">Nome Studente</div>
 
           </div>
-          <div id="studentBalance" class="student-balance">€0</div>
+          <div id="studentBalance" class="student-balance">$0</div>
         </div>
 
         <div id="transactionLog" class="transaction-log">
@@ -132,7 +132,7 @@
       setStudentInfo(st){
         document.getElementById('studentName').textContent = st.name;
         //document.getElementById('studentId').textContent   = `ID: ${st.id}  (Foglio: ${st.classSheet})`;
-        document.getElementById('studentBalance').textContent = '€' + st.balance.toFixed(2);
+        document.getElementById('studentBalance').textContent = '$' + st.balance.toFixed(2);
       }
       renderLog(items){
         const box = document.getElementById('logEntries');
