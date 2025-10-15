@@ -204,8 +204,12 @@
             const raw=(studentRow[c]!==undefined&&studentRow[c]!==null)?String(studentRow[c]).trim():'';
             if(raw!==''){ filled.push({col:c,value:raw,label:headerRow2[c]||''}); }
           }
-          const last3=filled.slice(-5); //le ultime 5 transazioni
-          this.renderLog(last3);
+         // const last3=filled.slice(-5); //le ultime 5 transazioni
+         // this.renderLog(last3);
+          // Mostra TUTTE le transazioni, più recente in alto
+const all = filled.reverse(); // inverti l'ordine: la più a destra diventa la prima
+this.renderLog(all);
+
         }catch(e){ console.error(e); this.status(`Errore lettura "${dataSheetName}": ${e.message}`,'error'); this.renderLog([]);}
       }
     }
