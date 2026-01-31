@@ -246,6 +246,10 @@
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">📜 Transaction History</h3>
+              <div class="search-bar" style="max-width: 360px; width: 100%;">
+                <span class="search-bar-icon">🔍</span>
+                <input id="historySearchInput" type="search" class="input" placeholder="Search by student or reward name">
+              </div>
             </div>
             <div class="card-body">
               <div id="historyList"></div>
@@ -531,6 +535,10 @@ ALLMETA REINA\t240\t10\t5
       await Dashboard.init();
       if (!Auth.requireAuth(['admin'])) return;
       UserManager.init();
+      const historySearchInput = document.getElementById('historySearchInput');
+      if (historySearchInput) {
+        historySearchInput.addEventListener('input', () => applyHistoryFilter());
+      }
       await loadData();
       showSection('dashboard');
     }
@@ -873,6 +881,55 @@ ALLMETA REINA\t240\t10\t5
       });
     }
 
+    function renderHistoryList(groups, emptyMessage = 'No transactions') {
+      const container = document.getElementById('historyList');
+      if (!container) return;
+
+      if (!groups || groups.length === 0) {
+        container.innerHTML = `<p class="text-muted text-center">${emptyMessage}</p>`;
+        window.transactionGroups = [];
+        return;
+      }
+
+      container.innerHTML = groups.map((group, index) => `
+        <div class="transaction-item" style="background: white; border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-3); box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;">
+          <div style="position: absolute; top: var(--space-3); right: var(--space-3); display: flex; gap: var(--space-2);">
+            <button class="btn btn-ghost btn-sm" onclick="reuseTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);" title="Reuse reward">🔄</button>
+            <button class="btn btn-ghost btn-sm" onclick="editTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);">✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2); color: var(--danger);">🗑️</button>
+          </div>
+          <div class="transaction-icon">${group.icon}</div>
+          <div class="transaction-info">
+            <div class="transaction-reason"><strong>Student${group.students.length > 1 ? 's' : ''}:</strong> ${group.students.join(', ')}</div>
+            <div class="transaction-meta"><strong>Amount:</strong> ${group.amount >= 0 ? '+' : ''}${sym}${Math.abs(group.amount)}</div>
+            <div class="transaction-meta"><strong>Reason:</strong> ${group.reason}</div>
+            <div class="transaction-meta"><strong>Date:</strong> ${Format.relativeTime(group.timestamp)}</div>
+          </div>
+        </div>
+      `).join('');
+
+      window.transactionGroups = groups;
+    }
+
+    function applyHistoryFilter() {
+      const input = document.getElementById('historySearchInput');
+      const term = (input?.value || '').trim().toLowerCase();
+      const allGroups = window.transactionGroupsAll || [];
+
+      if (!term) {
+        renderHistoryList(allGroups, 'No transactions');
+        return;
+      }
+
+      const filtered = allGroups.filter(group => {
+        const reason = (group.reason || '').toString().toLowerCase();
+        const studentMatch = (group.students || []).some(s => (s || '').toString().toLowerCase().includes(term));
+        return reason.includes(term) || studentMatch;
+      });
+
+      renderHistoryList(filtered, 'No results');
+    }
+
     async function loadHistory() {
       const container = document.getElementById('historyList');
       if (!container) return;
@@ -882,7 +939,8 @@ ALLMETA REINA\t240\t10\t5
         const transactions = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, 50);
 
         if (transactions.length === 0) {
-          container.innerHTML = '<p class="text-muted text-center">No transactions</p>';
+          window.transactionGroupsAll = [];
+          renderHistoryList([], 'No transactions');
           return;
         }
 
@@ -928,24 +986,8 @@ ALLMETA REINA\t240\t10\t5
           grouped.push(group);
         }
 
-        container.innerHTML = grouped.map((group, index) => `
-          <div class="transaction-item" style="background: white; border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-3); box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;">
-            <div style="position: absolute; top: var(--space-3); right: var(--space-3); display: flex; gap: var(--space-2);">
-              <button class="btn btn-ghost btn-sm" onclick="reuseTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);" title="Reuse reward">🔄</button>
-              <button class="btn btn-ghost btn-sm" onclick="editTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);">✏️</button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2); color: var(--danger);">🗑️</button>
-            </div>
-            <div class="transaction-icon">${group.icon}</div>
-            <div class="transaction-info">
-              <div class="transaction-reason"><strong>Student${group.students.length > 1 ? 's' : ''}:</strong> ${group.students.join(', ')}</div>
-              <div class="transaction-meta"><strong>Amount:</strong> ${group.amount >= 0 ? '+' : ''}${sym}${Math.abs(group.amount)}</div>
-              <div class="transaction-meta"><strong>Reason:</strong> ${group.reason}</div>
-              <div class="transaction-meta"><strong>Date:</strong> ${Format.relativeTime(group.timestamp)}</div>
-            </div>
-          </div>
-        `).join('');
-
-        window.transactionGroups = grouped;
+        window.transactionGroupsAll = grouped;
+        applyHistoryFilter();
       } catch (error) {
         console.error('Error loading history:', error);
         container.innerHTML = '<p class="text-muted text-center">Load error: ' + error.message + '</p>';
