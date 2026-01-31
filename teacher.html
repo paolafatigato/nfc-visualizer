@@ -1642,15 +1642,15 @@ ALLMETA REINA\t240\t10\t5
     // ========== DEFAULT REWARDS ==========
     const DEFAULT_REWARDS = [
       { name: '1 week no homework', description: 'One full week with no homework', icon: '📅', cost: 100 },
+      { name: 'Deskmate for 1 week', description: 'Choose your deskmate for one week', icon: '🪑', cost: 100 },
+      { name: 'Deskmate for 1h', description: 'Choose your deskmate for one hour', icon: '🪑', cost: 50 },
       { name: 'Choose a song', description: 'Choose the song to listen to in class', icon: '🎵', cost: 80 },
-      { name: 'Group work', description: 'Choose your group for the next task', icon: '👥', cost: 200 },
-      { name: 'Public message', description: 'Make an announcement to the class', icon: '📢', cost: 200 },
-      { name: 'Test or remove homework', description: 'Choose a test or remove homework', icon: '📝', cost: 400 },
+      { name: 'Choose a song in English', description: 'Choose a song with an English lyric to listen to in class', icon: '🎶', cost: 50 },
+      { name: 'Group work', description: 'Choose your group for the next group activity', icon: '👥', cost: 300 },
+      { name: 'Shoutout to a friend', description: 'Make an announcement to the class, or a public message to a friend, 3 minutes top', icon: '📢', cost: 20 },
+      { name: 'Remove worst grade', description: 'Delete your worst grade', icon: '❌', cost: 400 },
       { name: 'No homework', description: 'Skip homework for today', icon: '🚫', cost: 50 },
-      { name: 'No homework for class', description: 'The whole class has no homework', icon: '🎉', cost: 300 },
-      { name: 'Move the test', description: 'Postpone the test by one day', icon: '📆', cost: 60 },
-      { name: '+1 to grade', description: 'Increase one grade by 1 point', icon: '⭐', cost: 300 },
-      { name: 'Choose an assignment', description: 'Choose which assignment to do', icon: '✏️', cost: 150 }
+      { name: '+1 to grade', description: 'Increase one grade by 1 point', icon: '💫', cost: 300 }
     ];
 
     async function createDefaultRewards() {
@@ -2467,3 +2467,4 @@ ALLMETA REINA\t240\t10\t5
   </script>
 </body>
 </html>
+
