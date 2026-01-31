@@ -1,0 +1,2427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard | SchoolBank</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏦%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-logo">🏦</span>
+        <span class="sidebar-brand">SchoolBank</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <button class="nav-item active" data-nav="dashboard" onclick="showSection('dashboard')">
+            <span class="nav-item-icon">🏠</span> Home
+          </button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Management</div>
+          <button class="nav-item" data-nav="students" onclick="showSection('students')">
+            <span class="nav-item-icon">👥</span> Students
+          </button>
+          <button class="nav-item" data-nav="classes" onclick="showSection('classes')">
+            <span class="nav-item-icon">🏫</span> Classes
+          </button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Rewards & Prices</div>
+          <button class="nav-item" data-nav="giveRewards" onclick="showSection('giveRewards')">
+            <span class="nav-item-icon">⭐</span> Give Rewards
+          </button>
+          <button class="nav-item" data-nav="rewards" onclick="showSection('rewards')">
+            <span class="nav-item-icon">🎁</span> Prices Catalog
+          </button>
+          <button class="nav-item" data-nav="quickrewards" onclick="showSection('quickrewards')">
+            <span class="nav-item-icon">⚡</span> Quick Rewards
+          </button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Activity</div>
+          <button class="nav-item" data-nav="history" onclick="showSection('history')">
+            <span class="nav-item-icon">📜</span> History
+          </button>
+          <button class="nav-item" data-nav="requests" onclick="showSection('requests')">
+            <span class="nav-item-icon">🎁</span> Requests
+            <span id="requestsNavBadge" class="nav-item-badge hidden">0</span>
+          </button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <button class="nav-item" data-nav="settings" onclick="showSection('settings')">
+            <span class="nav-item-icon">⚙️</span> Settings
+          </button>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-menu" onclick="LoginPage.handleLogout()" title="Click to sign out">
+          <div id="userAvatar" class="avatar">AD</div>
+          <div class="user-info">
+            <div id="userName" class="user-name">Admin</div>
+            <div id="userRole" class="user-role">Teacher</div>
+          </div>
+          <span style="font-size:1.2rem;">🚪</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="main-header">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+          <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+            <span style="font-size:1.5rem;">☰</span>
+          </button>
+          <div>
+            <h1 id="pageTitle" class="page-title">Home</h1>
+            <p id="schoolName" class="text-muted" style="font-size:var(--text-sm);">SchoolBank</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="exportStudents()">📥 Export</button>
+        </div>
+      </header>
+
+      <div class="main-body">
+        <!-- Dashboard -->
+        <section id="dashboardSection" class="page-section">
+          <div class="stats-grid">
+            <div class="stat-card home-action" onclick="showSection('students')" title="Go to Students">
+              <div class="stat-icon primary">👥</div>
+              <div class="stat-content">
+                <div class="stat-value">Students</div>
+                <div class="stat-label">Manage student list</div>
+              </div>
+            </div>
+            <div class="stat-card home-action" onclick="showSection('requests')" title="Go to Requests">
+              <div class="stat-icon warning">🎁</div>
+              <div class="stat-content">
+                <div class="stat-value">Requests</div>
+                <div class="stat-label">Approve reward requests</div>
+              </div>
+              <span id="requestsHomeBadge" class="home-badge hidden">0</span>
+            </div>
+            <div class="stat-card home-action" onclick="showSection('history')" title="Go to History">
+              <div class="stat-icon info">📜</div>
+              <div class="stat-content">
+                <div class="stat-value">History</div>
+                <div class="stat-label">Edit recent transactions</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Students -->
+        <section id="studentsSection" class="page-section hidden">
+          <div class="card mb-6">
+            <div class="card-header">
+              <h3 class="card-title">🏆 Top Students</h3>
+              <p class="text-muted" style="font-size:var(--text-sm);margin:0;">Ranking based on total money received</p>
+            </div>
+            <div class="card-body" id="topStudentsContainer"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">👥 Students</h3>
+              <div style="display:flex;gap:var(--space-3);">
+                <select id="classFilter" class="input" style="width:150px;" onchange="renderStudents()"><option value="">All</option></select>
+                <button class="btn btn-primary" onclick="openStudentModal()">+ Add</button>
+                <button class="btn btn-secondary" onclick="openBulkImportStudentModal()">📥 Bulk Import</button>
+              </div>
+            </div>
+            <div class="card-body" id="studentsContainer"></div>
+          </div>
+        </section>
+
+        <!-- Classes -->
+        <section id="classesSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">🏫 Classes</h3><div style="display:flex;gap:var(--space-3);"><button class="btn btn-primary" onclick="openClassModal()">+ Add</button><button class="btn btn-secondary" onclick="openBulkImportClassModal()">📥 Bulk Import</button></div></div>
+            <div class="card-body" id="classesContainer"></div>
+          </div>
+        </section>
+
+        <!-- Teachers -->
+        <section id="teachersSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">👨‍🏫 Teachers</h3><button class="btn btn-primary" onclick="openTeacherModal()">+ Add Teacher</button></div>
+            <div class="card-body" id="teachersContainer"></div>
+          </div>
+        </section>
+
+        <!-- Rewards -->
+        <section id="rewardsSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🎁 Redeemable Rewards</h3>
+              <div style="display: flex; gap: var(--space-2);">
+                <button class="btn btn-secondary" onclick="createDefaultRewards()">📋 Load Defaults</button>
+                <button class="btn btn-primary" onclick="openRewardModal()">+ Add</button>
+              </div>
+            </div>
+            <div class="card-body" id="rewardsContainer"></div>
+          </div>
+        </section>
+
+        <!-- Give Rewards -->
+        <section id="giveRewardsSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">⭐ Give Rewards</h3>
+              <!--<div style="display:flex;gap:var(--space-2);">
+                <button class="btn btn-secondary" onclick="openBulkImportTransactionsModal()">📥 Bulk Import Sheet</button>
+              </div>-->
+            </div>
+            <div class="card-body">
+              <div class="input-group">
+                <label class="input-label">Quick Rewards</label>
+                <div id="rewardButtonsGrid" class="quick-rewards"></div>
+              </div>
+
+              <div style="text-align: center; margin: var(--space-4) 0; color: var(--text-muted);">or</div>
+
+              <div class="input-group">
+                <label class="input-label">Custom Reward</label>
+                <div style="display: flex; gap: var(--space-3);">
+                  <input type="text" id="customEmoji" class="input" placeholder="⭐" value="⭐" style="width: 50px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 50%; padding: 0; flex-shrink: 0;" maxlength="2">
+                  <input type="number" id="customAmount" class="input" placeholder="10" style="width: 90px; flex-shrink: 0;">
+                  <input type="text" id="customReason" class="input" placeholder="Reason" style="flex: 1;">
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">Find students</label>
+                <div class="give-rewards-filters">
+                  <input type="text" id="giveRewardsSearch" class="input" placeholder="Type a name or NFC tag" oninput="handleGiveRewardsSearch()">
+                  <select id="giveRewardsClassFilter" class="input" onchange="renderStudentSelects()">
+                    <option value="">All classes</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+                  <label class="input-label" style="margin-bottom: 0;">Select Students</label>
+                  <div style="display:flex;gap:var(--space-2);align-items:center;">
+                    <button class="btn btn-ghost btn-sm" onclick="selectAllStudents()" style="padding: var(--space-1) var(--space-3);">
+                      ✅ Select All
+                    </button>
+                    <button id="giveRewardBtnTop" class="btn btn-primary btn-sm" onclick="giveCustomReward()" disabled>
+                      ⭐ Give Reward
+                    </button>
+                  </div>
+                </div>
+                <div id="studentSelectGrid" class="student-select-grid"></div>
+              </div>
+
+              <button id="giveRewardBtn" class="btn btn-primary btn-lg w-full mt-4" onclick="giveCustomReward()" disabled>
+                ⭐ Give Reward
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Quick Rewards -->
+        <section id="quickrewardsSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">⚡ Quick Rewards</h3>
+              <div style="display: flex; gap: var(--space-2);">
+                <button class="btn btn-secondary" onclick="createDefaultQuickRewards()">📋 Load Defaults</button>
+                <button class="btn btn-primary" onclick="openQuickRewardModal()">+ Add</button>
+              </div>
+            </div>
+            <div class="card-body"><p class="text-muted mb-4">Teachers use these buttons to give points quickly.</p><div id="quickRewardsContainer" class="quick-rewards"></div></div>
+          </div>
+        </section>
+
+        <!-- History -->
+        <section id="historySection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📜 Transaction History</h3>
+            </div>
+            <div class="card-body">
+              <div id="historyList"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Requests -->
+        <section id="requestsSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🎁 Reward Requests</h3>
+            </div>
+            <div class="card-body">
+              <div id="requestsList"></div>
+              <div id="noRequests" class="empty-state hidden">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-title">No pending requests</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="settingsSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">⚙️ Settings</h3></div>
+            <div class="card-body">
+              <form id="settingsForm" onsubmit="saveSettings(event)">
+                <div class="input-group"><label class="input-label">School Name</label><input type="text" id="settingName" class="input"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+                  <div class="input-group"><label class="input-label">Currency Symbol</label><input type="text" id="settingSymbol" class="input" maxlength="3"></div>
+                  <div class="input-group"><label class="input-label">Currency Name</label><input type="text" id="settingCurrency" class="input"></div>
+                </div>
+                <div class="input-group"><label class="input-label"><input type="checkbox" id="settingLeaderboard"> Show Leaderboard</label></div>
+                <button type="submit" class="btn btn-primary">💾 Save</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Student Modal -->
+  <div id="studentModalBackdrop" class="modal-backdrop"></div>
+  <div id="studentModal" class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="studentModalTitle">Student</h3><button class="modal-close" onclick="Modal.hide('studentModal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="studentId">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+        <div class="input-group">
+          <label class="input-label">Last name *</label>
+          <input type="text" id="studentLastName" class="input" required oninput="updateStudentIdPreview()">
+        </div>
+        <div class="input-group">
+          <label class="input-label">First name *</label>
+          <input type="text" id="studentFirstName" class="input" required oninput="updateStudentIdPreview()">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Generated ID</label>
+        <input type="text" id="studentGeneratedId" class="input" readonly>
+        <small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">Format: LASTNAME.FIRSTNAME</small>
+      </div>
+      <div class="input-group"><label class="input-label">Class *</label><select id="studentClass" class="input" required></select></div>
+      <div class="input-group"><label class="input-label">NFC Tag</label><div style="display:flex;gap:var(--space-2);"><input type="text" id="studentNFC" class="input"><button type="button" class="btn btn-secondary" onclick="document.getElementById('studentNFC').value=NFC.generateTag()">🎲</button></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('studentModal')">Cancel</button><button class="btn btn-primary" onclick="saveStudent()">Save</button></div>
+  </div>
+
+  <!-- Class Modal -->
+  <div id="classModalBackdrop" class="modal-backdrop"></div>
+  <div id="classModal" class="modal" style="max-width: 700px;">
+    <div class="modal-header"><h3 class="modal-title">Class</h3><button class="modal-close" onclick="Modal.hide('classModal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="classId">
+      <div class="input-group"><label class="input-label">Name *</label><input type="text" id="className" class="input" placeholder="Example: 1A" required></div>
+      <div class="input-group"><label class="input-label">Student list (separated by ; )</label><textarea id="classStudents" class="input" placeholder="Example: Rossi Mario; Bianchi Luca; Verdi Anna" rows="4" style="resize: vertical;"></textarea><small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">Edit names to fix errors. Changes apply everywhere. Add new students with: Surname Name</small></div>
+      <div class="input-group"><label class="input-label">Teacher list (separated by ; )</label><textarea id="classTeachers" class="input" placeholder="Example: Prof. Rossi; Prof. Bianchi" rows="3" style="resize: vertical;"></textarea><small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">For display only. Manage teachers in the Teachers section.</small></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('classModal')">Cancel</button><button class="btn btn-primary" onclick="saveClass()">Save</button></div>
+  </div>
+
+  <!-- Reward Modal -->
+  <div id="rewardModalBackdrop" class="modal-backdrop"></div>
+  <div id="rewardModal" class="modal">
+    <div class="modal-header"><h3 class="modal-title">Reward</h3><button class="modal-close" onclick="Modal.hide('rewardModal')">×</button></div>
+    <div class="modal-body">
+      <div class="input-group"><label class="input-label">Name *</label><input type="text" id="rewardName" class="input" required></div>
+      <div class="input-group"><label class="input-label">Description</label><textarea id="rewardDesc" class="input"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="input-group"><label class="input-label">Icon</label><input type="text" id="rewardIcon" class="input" value="🎁" maxlength="2"></div>
+        <div class="input-group"><label class="input-label">Cost *</label><input type="number" id="rewardCost" class="input" min="1" required></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('rewardModal')">Cancel</button><button class="btn btn-primary" onclick="saveReward()">Save</button></div>
+  </div>
+
+  <!-- Quick Reward Modal -->
+  <div id="quickRewardModalBackdrop" class="modal-backdrop"></div>
+  <div id="quickRewardModal" class="modal">
+    <div class="modal-header"><h3 class="modal-title">Quick Reward</h3><button class="modal-close" onclick="Modal.hide('quickRewardModal')">×</button></div>
+    <div class="modal-body">
+      <div class="input-group"><label class="input-label">Name *</label><input type="text" id="qrName" class="input" required></div>
+      <div class="input-group"><label class="input-label">Description</label><textarea id="qrDesc" class="input"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="input-group"><label class="input-label">Icon</label><input type="text" id="qrIcon" class="input" value="⭐" maxlength="2"></div>
+        <div class="input-group"><label class="input-label">Amount *</label><input type="number" id="qrAmount" class="input" required><p class="input-hint">Negative for penalty</p></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('quickRewardModal')">Cancel</button><button class="btn btn-primary" onclick="saveQuickReward()">Save</button></div>
+  </div>
+
+  <!-- Teacher Modal -->
+  <div id="teacherModalBackdrop" class="modal-backdrop"></div>
+  <div id="teacherModal" class="modal">
+    <div class="modal-header"><h3 class="modal-title">👨‍🏫 New Teacher</h3><button class="modal-close" onclick="Modal.hide('teacherModal')">×</button></div>
+    <div class="modal-body">
+      <div class="input-group"><label class="input-label">Full Name *</label><input type="text" id="teacherName" class="input" placeholder="Mario Rossi" required></div>
+      <div class="input-group"><label class="input-label">Email *</label><input type="email" id="teacherEmail" class="input" placeholder="mario.rossi@school.com" required></div>
+      <div class="input-group"><label class="input-label">Password *</label><input type="password" id="teacherPassword" class="input" placeholder="Min 6 characters" required><p class="input-hint">The teacher can change it at first login</p></div>
+      <div class="input-group">
+        <label class="input-label">Assigned Classes</label>
+        <div id="teacherClassesContainer" style="display:flex;flex-wrap:wrap;gap:var(--space-2);"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('teacherModal')">Cancel</button><button class="btn btn-primary" id="saveTeacherBtn" onclick="saveTeacher()">Create Teacher</button></div>
+  </div>
+
+  <!-- Bulk Import Classes Modal -->
+  <div id="bulkImportClassModalBackdrop" class="modal-backdrop"></div>
+  <div id="bulkImportClassModal" class="modal" style="max-width:600px;">
+    <div class="modal-header"><h3 class="modal-title">📥 Bulk Import Classes</h3><button class="modal-close" onclick="Modal.hide('bulkImportClassModal')">×</button></div>
+    <div class="modal-body">
+      <form id="bulkClassImportForm">
+        <div class="input-group">
+          <label class="input-label">Class list</label>
+          <textarea id="bulkClassList" class="input" rows="12" placeholder="Enter class names, one per line or separated by comma, semicolon, or tab.
+
+Accepted examples:
+1A
+1B
+2A
+2B
+
+or:
+1A, 1B, 2A, 2B
+
+or:
+1A; 1B; 2A; 2B"></textarea>
+          <p class="input-hint">💡 Class names will be converted to uppercase.</p>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">School Year</label>
+          <input type="text" id="bulkClassYear" class="input" style="max-width:200px;">
+        </div>
+
+        <div id="bulkClassPreview" class="bulk-preview" style="display:none;margin-top:var(--space-4);padding:var(--space-3);background:var(--background-alt);border-radius:var(--radius-md);">
+          <h4 style="margin-bottom:var(--space-3);">📝 Preview (<span id="bulkClassPreviewCount">0</span> classes found)</h4>
+          <div id="bulkClassPreviewList" style="max-height:300px;overflow-y:auto;"></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('bulkImportClassModal')">Cancel</button><button class="btn btn-ghost" onclick="previewBulkClassImport()">👁️ Preview</button><button class="btn btn-primary" id="bulkClassImportBtn" onclick="executeBulkClassImport()">📥 Import All</button></div>
+  </div>
+
+  <!-- Bulk Import Students Modal -->
+  <div id="bulkImportStudentModalBackdrop" class="modal-backdrop"></div>
+  <div id="bulkImportStudentModal" class="modal" style="max-width:600px;">
+    <div class="modal-header"><h3 class="modal-title">📥 Bulk Import Students</h3><button class="modal-close" onclick="Modal.hide('bulkImportStudentModal')">×</button></div>
+    <div class="modal-body">
+      <form id="bulkStudentImportForm">
+        <div class="input-group">
+          <label class="input-label">Target Class *</label>
+          <select id="bulkImportStudentClass" class="input" required></select>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Student list</label>
+          <textarea id="bulkStudentList" class="input" rows="12" placeholder="Enter student names, one per line or separated by comma, semicolon, or tab.
+
+Accepted examples:
+Mario Rossi
+Luigi Verdi
+Anna Bianchi
+
+or:
+Mario Rossi, Luigi Verdi, Anna Bianchi
+
+or:
+Mario Rossi; Luigi Verdi; Anna Bianchi
+
+or copy/paste from Excel!"></textarea>
+          <p class="input-hint">💡 You can copy from Excel, Word, or any list. The system detects the separator.</p>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Initial Balance for All</label>
+          <input type="number" id="bulkStudentInitialBalance" class="input" value="0" style="max-width:150px;">
+        </div>
+
+        <div id="bulkStudentPreview" class="bulk-preview" style="display:none;margin-top:var(--space-4);padding:var(--space-3);background:var(--background-alt);border-radius:var(--radius-md);">
+          <h4 style="margin-bottom:var(--space-3);">📝 Preview (<span id="bulkStudentPreviewCount">0</span> students found)</h4>
+          <div id="bulkStudentPreviewList" style="max-height:300px;overflow-y:auto;"></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('bulkImportStudentModal')">Cancel</button><button class="btn btn-ghost" onclick="previewBulkStudentImport()">👁️ Preview</button><button class="btn btn-primary" id="bulkStudentImportBtn" onclick="executeBulkStudentImport()">📥 Import All</button></div>
+  </div>
+
+  <!-- Bulk Import Transactions Modal -->
+  <div id="bulkImportTransactionsModalBackdrop" class="modal-backdrop"></div>
+  <div id="bulkImportTransactionsModal" class="modal" style="max-width:900px;">
+    <div class="modal-header"><h3 class="modal-title">📥 Bulk Import Transactions</h3><button class="modal-close" onclick="Modal.hide('bulkImportTransactionsModal')">×</button></div>
+    <div class="modal-body">
+      <div class="input-group">
+        <label class="input-label">Paste from Google Sheets / Excel</label>
+        <textarea id="bulkTransactionsSheet" class="input" rows="10" placeholder="Paste the table here (tab-separated). Example:
+
+ALUNNI\tSUM.\t19/09\t23/09
+		🪙deposit\t🧹clean class
+ALLMETA REINA\t240\t10\t5
+..."></textarea>
+        <p class="input-hint">💡 The importer detects the header row (dates) and optional label row automatically. Columns named SUM/TOTAL are ignored. The first column can be an index.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="input-group">
+          <label class="input-label">Default year for dates without year</label>
+          <input type="number" id="bulkTransactionsDefaultYear" class="input" min="2000" max="2100" style="max-width:200px;">
+        </div>
+        <div class="input-group" style="display:flex;align-items:center;gap:var(--space-2);">
+          <label class="input-label" style="margin-bottom:0;"><input type="checkbox" id="bulkTransactionsSkipZero" checked> Skip zero values</label>
+        </div>
+      </div>
+
+      <div id="bulkTransactionsPreview" class="bulk-preview" style="display:none;margin-top:var(--space-4);padding:var(--space-3);background:var(--background-alt);border-radius:var(--radius-md);">
+        <h4 style="margin-bottom:var(--space-3);">📝 Preview</h4>
+        <div id="bulkTransactionsPreviewStats" style="margin-bottom:var(--space-3);"></div>
+        <div id="bulkTransactionsPreviewList" style="max-height:300px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('bulkImportTransactionsModal')">Cancel</button><button class="btn btn-ghost" onclick="previewBulkTransactionImport()">👁️ Preview</button><button class="btn btn-primary" id="bulkTransactionsImportBtn" onclick="executeBulkTransactionImport()">📥 Import All</button></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/script.js"></script>
+  <script src="js/universaladmin.js"></script>
+
+  <script>
+    let students=[], classes=[], rewards=[], quickRewards=[], teachers=[], config={}, sym='$';
+    let selectedStudents = new Set();
+    let currentQuickReward = null;
+
+    // Mobile sidebar toggle
+    function toggleMobileSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      sidebar.classList.toggle('open');
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      sidebar.classList.remove('open');
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.sidebar');
+      const menuBtn = document.querySelector('.mobile-menu-btn');
+      if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+        if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+          closeMobileSidebar();
+        }
+      }
+    });
+
+    async function init() {
+      await Dashboard.init();
+      if (!Auth.requireAuth(['admin'])) return;
+      UserManager.init();
+      await loadData();
+      showSection('dashboard');
+    }
+
+    async function loadData() {
+      const school = await DB.getSchoolData();
+      config = school?.config || {};
+      sym = config.currencySymbol || '$';
+      
+      [students, classes, rewards, quickRewards] = await Promise.all([
+        DB.getStudents(), DB.getClasses(), DB.getRewards(), DB.getQuickRewards()
+      ]);
+      
+      // Load teachers
+      teachers = await UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher');
+      
+      loadSettings();
+      updateStats();
+      populateSelectors();
+      renderStudents();
+      renderClasses();
+      renderTeachers();
+      renderRewards();
+      renderQuickRewards();
+      renderRewardButtons();
+      renderStudentSelects();
+      updateRewardButton();
+      await renderTopStudents();
+      await refreshRequestBadges();
+    }
+
+    function updateRequestBadges(count) {
+      const navBadge = document.getElementById('requestsNavBadge');
+      const homeBadge = document.getElementById('requestsHomeBadge');
+      const value = Number(count) || 0;
+
+      [navBadge, homeBadge].forEach(badge => {
+        if (!badge) return;
+        if (value > 0) {
+          badge.textContent = value > 99 ? '99+' : value;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      });
+    }
+
+    async function refreshRequestBadges() {
+      if (!Auth.currentUser) return;
+      try {
+        const snapshot = await DB.school('rewardRequests')
+          .where('teacherId', '==', Auth.currentUser.uid)
+          .where('status', '==', 'pending')
+          .get();
+        updateRequestBadges(snapshot.size || 0);
+      } catch (error) {
+        console.warn('Request badge update error:', error);
+      }
+    }
+
+    function updateStats() {
+      const total = students.reduce((s,x)=>s+(x.balance||0),0);
+      const statStudentsEl = document.getElementById('statStudents');
+      const statTeachersEl = document.getElementById('statTeachers');
+      const statClassesEl = document.getElementById('statClasses');
+      const statBalanceEl = document.getElementById('statBalance');
+
+      if (statStudentsEl) statStudentsEl.textContent = students.length;
+      if (statTeachersEl) statTeachersEl.textContent = teachers.length;
+      if (statClassesEl) statClassesEl.textContent = classes.length;
+      if (statBalanceEl) statBalanceEl.textContent = `${sym}${total}`;
+    }
+
+    function populateSelectors() {
+      const selectDefaults = {
+        classFilter: '<option value="">All</option>',
+        studentClass: '<option value="">Select</option>',
+        giveRewardsClassFilter: '<option value="">All classes</option>'
+      };
+
+      ['classFilter','studentClass','giveRewardsClassFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = selectDefaults[id] || '<option value="">Select</option>';
+        classes.forEach(c => el.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+      });
+    }
+
+    function renderStudents() {
+      const filter = document.getElementById('classFilter').value;
+      const list = filter ? students.filter(s=>s.classId===filter) : students;
+      const container = document.getElementById('studentsContainer');
+      
+      if (!list.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
+      
+      container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Class</th><th>Balance</th><th>NFC</th><th>Actions</th></tr></thead><tbody>
+        ${list.map(s => {
+          const cls = classes.find(c=>c.id===s.classId);
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(s.name)}</div>${s.name}</div></td>
+            <td><span class="badge badge-primary">${cls?.name||'-'}</span></td>
+            <td class="${s.balance<0?'text-danger':'text-success'}" style="font-weight:bold;">${sym}${s.balance||0}</td>
+            <td><code style="font-size:var(--text-xs);">${s.nfcTag||'-'}</code></td>
+            <td><div class="actions">
+              <button class="btn btn-ghost btn-sm" onclick="editStudent('${s.id}')">✏️</button>
+              <button class="btn btn-ghost btn-sm" onclick="window.open('index.html?id=${s.id}')">👁️</button>
+              <button class="btn btn-ghost btn-sm text-danger" onclick="deleteStudent('${s.id}')">🗑️</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+    }
+
+    function renderClasses() {
+      const container = document.getElementById('classesContainer');
+      if (!classes.length) { container.innerHTML = '<p class="text-muted">No classes</p>'; return; }
+      
+      container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th style="width: 60%;">Name</th><th style="width: 20%; text-align: center;">Students</th><th style="width: 20%; text-align: center;">Actions</th></tr></thead><tbody>
+        ${classes.map(c => {
+          const count = students.filter(s=>s.classId===c.id).length;
+          return `<tr><td><strong>${c.name}</strong></td><td style="text-align: center;">${count}</td><td style="text-align: center;">
+            <button class="btn btn-ghost btn-sm" onclick="editClass('${c.id}')">✏️</button>
+            <button class="btn btn-ghost btn-sm text-danger" onclick="deleteClass('${c.id}')">🗑️</button>
+            </div>
+          </td></tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+    }
+
+    function renderRewards() {
+      const container = document.getElementById('rewardsContainer');
+      if (!rewards.length) { container.innerHTML = '<p class="text-muted">No rewards</p>'; return; }
+      
+      const sortedRewards = [...rewards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
+      container.innerHTML = `
+        <div class="rewards-grid">
+          ${sortedRewards.map(r => `
+            <div class="reward-card">
+              <div class="reward-card-header">
+                <div class="reward-icon">${r.icon||'🎁'}</div>
+                <div class="reward-main">
+                  <div class="reward-name">${r.name}</div>
+                  <div class="reward-description ${r.description ? '' : 'text-muted'}">${r.description || 'No description provided'}</div>
+                </div>
+                <div class="reward-cost">${sym}${r.cost}</div>
+              </div>
+              <div class="reward-card-actions">
+                <button class="btn btn-ghost btn-sm text-danger" onclick="deleteReward('${r.id}')">🗑️ Delete</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderQuickRewards() {
+      const container = document.getElementById('quickRewardsContainer');
+      if (!quickRewards.length) { container.innerHTML = '<p class="text-muted">No quick rewards</p>'; return; }
+      
+      container.innerHTML = quickRewards.map(r => `
+        <div class="quick-reward-btn ${r.amount<0?'negative':''}" style="position:relative;cursor:default;">
+          <button class="btn btn-ghost btn-sm" style="position:absolute;top:2px;right:2px;" onclick="deleteQuickReward('${r.id}')">×</button>
+          <span class="quick-reward-icon">${r.icon||'⭐'}</span>
+          <span class="quick-reward-name">${r.name}</span>
+          <span class="quick-reward-amount">${r.amount>=0?'+':''}${sym}${Math.abs(r.amount)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderRewardButtons() {
+      const container = document.getElementById('rewardButtonsGrid');
+      if (!container) return;
+      if (!quickRewards.length) {
+        container.innerHTML = '<p class="text-muted text-center">No quick rewards</p>';
+        return;
+      }
+
+      container.innerHTML = quickRewards.map(r => `
+        <button class="quick-reward-btn ${r.amount < 0 ? 'negative' : ''}" onclick="selectQuickReward('${r.id}')">
+          <span class="quick-reward-icon">${r.icon || '⭐'}</span>
+          <span class="quick-reward-name">${r.name}</span>
+          <span class="quick-reward-amount">${r.amount >= 0 ? '+' : ''}${sym}${Math.abs(r.amount)}</span>
+        </button>
+      `).join('');
+    }
+
+    function getGiveRewardsFilters() {
+      const search = document.getElementById('giveRewardsSearch')?.value.trim().toLowerCase() || '';
+      const classId = document.getElementById('giveRewardsClassFilter')?.value || '';
+      return { search, classId };
+    }
+
+    function getGiveRewardsFilteredStudents() {
+      const { search, classId } = getGiveRewardsFilters();
+      let list = [...students];
+
+      if (classId) {
+        list = list.filter(s => s.classId === classId);
+      }
+
+      if (search) {
+        list = Search.filter(list, search, ['name', 'nfcTag']);
+      }
+
+      return list;
+    }
+
+    const handleGiveRewardsSearchDebounced = Search.debounce(() => {
+      renderStudentSelects();
+    }, 200);
+
+    function handleGiveRewardsSearch() {
+      handleGiveRewardsSearchDebounced();
+    }
+
+    function renderStudentSelects() {
+      const grid = document.getElementById('studentSelectGrid');
+      if (!grid) return;
+
+      const list = getGiveRewardsFilteredStudents();
+      if (!list.length) {
+        grid.innerHTML = '<p class="text-muted text-center p-4">No students found</p>';
+        return;
+      }
+
+      const sorted = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      grid.innerHTML = sorted.map(student => `
+        <div class="student-select-card ${selectedStudents.has(student.id) ? 'selected' : ''}" data-student-id="${student.id}" onclick="toggleStudentSelection('${student.id}')">
+          <div class="avatar">${UI.getInitials(student.name)}</div>
+          <div class="student-select-name"><strong>${student.name || 'Student'}</strong></div>
+          <div class="student-select-balance">${sym}${student.balance || 0}</div>
+        </div>
+      `).join('');
+    }
+
+    function toggleStudentSelection(studentId) {
+      const card = document.querySelector(`#studentSelectGrid [data-student-id="${studentId}"]`);
+      if (selectedStudents.has(studentId)) {
+        selectedStudents.delete(studentId);
+        card?.classList.remove('selected');
+      } else {
+        selectedStudents.add(studentId);
+        card?.classList.add('selected');
+      }
+
+      updateRewardButton();
+    }
+
+    function selectAllStudents() {
+      const visibleStudents = getGiveRewardsFilteredStudents();
+      const allVisibleSelected = visibleStudents.length > 0 && visibleStudents.every(student => selectedStudents.has(student.id));
+
+      if (allVisibleSelected) {
+        visibleStudents.forEach(student => selectedStudents.delete(student.id));
+        document.querySelectorAll('#studentSelectGrid .student-select-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+      } else {
+        visibleStudents.forEach(student => selectedStudents.add(student.id));
+        document.querySelectorAll('#studentSelectGrid .student-select-card').forEach(card => {
+          card.classList.add('selected');
+        });
+      }
+      updateRewardButton();
+    }
+
+    function updateRewardButton() {
+      const count = selectedStudents.size;
+      const buttons = [document.getElementById('giveRewardBtn'), document.getElementById('giveRewardBtnTop')].filter(Boolean);
+      if (!buttons.length) return;
+      if (count > 0) {
+        buttons.forEach(btn => {
+          btn.disabled = false;
+          btn.textContent = `⭐ Give Reward to ${count} student${count > 1 ? 's' : ''}`;
+        });
+      } else {
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = '⭐ Give Reward';
+        });
+      }
+    }
+
+    function selectQuickReward(rewardId) {
+      currentQuickReward = quickRewards.find(r => r.id === rewardId) || null;
+      if (!currentQuickReward) return;
+
+      document.getElementById('customEmoji').value = currentQuickReward.icon || '⭐';
+      document.getElementById('customAmount').value = currentQuickReward.amount;
+      document.getElementById('customReason').value = currentQuickReward.name || '';
+    }
+
+    async function giveCustomReward() {
+      const amount = parseFloat(document.getElementById('customAmount').value);
+      const reason = document.getElementById('customReason').value.trim();
+      const emoji = document.getElementById('customEmoji').value.trim() || '⭐';
+
+      if (!amount || !reason || selectedStudents.size === 0) {
+        Toast.warning('Fill in all fields and select at least one student');
+        return;
+      }
+
+      const buttons = [document.getElementById('giveRewardBtn'), document.getElementById('giveRewardBtnTop')].filter(Boolean);
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span> Giving reward...';
+      });
+
+      try {
+        for (const studentId of selectedStudents) {
+          await DB.giveReward(studentId, amount, reason, emoji);
+        }
+
+        Toast.success(`Reward given to ${selectedStudents.size} students!`);
+
+        document.getElementById('customAmount').value = '';
+        document.getElementById('customReason').value = '';
+        document.getElementById('customEmoji').value = '⭐';
+        selectedStudents.clear();
+        renderStudentSelects();
+        updateRewardButton();
+
+        students = await DB.getStudents();
+        renderStudents();
+        updateStats();
+        await renderTopStudents();
+      } catch (error) {
+        console.error('Reward error:', error);
+        Toast.error('Error giving reward');
+        buttons.forEach(btn => {
+          btn.disabled = false;
+          btn.textContent = '⭐ Give Reward';
+        });
+        return;
+      }
+
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.textContent = '⭐ Give Reward';
+      });
+    }
+
+    async function loadHistory() {
+      const container = document.getElementById('historyList');
+      if (!container) return;
+      container.innerHTML = '<div class="text-center"><div class="spinner"></div></div>';
+
+      try {
+        const transactions = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, 50);
+
+        if (transactions.length === 0) {
+          container.innerHTML = '<p class="text-muted text-center">No transactions</p>';
+          return;
+        }
+
+        const grouped = [];
+        const used = new Set();
+
+        for (let i = 0; i < transactions.length; i++) {
+          if (used.has(i)) continue;
+
+          const tx = transactions[i];
+          const group = {
+            icon: tx.icon || '⭐',
+            amount: tx.amount,
+            reason: tx.reason || 'No reason',
+            timestamp: tx.timestamp,
+            students: [tx.studentName || 'Student'],
+            studentIds: [tx.studentId],
+            transactionIds: [tx.id]
+          };
+
+          used.add(i);
+
+          const baseTime = tx.timestamp?.toMillis?.() || 0;
+
+          for (let j = i + 1; j < transactions.length; j++) {
+            if (used.has(j)) continue;
+
+            const other = transactions[j];
+            const otherTime = other.timestamp?.toMillis?.() || 0;
+            const timeDiff = Math.abs(baseTime - otherTime);
+
+            if (timeDiff <= 5000 &&
+                other.amount === tx.amount &&
+                other.reason === tx.reason &&
+                (other.icon || '⭐') === (tx.icon || '⭐')) {
+              group.students.push(other.studentName || 'Student');
+              group.studentIds.push(other.studentId);
+              group.transactionIds.push(other.id);
+              used.add(j);
+            }
+          }
+
+          grouped.push(group);
+        }
+
+        container.innerHTML = grouped.map((group, index) => `
+          <div class="transaction-item" style="background: white; border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-3); box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;">
+            <div style="position: absolute; top: var(--space-3); right: var(--space-3); display: flex; gap: var(--space-2);">
+              <button class="btn btn-ghost btn-sm" onclick="reuseTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);" title="Reuse reward">🔄</button>
+              <button class="btn btn-ghost btn-sm" onclick="editTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2);">✏️</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteTransactionGroup(${index})" style="padding: var(--space-1) var(--space-2); color: var(--danger);">🗑️</button>
+            </div>
+            <div class="transaction-icon">${group.icon}</div>
+            <div class="transaction-info">
+              <div class="transaction-reason"><strong>Student${group.students.length > 1 ? 's' : ''}:</strong> ${group.students.join(', ')}</div>
+              <div class="transaction-meta"><strong>Amount:</strong> ${group.amount >= 0 ? '+' : ''}${sym}${Math.abs(group.amount)}</div>
+              <div class="transaction-meta"><strong>Reason:</strong> ${group.reason}</div>
+              <div class="transaction-meta"><strong>Date:</strong> ${Format.relativeTime(group.timestamp)}</div>
+            </div>
+          </div>
+        `).join('');
+
+        window.transactionGroups = grouped;
+      } catch (error) {
+        console.error('Error loading history:', error);
+        container.innerHTML = '<p class="text-muted text-center">Load error: ' + error.message + '</p>';
+      }
+    }
+
+    async function deleteTransactionGroup(groupIndex) {
+      const group = window.transactionGroups?.[groupIndex];
+      if (!group) return;
+
+      const confirmed = await Modal.confirm(
+        `Delete ${group.transactionIds.length > 1 ? 'these ' + group.transactionIds.length + ' transactions' : 'this transaction'}?`,
+        'Confirm deletion'
+      );
+
+      if (!confirmed) return;
+
+      try {
+        for (const txId of group.transactionIds) {
+          await DB.deleteTransaction(txId);
+        }
+
+        Toast.success('Transaction deleted!');
+        await loadHistory();
+        await loadData();
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        Toast.error('Delete error');
+      }
+    }
+
+    async function editTransactionGroup(groupIndex) {
+      const group = window.transactionGroups?.[groupIndex];
+      if (!group) return;
+
+      const modalHtml = `
+        <div id="editTransactionModalBackdrop" class="modal-backdrop active" style="display: block;"></div>
+        <div id="editTransactionModal" class="modal active" style="display: flex;">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">✏️ Edit Transaction</h3>
+              <button class="modal-close" onclick="closeEditTransactionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="input-group">
+                <label class="input-label">Icon</label>
+                <input type="text" id="editIcon" class="input" value="${group.icon}" maxlength="2" style="font-size: 1.5rem; text-align: center;">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Amount</label>
+                <input type="number" id="editAmount" class="input" value="${group.amount}">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Reason</label>
+                <input type="text" id="editReason" class="input" value="${group.reason}">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Students</label>
+                <div style="color: var(--text-muted);">${group.students.join(', ')}</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="closeEditTransactionModal()">Cancel</button>
+              <button class="btn btn-primary" id="saveEditBtn" onclick="saveEditedTransaction(${groupIndex})">💾 Save</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const existing = document.getElementById('editTransactionModal');
+      if (existing) existing.parentElement.remove();
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = modalHtml;
+      while (tempDiv.firstChild) {
+        document.body.appendChild(tempDiv.firstChild);
+      }
+    }
+
+    function closeEditTransactionModal() {
+      const backdrop = document.getElementById('editTransactionModalBackdrop');
+      const modal = document.getElementById('editTransactionModal');
+      if (backdrop) backdrop.remove();
+      if (modal) modal.remove();
+    }
+
+    async function saveEditedTransaction(groupIndex) {
+      const group = window.transactionGroups?.[groupIndex];
+      if (!group) return;
+
+      const newIcon = document.getElementById('editIcon').value.trim() || '⭐';
+      const newAmount = parseInt(document.getElementById('editAmount').value);
+      const newReason = document.getElementById('editReason').value.trim();
+
+      if (isNaN(newAmount) || !newReason) {
+        Toast.warning('Fill in all fields');
+        return;
+      }
+
+      const btn = document.getElementById('saveEditBtn');
+      const originalBtnText = btn.innerHTML;
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
+
+        const difference = newAmount - group.amount;
+
+        for (let i = 0; i < group.transactionIds.length; i++) {
+          await DB.updateTransaction(group.transactionIds[i], {
+            amount: newAmount,
+            reason: newReason,
+            icon: newIcon
+          });
+
+          if (difference !== 0) {
+            await DB.adjustStudentBalance(group.studentIds[i], difference);
+          }
+        }
+
+        Toast.success('Transaction updated!');
+        closeEditTransactionModal();
+        await loadHistory();
+        await loadData();
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+        Toast.error('Update error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
+      }
+    }
+
+    function reuseTransactionGroup(groupIndex) {
+      const group = window.transactionGroups?.[groupIndex];
+      if (!group) return;
+
+      showSection('giveRewards');
+
+      document.getElementById('customEmoji').value = group.icon || '⭐';
+      document.getElementById('customAmount').value = group.amount;
+      document.getElementById('customReason').value = group.reason;
+
+      selectedStudents.clear();
+      renderStudentSelects();
+      updateRewardButton();
+
+      setTimeout(() => {
+        const rewardSection = document.getElementById('giveRewardsSection');
+        if (rewardSection) {
+          rewardSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+
+      Toast.success('Reward loaded. Select students.');
+    }
+
+    async function loadPendingRequests() {
+      const container = document.getElementById('requestsList');
+      const empty = document.getElementById('noRequests');
+      if (!container || !empty) return;
+
+      try {
+        const snapshot = await DB.school('rewardRequests')
+          .where('teacherId', '==', Auth.currentUser.uid)
+          .get();
+
+        let allRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        const pendingRequests = allRequests.filter(req => req.status === 'pending');
+        const handledRequests = allRequests.filter(req => req.status !== 'pending');
+
+        const sortByDate = (a, b) => {
+          const timeA = a.requestedAt?.toMillis?.() || 0;
+          const timeB = b.requestedAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        };
+
+        pendingRequests.sort(sortByDate);
+        handledRequests.sort(sortByDate);
+
+        const rewards = await DB.getRewards();
+        const rewardMap = Object.fromEntries(rewards.map(r => [r.id, r]));
+
+        // Build a set of approved requests to avoid duplicates
+        const approvedKeys = new Set();
+        handledRequests.forEach(req => {
+          if (req.status === 'approved') {
+            const reward = rewardMap[req.rewardId];
+            if (reward) {
+              approvedKeys.add(`${req.studentId}|${reward.cost}|${reward.icon || '🎁'}|${reward.name}`);
+            }
+          }
+        });
+
+        // Add negative transactions as accepted requests history
+        const txs = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, 200);
+        const negativeTxs = txs.filter(tx => tx.amount < 0);
+        const extraHandled = negativeTxs.map(tx => {
+          const reason = tx.reason || '';
+          const rewardName = reason.replace(/^Redeem:\s*/i, '').trim() || 'Reward';
+          const rewardIcon = tx.icon || '🎁';
+          const rewardCost = Math.abs(tx.amount);
+          const key = `${tx.studentId}|${rewardCost}|${rewardIcon}|${rewardName}`;
+          if (approvedKeys.has(key)) return null;
+          return {
+            id: `tx_${tx.id}`,
+            status: 'approved',
+            studentId: tx.studentId,
+            studentName: tx.studentName || 'Student',
+            requestedAt: tx.timestamp,
+            rewardName,
+            rewardCost,
+            rewardIcon,
+            _fromTransaction: true
+          };
+        }).filter(Boolean);
+
+        const handledCombined = [...handledRequests, ...extraHandled];
+        handledCombined.sort(sortByDate);
+
+        updateRequestBadges(pendingRequests.length);
+
+        if (pendingRequests.length === 0 && handledCombined.length === 0) {
+          container.innerHTML = '';
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        empty.classList.add('hidden');
+        const sectionTitle = (title) => `<div style="margin: var(--space-3) 0 var(--space-2); font-weight: 600; color: var(--text-muted);">${title}</div>`;
+        const renderRequest = (req, isPending) => {
+          const reward = req._fromTransaction
+            ? { name: req.rewardName || 'Reward', cost: req.rewardCost || 0, icon: req.rewardIcon || '🎁' }
+            : (rewardMap[req.rewardId] || { name: 'Reward', cost: 0, icon: '🎁' });
+          const statusIcon = req.status === 'approved' ? '✅' : req.status === 'rejected' ? '❌' : '';
+          const statusText = req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : '';
+
+          return `
+            <div class="transaction-item" style="flex-wrap: wrap; ${isPending ? '' : 'opacity: 0.5;'}">
+              <div class="transaction-icon">${reward.icon}</div>
+              <div class="transaction-info">
+                <div class="transaction-reason">${req.studentName}</div>
+                <div class="transaction-meta">${reward.name} • ${sym}${reward.cost} ${!isPending ? `• ${statusIcon} ${statusText}` : ''}</div>
+                ${req.message ? `<div style="margin-top: var(--space-2); padding: var(--space-2); background: rgba(93, 63, 211, 0.1); border-left: 3px solid var(--primary); border-radius: var(--radius-md); font-size: var(--text-sm);"><strong>💬 Message:</strong> ${req.message}</div>` : ''}
+                ${req.status === 'rejected' && req.rejectionReason ? `<div style="margin-top: var(--space-2); padding: var(--space-2); background: rgba(255, 99, 71, 0.1); border-left: 3px solid var(--danger); border-radius: var(--radius-md); font-size: var(--text-sm);"><strong>👨‍🏫 Teacher message:</strong> ${req.rejectionReason}</div>` : ''}
+              </div>
+              <div style="display: flex; gap: var(--space-2);">
+                ${isPending ? `
+                  <button class="btn btn-success btn-sm" onclick="approveRequest('${req.id}')">✅</button>
+                  <button class="btn btn-danger btn-sm" onclick="rejectRequest('${req.id}')">❌</button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        };
+
+        const pendingHtml = pendingRequests.map(req => renderRequest(req, true)).join('');
+        const handledHtml = handledCombined.map(req => renderRequest(req, false)).join('');
+
+        container.innerHTML = `
+          ${pendingRequests.length ? sectionTitle('Active requests') + pendingHtml : ''}
+          ${handledCombined.length ? sectionTitle('Requests history') + handledHtml : ''}
+        `;
+      } catch (error) {
+        console.error('Request load error:', error);
+        container.innerHTML = '<p class="text-muted text-center">Load error</p>';
+      }
+    }
+
+    async function approveRequest(requestId) {
+      try {
+        await DB.approveRewardRequest(requestId);
+        Toast.success('Request approved!');
+        await loadPendingRequests();
+        await loadData();
+      } catch (error) {
+        Toast.error('Approval error');
+      }
+    }
+
+    async function rejectRequest(requestId) {
+      const confirmed = await Modal.confirm('Reject this request?');
+      if (!confirmed) return;
+
+      const reason = prompt('Rejection reason (optional):\nThis message will be visible to the student.');
+
+      try {
+        await DB.rejectRewardRequest(requestId, reason || '');
+        Toast.success('Request rejected');
+        await loadPendingRequests();
+      } catch (error) {
+        Toast.error('Rejection error');
+      }
+    }
+
+    async function renderTopStudents() {
+      const container = document.getElementById('topStudentsContainer');
+      if (!students.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
+      
+      // Calculate totalEarned for each student from transactions
+      const studentsWithEarnings = await Promise.all(
+        students.map(async student => {
+          const transactions = await db.collection('schools')
+            .doc(Auth.getEffectiveSchoolId())
+            .collection('transactions')
+            .where('studentId', '==', student.id)
+            .get();
+          
+          const totalEarned = transactions.docs.reduce((sum, doc) => {
+            const amount = doc.data().amount || 0;
+            return amount > 0 ? sum + amount : sum;
+          }, 0);
+          
+          return { ...student, totalEarned };
+        })
+      );
+      
+      const sorted = studentsWithEarnings
+        .sort((a,b) => b.totalEarned - a.totalEarned)
+        .slice(0, 10);
+      
+      if (!sorted.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
+
+      const maxEarned = sorted[0]?.totalEarned || 1;
+      const topThree = sorted.slice(0, 3);
+      const rest = sorted.slice(3);
+
+      const podiumHtml = topThree.map((s, i) => {
+        const pct = Math.max(8, Math.round((s.totalEarned / maxEarned) * 100));
+        const medals = ['🥇', '🥈', '🥉'];
+        return `
+          <div class="podium-card podium-${i + 1}">
+            <div class="podium-student">
+              <div class="avatar avatar-lg podium-avatar">${medals[i]}</div>
+              <div class="podium-name">${s.name}</div>
+            </div>
+            <div class="podium-amount">${sym}${s.totalEarned || 0}</div>
+            <div class="podium-bar"><span style="width:${pct}%"></span></div>
+          </div>
+        `;
+      }).join('');
+
+      const listHtml = rest.length ? rest.map((s, i) => {
+        const pct = Math.max(6, Math.round((s.totalEarned / maxEarned) * 100));
+        return `
+          <div class="top-student-row">
+            <div class="top-student-rank">${i + 4}</div>
+            <div class="top-student-info">
+              <div class="top-student-name">${s.name}</div>
+              <div class="top-student-bar"><span style="width:${pct}%"></span></div>
+            </div>
+            <div class="top-student-amount">${sym}${s.totalEarned || 0}</div>
+          </div>
+        `;
+      }).join('') : '<p class="text-muted">No more students</p>';
+
+      container.innerHTML = `
+        <div class="top-students">
+          <div class="top-students-podium">${podiumHtml}</div>
+          <div class="top-students-list">${listHtml}</div>
+        </div>
+      `;
+    }
+
+    // CRUD Operations
+    function splitStudentName(fullName = '') {
+      const parts = fullName.trim().split(/\s+/).filter(Boolean);
+      if (parts.length <= 1) {
+        return { last: parts[0] || '', first: '' };
+      }
+      return { last: parts[0], first: parts.slice(1).join(' ') };
+    }
+
+    function normalizeIdPart(value = '') {
+      return value
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9]+/g, '.')
+        .replace(/\.+/g, '.')
+        .replace(/^\.+|\.+$/g, '')
+        .toUpperCase();
+    }
+
+    function buildStudentIdFromParts(lastName, firstName) {
+      const last = normalizeIdPart(lastName);
+      const first = normalizeIdPart(firstName);
+      return [last, first].filter(Boolean).join('.');
+    }
+
+    function buildStudentIdFromFullName(fullName) {
+      const parts = splitStudentName(fullName);
+      return buildStudentIdFromParts(parts.last, parts.first);
+    }
+
+    function updateStudentIdPreview() {
+      const currentId = document.getElementById('studentId').value;
+      const lastName = document.getElementById('studentLastName').value;
+      const firstName = document.getElementById('studentFirstName').value;
+      const preview = currentId ? currentId : buildStudentIdFromParts(lastName, firstName);
+      document.getElementById('studentGeneratedId').value = preview || '';
+    }
+
+    function openStudentModal(s=null) {
+      document.getElementById('studentModalTitle').textContent = s ? 'Edit Student' : 'New Student';
+      document.getElementById('studentId').value = s?.id || '';
+      const nameParts = splitStudentName(s?.name || '');
+      document.getElementById('studentLastName').value = nameParts.last;
+      document.getElementById('studentFirstName').value = nameParts.first;
+      document.getElementById('studentClass').value = s?.classId || '';
+      document.getElementById('studentNFC').value = s?.nfcTag || '';
+      updateStudentIdPreview();
+      Modal.show('studentModal');
+    }
+
+    function editStudent(id) { openStudentModal(students.find(s=>s.id===id)); }
+
+    async function saveStudent() {
+      let id = document.getElementById('studentId').value;
+      const lastName = document.getElementById('studentLastName').value.trim();
+      const firstName = document.getElementById('studentFirstName').value.trim();
+      const classId = document.getElementById('studentClass').value;
+      const fullName = [lastName, firstName].filter(Boolean).join(' ');
+      const data = {
+        name: fullName,
+        classId: classId,
+        nfcTag: document.getElementById('studentNFC').value.trim().toUpperCase(),
+        className: classes.find(c=>c.id===classId)?.name || ''
+      };
+      if (!lastName || !firstName || !classId) { Toast.warning('Fill in required fields'); return; }
+      
+      try {
+        if (id) {
+          await DB.updateStudent(id, data);
+        } else {
+          id = buildStudentIdFromParts(lastName, firstName);
+          if (!id) { Toast.warning('Invalid name for ID'); return; }
+
+          const schoolId = Auth.getEffectiveSchoolId();
+          const existing = await db.collection('schools').doc(schoolId)
+            .collection('students').doc(id).get();
+          if (existing.exists) {
+            Toast.error('ID already exists. Add a middle name or change spelling.');
+            return;
+          }
+          await DB.createStudentWithId(id, data);
+        }
+        Modal.hide('studentModal');
+        await loadData();
+        Toast.success('Saved!');
+      } catch(e) { Toast.error('Error'); }
+    }
+
+    async function deleteStudent(id) {
+      if (!await Modal.confirm('Delete this student?')) return;
+      await DB.deleteStudent(id);
+      await loadData();
+      Toast.success('Deleted');
+    }
+
+    function openClassModal(c=null) {
+      document.getElementById('classId').value = c?.id || '';
+      document.getElementById('className').value = c?.name || '';
+      
+      // Popola elenco studenti della classe
+      if (c?.id) {
+        const classStudents = students.filter(s => s.classId === c.id);
+        const studentNames = classStudents.map(s => s.name).join('; ');
+        document.getElementById('classStudents').value = studentNames;
+        
+        // Popola elenco professori della classe
+        const classTeachers = teachers.filter(t => (t.classes || []).includes(c.id));
+        const teacherNames = classTeachers.map(t => t.name).join('; ');
+        document.getElementById('classTeachers').value = teacherNames;
+      } else {
+        document.getElementById('classStudents').value = '';
+        document.getElementById('classTeachers').value = '';
+      }
+      
+      Modal.show('classModal');
+    }
+
+    function editClass(id) { openClassModal(classes.find(c=>c.id===id)); }
+
+    async function saveClass() {
+      const id = document.getElementById('classId').value;
+      const name = document.getElementById('className').value.trim();
+      if (!name) { Toast.warning('Enter a name'); return; }
+      
+      // Salva o aggiorna la classe
+      let classId = id;
+      if (id) {
+        await DB.updateClass(id, {name});
+      } else {
+        classId = await DB.createClass({name});
+      }
+      
+      // Gestisci gli studenti
+      if (classId) {
+        const studentsText = document.getElementById('classStudents').value.trim();
+        if (studentsText) {
+          // Parse l'elenco studenti
+          const newStudentNames = studentsText.split(';').map(n => n.trim()).filter(n => n);
+          
+          // Ottieni gli studenti attuali della classe
+          const currentClassStudents = students.filter(s => s.classId === classId);
+          const currentStudentNames = currentClassStudents.map(s => s.name);
+          
+          // Identifica studenti da aggiornare, aggiungere o eliminare
+          const updates = [];
+          
+          // 1. Aggiorna i nomi degli studenti esistenti o aggiungi nuovi
+          for (let i = 0; i < newStudentNames.length; i++) {
+            const newName = newStudentNames[i];
+            const oldStudent = currentClassStudents[i];
+            
+            if (oldStudent) {
+              // Studente esistente - aggiorna il nome se cambiato
+              if (oldStudent.name !== newName) {
+                updates.push(DB.updateStudent(oldStudent.id, { name: newName }));
+                Toast.info(`Updated: ${oldStudent.name} → ${newName}`);
+              }
+            } else {
+              // Nuovo studente - crea
+              const generatedId = buildStudentIdFromFullName(newName);
+              if (!generatedId) {
+                Toast.warning(`Invalid name for ID: ${newName}`);
+                continue;
+              }
+              updates.push(DB.createStudentWithId(generatedId, { 
+                name: newName, 
+                classId: classId,
+                className: name
+              }).catch(error => {
+                console.warn(`Student create error ${newName}:`, error);
+                Toast.warning(`Skipped: ${newName}`);
+              }));
+              Toast.success(`Added student: ${newName}`);
+            }
+          }
+          
+          // 2. Rimuovi studenti in eccesso (se la lista è più corta)
+          if (newStudentNames.length < currentClassStudents.length) {
+            for (let i = newStudentNames.length; i < currentClassStudents.length; i++) {
+              const studentToRemove = currentClassStudents[i];
+              // Non eliminiamo lo studente, solo lo spostiamo in una classe vuota o lo teniamo
+              // Per sicurezza, non facciamo nulla per evitare perdite di dati
+              Toast.warning(`Student not removed: ${studentToRemove.name}. Remove manually if needed.`);
+            }
+          }
+          
+          await Promise.all(updates);
+        }
+      }
+      
+      Modal.hide('classModal');
+      await loadData();
+      Toast.success('Saved!');
+    }
+
+    async function deleteClass(id) {
+      if (students.some(s=>s.classId===id)) { Toast.warning('Class is not empty'); return; }
+      if (!await Modal.confirm('Delete?')) return;
+      await DB.deleteClass(id);
+      await loadData();
+      Toast.success('Deleted');
+    }
+
+    function openRewardModal() { Modal.show('rewardModal'); }
+
+    async function saveReward() {
+      const data = {
+        name: document.getElementById('rewardName').value.trim(),
+        description: document.getElementById('rewardDesc').value.trim(),
+        icon: document.getElementById('rewardIcon').value || '🎁',
+        cost: parseInt(document.getElementById('rewardCost').value) || 0
+      };
+      if (!data.name || data.cost < 1) { Toast.warning('Fill in fields'); return; }
+      
+      await DB.createReward(data);
+      Modal.hide('rewardModal');
+      await loadData();
+      Toast.success('Reward added!');
+    }
+
+    async function deleteReward(id) {
+      await DB.school('rewards').doc(id).delete();
+      await loadData();
+      Toast.success('Deleted');
+    }
+
+    function openQuickRewardModal() { Modal.show('quickRewardModal'); }
+
+    async function saveQuickReward() {
+      const data = {
+        name: document.getElementById('qrName').value.trim(),
+        description: document.getElementById('qrDesc').value.trim(),
+        icon: document.getElementById('qrIcon').value || '⭐',
+        amount: parseInt(document.getElementById('qrAmount').value) || 0
+      };
+      if (!data.name || data.amount === 0) { Toast.warning('Fill in fields'); return; }
+      
+      await DB.createQuickReward(data);
+      Modal.hide('quickRewardModal');
+      await loadData();
+      Toast.success('Added!');
+    }
+
+    async function deleteQuickReward(id) {
+      await DB.school('quickRewards').doc(id).delete();
+      await loadData();
+    }
+
+    // ========== DEFAULT QUICK REWARDS ==========
+    const DEFAULT_QUICK_REWARDS = [
+      { name: 'Optional homework', description: 'Complete the optional homework, strictly handwritten', icon: '📚', amount: 30 },
+      { name: 'Clean class', description: 'The class is clean when you leave', icon: '🧹', amount: 5 },
+      { name: 'Weekly email', description: 'Send an email to a family member, explaining what you did in class this week', icon: '📧', amount: 50 },
+      { name: 'Notebook ok', description: 'Show the notebook for checking', icon: '📓', amount: 10 },
+      { name: 'Beautiful notebook', description: 'Creative work with drawing and color', icon: '🎨', amount: 20 },
+      { name: 'The best Notebook!', description: 'Perfectly organized, with drawings and color', icon: '🤩', amount: 100 },
+      { name: 'Book comment', description: 'Finish reading a book and write a summary and a review', icon: '📖', amount: 150 }
+    ];
+
+    async function createDefaultQuickRewards() {
+      try {
+        const existingQuickRewards = await DB.getQuickRewards();
+        if (existingQuickRewards.length > 0) {
+          const confirmed = await Modal.confirm(
+            'There are already quick rewards. Replace them with the defaults?',
+            'Existing quick rewards'
+          );
+          if (!confirmed) return;
+          
+          // Delete existing quick rewards
+          for (const qr of existingQuickRewards) {
+            await DB.school('quickRewards').doc(qr.id).delete();
+          }
+        }
+
+        // Create default quick rewards
+        for (const qr of DEFAULT_QUICK_REWARDS) {
+          await DB.createQuickReward(qr);
+        }
+
+        await loadData();
+        Toast.success('Default quick rewards created!');
+      } catch (error) {
+        console.error('Error creating default quick rewards:', error);
+        Toast.error('Error creating quick rewards');
+      }
+    }
+
+    // ========== DEFAULT REWARDS ==========
+    const DEFAULT_REWARDS = [
+      { name: '1 week no homework', description: 'One full week with no homework', icon: '📅', cost: 100 },
+      { name: 'Choose a song', description: 'Choose the song to listen to in class', icon: '🎵', cost: 80 },
+      { name: 'Group work', description: 'Choose your group for the next task', icon: '👥', cost: 200 },
+      { name: 'Public message', description: 'Make an announcement to the class', icon: '📢', cost: 200 },
+      { name: 'Test or remove homework', description: 'Choose a test or remove homework', icon: '📝', cost: 400 },
+      { name: 'No homework', description: 'Skip homework for today', icon: '🚫', cost: 50 },
+      { name: 'No homework for class', description: 'The whole class has no homework', icon: '🎉', cost: 300 },
+      { name: 'Move the test', description: 'Postpone the test by one day', icon: '📆', cost: 60 },
+      { name: '+1 to grade', description: 'Increase one grade by 1 point', icon: '⭐', cost: 300 },
+      { name: 'Choose an assignment', description: 'Choose which assignment to do', icon: '✏️', cost: 150 }
+    ];
+
+    async function createDefaultRewards() {
+      try {
+        const existingRewards = await DB.getRewards();
+        if (existingRewards.length > 0) {
+          const confirmed = await Modal.confirm(
+            'There are already rewards. Replace them with the defaults?',
+            'Existing rewards'
+          );
+          if (!confirmed) return;
+          
+          // Delete existing rewards
+          for (const reward of existingRewards) {
+            await DB.school('rewards').doc(reward.id).delete();
+          }
+        }
+
+        // Create default rewards
+        for (const reward of DEFAULT_REWARDS) {
+          await DB.createReward(reward);
+        }
+
+        await loadData();
+        Toast.success('Default rewards created!');
+      } catch (error) {
+        console.error('Error creating default rewards:', error);
+        Toast.error('Error creating rewards');
+      }
+    }
+
+    // ========== TEACHERS ==========
+    function renderTeachers() {
+      const container = document.getElementById('teachersContainer');
+      
+      if (!teachers.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><div class="empty-state-title">No teachers</div><p class="text-muted">Add the first teacher</p></div>';
+        return;
+      }
+      
+      container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Teacher</th><th>Email</th><th>Classes</th><th>Actions</th></tr></thead><tbody>
+        ${teachers.map(t => {
+          const assignedClasses = (t.classes || []).map(cId => classes.find(c=>c.id===cId)?.name || cId).join(', ');
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(t.name)}</div>${t.name}</div></td>
+            <td>${t.email}</td>
+            <td>${assignedClasses || '<span class="text-muted">None</span>'}</td>
+            <td><div class="actions">
+              <button class="btn btn-ghost btn-sm" onclick="editTeacherClasses('${t.id}')">✏️</button>
+              <button class="btn btn-ghost btn-sm text-danger" onclick="deleteTeacher('${t.id}')">🗑️</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+    }
+
+    function openTeacherModal() {
+      document.getElementById('teacherName').value = '';
+      document.getElementById('teacherEmail').value = '';
+      document.getElementById('teacherPassword').value = '';
+      
+      // Render class checkboxes
+      const container = document.getElementById('teacherClassesContainer');
+      container.innerHTML = classes.map(c => `
+        <label style="display:flex;align-items:center;gap:var(--space-1);padding:var(--space-2);background:var(--background-alt);border-radius:var(--radius-md);">
+          <input type="checkbox" value="${c.id}" class="teacher-class-checkbox"> ${c.name}
+        </label>
+      `).join('');
+      
+      Modal.show('teacherModal');
+    }
+
+    async function saveTeacher() {
+      const name = document.getElementById('teacherName').value.trim();
+      const email = document.getElementById('teacherEmail').value.trim();
+      const password = document.getElementById('teacherPassword').value;
+      
+      if (!name || !email || !password) {
+        Toast.warning('Fill in all required fields');
+        return;
+      }
+      
+      if (password.length < 6) {
+        Toast.warning('Password must be at least 6 characters');
+        return;
+      }
+      
+      // Get selected classes
+      const selectedClasses = Array.from(document.querySelectorAll('.teacher-class-checkbox:checked'))
+        .map(cb => cb.value);
+      
+      const btn = document.getElementById('saveTeacherBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Creating...';
+      
+      try {
+        await UserManager.createUser(
+          email,
+          password,
+          name,
+          'teacher',
+          Auth.getEffectiveSchoolId(),
+          selectedClasses
+        );
+        
+        // Show instructions
+        alert(`✅ Teacher "${name}" created!\n\n📧 Email: ${email}\n🔑 Password: ${password}\n\n✅ The user is ACTIVE and can log in now.\n\nThe teacher can now log in with the details above.`);
+        
+        Modal.hide('teacherModal');
+        Toast.success(`Teacher ${name} created!`);
+        await loadData();
+        
+      } catch (error) {
+        console.error('Teacher creation error:', error);
+        Toast.error(error.message || 'Error creating teacher');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Teacher';
+      }
+    }
+
+    async function editTeacherClasses(teacherId) {
+      const teacher = teachers.find(t => t.id === teacherId);
+      if (!teacher) return;
+      
+      const currentClasses = teacher.classes || [];
+      
+      // Simple prompt-based editing (could be improved with a modal)
+      const classOptions = classes.map((c, i) => `${i+1}. ${c.name} ${currentClasses.includes(c.id) ? '✓' : ''}`).join('\n');
+      const input = prompt(`Classes for ${teacher.name}:\n${classOptions}\n\nEnter class numbers separated by commas (e.g., 1,3,5):`);
+      
+      if (input === null) return;
+      
+      const selectedIndexes = input.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < classes.length);
+      const selectedClassIds = selectedIndexes.map(i => classes[i].id);
+      
+      try {
+        await UserManager.updateTeacherClasses(teacherId, selectedClassIds);
+        Toast.success('Classes updated!');
+        await loadData();
+      } catch (error) {
+        Toast.error('Update error');
+      }
+    }
+
+    async function deleteTeacher(teacherId) {
+      const teacher = teachers.find(t => t.id === teacherId);
+      if (!await Modal.confirm(`Delete teacher ${teacher?.name}?`)) return;
+      
+      try {
+        await UserManager.deleteUser(teacherId);
+        Toast.success('Teacher deleted');
+        await loadData();
+      } catch (error) {
+        Toast.error(error.message || 'Delete error');
+      }
+    }
+
+    // Settings
+    function loadSettings() {
+      document.getElementById('settingName').value = config.name || '';
+      document.getElementById('settingSymbol').value = config.currencySymbol || '$';
+      document.getElementById('settingCurrency').value = config.currencyName || 'Dollars';
+      document.getElementById('settingLeaderboard').checked = config.showLeaderboard !== false;
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const newConfig = {
+        name: document.getElementById('settingName').value.trim(),
+        currencySymbol: document.getElementById('settingSymbol').value.trim() || '$',
+        currencyName: document.getElementById('settingCurrency').value.trim() || 'Dollari',
+        showLeaderboard: document.getElementById('settingLeaderboard').checked
+      };
+      
+      await DB.schoolDoc().update({ config: newConfig });
+      config = newConfig;
+      sym = newConfig.currencySymbol;
+      document.getElementById('schoolName').textContent = newConfig.name;
+      Toast.success('Settings saved!');
+      await loadData();
+    }
+
+    function exportStudents() {
+      Export.download(students, [
+        {key:'name',label:'Name'},
+        {key:'className',label:'Class'},
+        {key:'balance',label:'Balance'},
+        {key:'nfcTag',label:'NFC'}
+      ], 'students');
+    }
+
+    // === BULK CLASS IMPORT FUNCTIONS ===
+    function openBulkImportClassModal() {
+      document.getElementById('bulkClassList').value = '';
+      const currentYear = new Date().getFullYear();
+      document.getElementById('bulkClassYear').value = currentYear + '-' + (currentYear + 1);
+      document.getElementById('bulkClassPreview').style.display = 'none';
+      Modal.show('bulkImportClassModal');
+    }
+
+    function parseClassList(text) {
+      if (!text || !text.trim()) return { unique: [], duplicates: [], total: 0 };
+      
+      let normalized = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\t/g, '\n')
+        .replace(/;/g, '\n')
+        .replace(/,(?!\s*\d)/g, '\n');
+      
+      let classNames = normalized
+        .split('\n')
+        .map(cls => cls.trim())
+        .filter(cls => cls.length > 0)
+        .map(cls => cls.replace(/^\d+[\.\)\-\s]+/, '').trim())
+        .map(cls => cls.replace(/^[\-\*\•\>\s]+/, '').trim())
+        .filter(cls => cls.length >= 1)
+        .map(cls => cls.toUpperCase());
+      
+      const seen = new Set();
+      const unique = [];
+      const duplicates = [];
+      
+      classNames.forEach(cls => {
+        const normalized = cls.toLowerCase();
+        if (seen.has(normalized)) {
+          duplicates.push(cls);
+        } else {
+          seen.add(normalized);
+          unique.push(cls);
+        }
+      });
+      
+      return { unique, duplicates, total: classNames.length };
+    }
+
+    function previewBulkClassImport() {
+      const text = document.getElementById('bulkClassList').value;
+      const result = parseClassList(text);
+      
+      if (result.unique.length === 0) {
+        Toast.warning('No valid class name found');
+        return;
+      }
+      
+      const previewDiv = document.getElementById('bulkClassPreview');
+      const previewList = document.getElementById('bulkClassPreviewList');
+      const previewCount = document.getElementById('bulkClassPreviewCount');
+      
+      previewCount.textContent = result.unique.length;
+      
+      let html = result.unique.map((cls, i) => `
+        <div style="padding:var(--space-2);background:white;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);">
+          <span style="font-weight:bold;color:var(--text-muted);">${i + 1}.</span>
+          <span>🏫 ${cls}</span>
+        </div>
+      `).join('');
+      
+      if (result.duplicates.length > 0) {
+        html += result.duplicates.map(cls => `
+          <div style="padding:var(--space-2);background:#fff3cd;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);" title="Duplicate - will be ignored">
+            <span>⚠️</span>
+            <span style="text-decoration:line-through;">${cls}</span>
+          </div>
+        `).join('');
+      }
+      
+      let statsHtml = `<div style="margin-top:var(--space-3);padding:var(--space-3);background:var(--success);color:white;border-radius:var(--radius-sm);">
+        <strong>✅ Valid:</strong> ${result.unique.length}`;
+      
+      if (result.duplicates.length > 0) {
+        statsHtml += ` | <strong>⚠️ Duplicates ignored:</strong> ${result.duplicates.length}`;
+      }
+      
+      statsHtml += '</div>';
+      previewList.innerHTML = html + statsHtml;
+      
+      previewDiv.style.display = 'block';
+    }
+
+    async function executeBulkClassImport() {
+      const text = document.getElementById('bulkClassList').value;
+      const classYear = document.getElementById('bulkClassYear').value.trim();
+      
+      const result = parseClassList(text);
+      
+      if (result.unique.length === 0) {
+        Toast.error('No valid class name to import');
+        return;
+      }
+      
+      if (!confirm(`You are about to import ${result.unique.length} classes. Continue?`)) {
+        return;
+      }
+      
+      const btn = document.getElementById('bulkClassImportBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Importing...';
+      btn.disabled = true;
+      
+      try {
+        let importedCount = 0;
+        
+        for (const className of result.unique) {
+          try {
+            // Same pattern as saveClass() - uses Auth.getEffectiveSchoolId() internally
+            await DB.createClass({
+              name: className,
+              year: classYear
+            });
+            importedCount++;
+          } catch (error) {
+            console.warn(`Class import error ${className}:`, error);
+            // Continue with next class
+          }
+        }
+        
+        Toast.success(`✅ Imported ${importedCount} classes!`);
+        Modal.hide('bulkImportClassModal');
+        
+        await loadData();
+        
+      } catch (error) {
+        console.error('Class import error:', error);
+        Toast.error('Import error');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function showSection(id) {
+      closeMobileSidebar(); // Close mobile sidebar when navigating
+      document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(id+'Section')?.classList.remove('hidden');
+      if (id === 'dashboard') {
+        document.getElementById('giveRewardsSection')?.classList.remove('hidden');
+      }
+      UI.setActiveNav(id);
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
+      document.getElementById('pageTitle').textContent = titles[id] || 'Home';
+      if (id === 'history') loadHistory();
+      if (id === 'requests') loadPendingRequests();
+    }
+
+    // === BULK STUDENT IMPORT FUNCTIONS ===
+    function openBulkImportStudentModal() {
+      document.getElementById('bulkStudentList').value = '';
+      document.getElementById('bulkStudentInitialBalance').value = '0';
+      document.getElementById('bulkStudentPreview').style.display = 'none';
+      
+      // Populate class selector
+      const classSelect = document.getElementById('bulkImportStudentClass');
+      classSelect.innerHTML = '<option value="">Select class</option>' + 
+        classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      
+      Modal.show('bulkImportStudentModal');
+    }
+
+    function parseStudentList(text) {
+      if (!text || !text.trim()) return { unique: [], duplicates: [], total: 0 };
+      
+      let normalized = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\t/g, '\n')
+        .replace(/;/g, '\n')
+        .replace(/,(?!\s*\d)/g, '\n');
+      
+      let names = normalized
+        .split('\n')
+        .map(name => name.trim())
+        .filter(name => name.length > 0)
+        .map(name => name.replace(/^\d+[\.\)\-\s]+/, '').trim())
+        .map(name => name.replace(/^[\-\*\•\>\s]+/, '').trim())
+        .filter(name => name.length >= 2);
+      
+      const seen = new Set();
+      const unique = [];
+      const duplicates = [];
+      
+      names.forEach(name => {
+        const normalized = name.toLowerCase();
+        if (seen.has(normalized)) {
+          duplicates.push(name);
+        } else {
+          seen.add(normalized);
+          unique.push(name);
+        }
+      });
+      
+      return { unique, duplicates, total: names.length };
+    }
+
+    function previewBulkStudentImport() {
+      const text = document.getElementById('bulkStudentList').value;
+      const result = parseStudentList(text);
+      
+      if (result.unique.length === 0) {
+        Toast.warning('No valid name found');
+        return;
+      }
+      
+      const previewDiv = document.getElementById('bulkStudentPreview');
+      const previewList = document.getElementById('bulkStudentPreviewList');
+      const previewCount = document.getElementById('bulkStudentPreviewCount');
+      
+      previewCount.textContent = result.unique.length;
+      
+      let html = result.unique.map((name, i) => `
+        <div style="padding:var(--space-2);background:white;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);">
+          <span style="font-weight:bold;color:var(--text-muted);">${i + 1}.</span>
+          <span>👤 ${name}</span>
+        </div>
+      `).join('');
+      
+      if (result.duplicates.length > 0) {
+        html += result.duplicates.map(name => `
+          <div style="padding:var(--space-2);background:#fff3cd;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);" title="Duplicate - will be ignored">
+            <span>⚠️</span>
+            <span style="text-decoration:line-through;">${name}</span>
+          </div>
+        `).join('');
+      }
+      
+      let statsHtml = `<div style="margin-top:var(--space-3);padding:var(--space-3);background:var(--success);color:white;border-radius:var(--radius-sm);">
+        <strong>✅ Valid:</strong> ${result.unique.length}`;
+      
+      if (result.duplicates.length > 0) {
+        statsHtml += ` | <strong>⚠️ Duplicates ignored:</strong> ${result.duplicates.length}`;
+      }
+      
+      statsHtml += '</div>';
+      previewList.innerHTML = html + statsHtml;
+      
+      previewDiv.style.display = 'block';
+    }
+
+    async function executeBulkStudentImport() {
+      const classId = document.getElementById('bulkImportStudentClass').value;
+      const text = document.getElementById('bulkStudentList').value;
+      const initialBalance = parseFloat(document.getElementById('bulkStudentInitialBalance').value) || 0;
+      
+      if (!classId) {
+        Toast.error('Select a class');
+        return;
+      }
+      
+      const result = parseStudentList(text);
+      
+      if (result.unique.length === 0) {
+        Toast.error('No valid name to import');
+        return;
+      }
+      
+      const selectedClass = classes.find(c => c.id === classId);
+      if (!confirm(`You are about to import ${result.unique.length} students in class ${selectedClass?.name}. Continue?`)) {
+        return;
+      }
+      
+      const btn = document.getElementById('bulkStudentImportBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Importing...';
+      btn.disabled = true;
+      
+      try {
+        let importedCount = 0;
+        
+        for (const name of result.unique) {
+          try {
+            const generatedId = buildStudentIdFromFullName(name);
+            if (!generatedId) {
+              console.warn(`Invalid name for ID: ${name}`);
+              continue;
+            }
+            await DB.createStudentWithId(generatedId, {
+              name: name,
+              classId: classId,
+              className: selectedClass?.name || '',
+              balance: initialBalance,
+              nfcTag: null
+            });
+            importedCount++;
+          } catch (error) {
+            console.warn(`Student import error ${name}:`, error);
+            // Continue with next student
+          }
+        }
+        
+        Toast.success(`✅ Imported ${importedCount} students!`);
+        Modal.hide('bulkImportStudentModal');
+        
+        await loadData();
+        
+      } catch (error) {
+        console.error('Student import error:', error);
+        Toast.error('Import error');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    /* === BULK TRANSACTIONS IMPORT FUNCTIONS (disabled) ===
+       These were used for Google Sheets/Excel bulk import and are now disabled.
+
+    let bulkTransactionPreview = null;
+
+    function openBulkImportTransactionsModal() {
+      document.getElementById('bulkTransactionsSheet').value = '';
+      document.getElementById('bulkTransactionsDefaultYear').value = new Date().getFullYear();
+      document.getElementById('bulkTransactionsSkipZero').checked = true;
+      document.getElementById('bulkTransactionsPreview').style.display = 'none';
+      bulkTransactionPreview = null;
+      Modal.show('bulkImportTransactionsModal');
+    }
+
+    function normalizeStudentName(name) {
+      return (name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function buildNameVariants(name) {
+      const base = normalizeStudentName(name);
+      const variants = new Set();
+      if (!base) return [];
+      variants.add(base);
+      const noComma = base.replace(/,/g, ' ');
+      variants.add(noComma.replace(/\s+/g, ' ').trim());
+      const parts = noComma.split(' ').filter(Boolean);
+      if (parts.length >= 2) {
+        const reversed = [parts[parts.length - 1], ...parts.slice(0, -1)].join(' ');
+        variants.add(reversed);
+      }
+      return Array.from(variants);
+    }
+
+    function isNumericCell(value) {
+      if (value === null || value === undefined) return false;
+      const v = value.toString().trim();
+      if (!v) return false;
+      return !isNaN(Number(v.replace(',', '.')));
+    }
+
+    function isLikelyHeaderRow(row) {
+      let numeric = 0;
+      let nonNumeric = 0;
+      row.forEach(cell => {
+        if (!cell) return;
+        if (isNumericCell(cell)) numeric++;
+        else nonNumeric++;
+      });
+      return nonNumeric > numeric;
+    }
+
+    function parseDateLabel(label, defaultYear) {
+      if (!label) return null;
+      const match = label.match(/(\d{1,2})[\/\.-](\d{1,2})(?:[\/\.-](\d{2,4}))?/);
+      if (!match) return null;
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      let year = match[3] ? parseInt(match[3], 10) : defaultYear;
+      if (year < 100) year += 2000;
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      return new Date(year, month - 1, day, 12, 0, 0);
+    }
+
+    function getIconFromLabel(label) {
+      if (!label) return null;
+      const first = Array.from(label.trim())[0];
+      if (!first) return null;
+      return /[A-Za-z0-9]/.test(first) ? null : first;
+    }
+
+    function extractIconAndLabel(label) {
+      if (!label) return { icon: null, text: '' };
+      const chars = Array.from(label.trim());
+      if (chars.length === 0) return { icon: null, text: '' };
+      const first = chars[0];
+      if (/[A-Za-z0-9]/.test(first)) {
+        return { icon: null, text: label.trim() };
+      }
+      const text = chars.slice(1).join('').trim();
+      return { icon: first, text };
+    }
+
+    function parseBulkTransactionSheet(text, options = {}) {
+      const cleaned = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const rows = cleaned.split('\n').map(line => line.split('\t').map(cell => (cell || '').trim()));
+      const nonEmptyRows = rows.filter(row => row.some(cell => cell !== ''));
+
+      if (nonEmptyRows.length === 0) {
+        return { transactions: [], unmatched: [], errors: ['No data'], stats: null };
+      }
+
+      const headerRowIndex = isLikelyHeaderRow(nonEmptyRows[0]) ? 0 : -1;
+      const labelRowIndex = headerRowIndex === 0 && nonEmptyRows.length > 1 && isLikelyHeaderRow(nonEmptyRows[1]) ? 1 : -1;
+      const dataStartIndex = headerRowIndex === 0 ? (labelRowIndex === 1 ? 2 : 1) : 0;
+
+      const headerRow = headerRowIndex === 0 ? nonEmptyRows[0] : null;
+      const labelRow = labelRowIndex === 1 ? nonEmptyRows[1] : null;
+
+      let studentCol = 0;
+      if (headerRow) {
+        headerRow.forEach((cell, idx) => {
+          if (/(ALUNNI|STUDENTI|STUDENTS|NAME|NOME)/i.test(cell)) {
+            studentCol = idx;
+          }
+        });
+      }
+
+      const firstDataRow = nonEmptyRows[dataStartIndex] || [];
+      if (studentCol === 0 && isNumericCell(firstDataRow[0]) && !isNumericCell(firstDataRow[1])) {
+        studentCol = 1;
+      }
+
+      const sumCols = new Set();
+      if (headerRow) {
+        headerRow.forEach((cell, idx) => {
+          if (/(^|\s)(SUM|SUM\.|TOTAL|TOTALE)(\s|$)/i.test(cell)) {
+            sumCols.add(idx);
+          }
+        });
+      }
+
+      const studentsByName = new Map();
+      students.forEach(s => studentsByName.set(normalizeStudentName(s.name), s));
+
+      const transactions = [];
+      const unmatched = new Set();
+      const errors = [];
+      const skipZero = options.skipZero !== false;
+      const defaultYear = options.defaultYear || new Date().getFullYear();
+
+      for (let r = dataStartIndex; r < nonEmptyRows.length; r++) {
+        const row = nonEmptyRows[r];
+        const studentName = (row[studentCol] || '').trim();
+        if (!studentName) continue;
+
+        let student = null;
+        const variants = buildNameVariants(studentName);
+        for (const variant of variants) {
+          if (studentsByName.has(variant)) {
+            student = studentsByName.get(variant);
+            break;
+          }
+        }
+
+        if (!student) {
+          unmatched.add(studentName);
+          continue;
+        }
+
+        for (let c = 0; c < row.length; c++) {
+          if (c === studentCol || c < studentCol || sumCols.has(c)) continue;
+          const cell = (row[c] || '').trim();
+          if (!cell) continue;
+          const amount = parseFloat(cell.replace(',', '.'));
+          if (isNaN(amount)) continue;
+          if (skipZero && amount === 0) continue;
+
+          const dateLabel = headerRow ? (headerRow[c] || '').trim() : '';
+          const reasonLabel = labelRow ? (labelRow[c] || '').trim() : '';
+          const parsedLabel = extractIconAndLabel(reasonLabel);
+          const reason = parsedLabel.text || (dateLabel ? `Imported ${dateLabel}` : 'Imported from sheet');
+          const date = dateLabel ? parseDateLabel(dateLabel, defaultYear) : null;
+          const icon = parsedLabel.icon || (dateLabel ? '📅' : '⭐');
+
+          transactions.push({
+            studentId: student.id,
+            studentName: student.name,
+            amount,
+            reason,
+            icon,
+            date,
+            dateLabel
+          });
+        }
+      }
+
+      const stats = {
+        rows: nonEmptyRows.length,
+        transactions: transactions.length,
+        unmatched: unmatched.size
+      };
+
+      if (transactions.length === 0) {
+        errors.push('No transactions found');
+      }
+
+      return { transactions, unmatched: Array.from(unmatched), errors, stats };
+    }
+
+    function previewBulkTransactionImport() {
+      const text = document.getElementById('bulkTransactionsSheet').value;
+      const defaultYear = parseInt(document.getElementById('bulkTransactionsDefaultYear').value, 10) || new Date().getFullYear();
+      const skipZero = document.getElementById('bulkTransactionsSkipZero').checked;
+
+      const result = parseBulkTransactionSheet(text, { defaultYear, skipZero });
+      bulkTransactionPreview = result;
+
+      if (result.errors.length > 0) {
+        Toast.warning(result.errors.join(' | '));
+      }
+
+      const preview = document.getElementById('bulkTransactionsPreview');
+      const previewStats = document.getElementById('bulkTransactionsPreviewStats');
+      const previewList = document.getElementById('bulkTransactionsPreviewList');
+
+      if (!result.stats) {
+        preview.style.display = 'none';
+        return;
+      }
+
+      previewStats.innerHTML = `
+        <div style="padding:var(--space-2);background:var(--success);color:white;border-radius:var(--radius-sm);">
+          <strong>✅ Transactions:</strong> ${result.stats.transactions}
+          &nbsp;|&nbsp; <strong>⚠️ Unmatched students:</strong> ${result.stats.unmatched}
+        </div>
+      `;
+
+      let html = result.transactions.slice(0, 50).map((tx, i) => `
+        <div style="padding:var(--space-2);background:white;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);">
+          <span style="font-weight:bold;color:var(--text-muted);">${i + 1}.</span>
+          <span>${tx.icon} ${tx.studentName} • ${tx.amount >= 0 ? '+' : ''}${sym}${Math.abs(tx.amount)} • ${tx.reason}</span>
+        </div>
+      `).join('');
+
+      if (result.unmatched.length > 0) {
+        html += result.unmatched.slice(0, 50).map(name => `
+          <div style="padding:var(--space-2);background:#fff3cd;margin-bottom:var(--space-1);border-radius:var(--radius-sm);display:flex;align-items:center;gap:var(--space-2);" title="Student not found">
+            <span>⚠️</span>
+            <span>${name}</span>
+          </div>
+        `).join('');
+      }
+
+      previewList.innerHTML = html || '<div class="text-muted">No transactions to preview.</div>';
+      preview.style.display = 'block';
+    }
+
+    async function executeBulkTransactionImport() {
+      const text = document.getElementById('bulkTransactionsSheet').value;
+      const defaultYear = parseInt(document.getElementById('bulkTransactionsDefaultYear').value, 10) || new Date().getFullYear();
+      const skipZero = document.getElementById('bulkTransactionsSkipZero').checked;
+      const result = bulkTransactionPreview || parseBulkTransactionSheet(text, { defaultYear, skipZero });
+
+      if (result.transactions.length === 0) {
+        Toast.error('No valid transactions to import');
+        return;
+      }
+
+      if (!confirm(`You are about to import ${result.transactions.length} transactions. Continue?`)) {
+        return;
+      }
+
+      const btn = document.getElementById('bulkTransactionsImportBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+
+      let imported = 0;
+      let failed = 0;
+
+      try {
+        for (let i = 0; i < result.transactions.length; i++) {
+          const tx = result.transactions[i];
+          btn.innerHTML = `<span class="spinner spinner-sm"></span> Importing ${i + 1}/${result.transactions.length}`;
+          try {
+            if (tx.date) {
+              await DB.giveRewardWithDate(tx.studentId, tx.amount, tx.reason, tx.icon, tx.date);
+            } else {
+              await DB.giveReward(tx.studentId, tx.amount, tx.reason, tx.icon);
+            }
+            imported++;
+          } catch (error) {
+            console.warn('Transaction import error:', error);
+            failed++;
+          }
+        }
+
+        if (failed > 0) {
+          Toast.warning(`Imported ${imported} transactions. ${failed} failed.`);
+        } else {
+          Toast.success(`✅ Imported ${imported} transactions!`);
+        }
+
+        Modal.hide('bulkImportTransactionsModal');
+        await loadData();
+      } catch (error) {
+        console.error('Bulk transaction import error:', error);
+        Toast.error('Import error');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+    */
+
+    function showSection(id) {
+      closeMobileSidebar(); // Close mobile sidebar when navigating
+      document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(id+'Section')?.classList.remove('hidden');
+      if (id === 'dashboard') {
+        document.getElementById('giveRewardsSection')?.classList.remove('hidden');
+      }
+      UI.setActiveNav(id);
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
+      document.getElementById('pageTitle').textContent = titles[id] || 'Home';
+      if (id === 'history') loadHistory();
+      if (id === 'requests') loadPendingRequests();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
