@@ -129,7 +129,11 @@
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">👥 Students</h3>
-              <div style="display:flex;gap:var(--space-3);">
+              <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;">
+                <div class="search-bar" style="max-width: 260px; width: 100%;">
+                  <span class="search-bar-icon">🔍</span>
+                  <input id="studentsSearchInput" type="search" class="input" placeholder="Search student name" oninput="handleStudentSearch()">
+                </div>
                 <select id="classFilter" class="input" style="width:150px;" onchange="renderStudents()"><option value="">All</option></select>
                 <button class="btn btn-primary" onclick="openStudentModal()">+ Add</button>
                 <button class="btn btn-secondary" onclick="openBulkImportStudentModal()">📥 Bulk Import</button>
@@ -627,12 +631,26 @@ ALLMETA REINA\t240\t10\t5
       });
     }
 
+    const handleStudentSearchDebounced = Search.debounce(() => {
+      renderStudents();
+    }, 200);
+
+    function handleStudentSearch() {
+      handleStudentSearchDebounced();
+    }
+
     function renderStudents() {
       const filter = document.getElementById('classFilter').value;
-      const list = filter ? students.filter(s=>s.classId===filter) : students;
+      const searchTerm = document.getElementById('studentsSearchInput')?.value.trim() || '';
+      let list = filter ? students.filter(s=>s.classId===filter) : students;
+
+      if (searchTerm) {
+        list = Search.filter(list, searchTerm, ['name', 'nfcTag']);
+      }
+
       const container = document.getElementById('studentsContainer');
       
-      if (!list.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
+      if (!list.length) { container.innerHTML = '<p class="text-muted">No students found</p>'; return; }
       
       container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Class</th><th>Balance</th><th>NFC</th><th>Actions</th></tr></thead><tbody>
         ${list.map(s => {
