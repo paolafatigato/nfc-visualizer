@@ -1343,7 +1343,10 @@ ALLMETA REINA\t240\t10\t5
               <div class="avatar avatar-lg podium-avatar">${medals[i]}</div>
               <div class="podium-name">${s.name}</div>
             </div>
-            <div class="podium-amount">${sym}${s.totalEarned || 0}</div>
+            <div class="podium-amount">
+              <div>${sym}${s.totalEarned || 0}</div>
+              <div class="podium-current">Current: ${sym}${s.balance || 0}</div>
+            </div>
             <div class="podium-bar"><span style="width:${pct}%"></span></div>
           </div>
         `;
@@ -1358,7 +1361,10 @@ ALLMETA REINA\t240\t10\t5
               <div class="top-student-name">${s.name}</div>
               <div class="top-student-bar"><span style="width:${pct}%"></span></div>
             </div>
-            <div class="top-student-amount">${sym}${s.totalEarned || 0}</div>
+            <div class="top-student-amount">
+              <div>${sym}${s.totalEarned || 0}</div>
+              <div class="top-student-current">Current: ${sym}${s.balance || 0}</div>
+            </div>
           </div>
         `;
       }).join('') : '<p class="text-muted">No more students</p>';

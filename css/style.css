@@ -419,6 +419,12 @@ textarea.input {
   justify-self: end;
 }
 
+.podium-current {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+}
+
 .podium-bar {
   height: 6px;
   background: var(--background-alt);
@@ -494,6 +500,14 @@ textarea.input {
   grid-column: 3;
   grid-row: 2;
   justify-self: end;
+}
+
+.top-student-current {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
 }
 
 @media (max-width: 900px) {
