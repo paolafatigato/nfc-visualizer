@@ -1275,9 +1275,12 @@ textarea.input {
 }
 
 .login-logo {
-  font-size: 5rem;
+  width: 96px;
+  height: 96px;
   animation: float 3s ease-in-out infinite;
   display: inline-block;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.2));
 }
 
 @keyframes float {
