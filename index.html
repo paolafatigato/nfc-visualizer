@@ -178,12 +178,102 @@
       background: var(--background-alt);
       margin-bottom: var(--space-2);
     }
+
+    .transaction-item.reward-earned {
+      background: linear-gradient(135deg, #ffe6c7 0%, #ffd9e9 50%, #efe1ff 100%);
+    }
     .transaction-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: var(--surface); border-radius: var(--radius-md); flex-shrink: 0; }
     .transaction-info { flex: 1; min-width: 0; }
     .transaction-reason { font-weight: var(--font-medium); font-size: var(--text-sm); margin-bottom: 4px; }
     .transaction-meta { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
     .transaction-amount { font-size: var(--text-lg); font-weight: var(--font-bold); color: var(--success); }
     .transaction-amount.negative { color: var(--danger); }
+
+    .transactions-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .transactions-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+    }
+
+    .info-button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-size: 0.95rem;
+    }
+
+    .info-button:hover {
+      background: var(--background-alt);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .quick-rewards-catalog {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    .quick-reward-catalog-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3);
+      border-radius: var(--radius-lg);
+      background: #f2eaff;
+    }
+
+    .quick-reward-catalog-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .quick-reward-catalog-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .quick-reward-catalog-name {
+      font-weight: var(--font-semibold);
+      margin-bottom: 2px;
+    }
+
+    .quick-reward-catalog-desc {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .quick-reward-catalog-amount {
+      font-weight: var(--font-bold);
+      font-size: var(--text-base);
+      color: var(--success);
+    }
+
+    .quick-reward-catalog-amount.negative {
+      color: var(--danger);
+    }
 
     .reward-item {
       display: flex;
@@ -200,8 +290,24 @@
     .reward-info { flex: 1; }
     .reward-name { font-weight: var(--font-semibold); }
     .reward-description { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
-    .reward-cost { font-size: var(--text-lg); font-weight: var(--font-bold); color: var(--accent); }
-    .reward-item.affordable .reward-cost { color: var(--success); }
+    .reward-cost { font-size: var(--text-lg); font-weight: var(--font-bold); color: var(--accent); align-self: center; padding: 6px 10px; border-radius: var(--radius-md); }
+    .reward-item.affordable .reward-cost { color: var(--success); background: #fff; }
+    .reward-item.unavailable {
+      background: #f3f3f3;
+      border-color: #e0e0e0;
+      opacity: 0.6;
+      filter: grayscale(0.4);
+    }
+    .reward-item.unavailable .reward-cost {
+      color: var(--text-muted);
+    }
+    .reward-item.unavailable .reward-description {
+      color: var(--text-muted);
+    }
+    .reward-item.unavailable .request-btn {
+      background: #cfcfcf;
+      cursor: not-allowed;
+    }
     .request-btn { margin-top: var(--space-2); padding: var(--space-2) var(--space-4); font-size: var(--text-sm); background: var(--primary); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; }
     .request-btn:hover { background: var(--primary-dark); }
 
@@ -271,6 +377,10 @@
       </div>
 
       <div id="transactionsTab" class="tab-content active">
+        <div class="transactions-header">
+          <div class="transactions-title">Recent transactions</div>
+          <button class="info-button" onclick="openQuickRewardsInfo()" title="Quick rewards catalog" aria-label="Quick rewards catalog">ℹ️</button>
+        </div>
         <div id="transactionsList"></div>
         <div id="noTransactions" class="empty-state hidden">
           <div class="empty-state-icon">📭</div>
@@ -292,6 +402,22 @@
     </main>
 
     <div id="motivationQuote" class="motivation-quote hidden"></div>
+  </div>
+
+  <!-- Quick Rewards Info Modal -->
+  <div id="quickRewardsInfoBackdrop" class="modal-backdrop" onclick="closeQuickRewardsInfo()"></div>
+  <div id="quickRewardsInfoModal" class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">⚡ Quick rewards catalog</h3>
+      <button class="modal-close" onclick="closeQuickRewardsInfo()">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted" style="margin-bottom: var(--space-4);">These are the quick rewards a teacher can give you instantly.</p>
+      <div id="quickRewardsCatalogList" class="quick-rewards-catalog"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeQuickRewardsInfo()">Close</button>
+    </div>
   </div>
 
   <!-- Teacher Selection Modal -->
@@ -561,7 +687,7 @@
         list.innerHTML = transactions.map(tx => {
           console.log('Transaction:', tx);
           return `
-          <div class="transaction-item">
+          <div class="transaction-item ${tx.amount >= 0 ? 'reward-earned' : ''}">
             <div class="transaction-icon">${tx.icon || '⭐'}</div>
             <div class="transaction-info">
               <div class="transaction-amount ${tx.amount < 0 ? 'negative' : ''}">${tx.amount >= 0 ? '+' : ''}${symbol}${Math.abs(tx.amount)}</div>
@@ -575,6 +701,58 @@
         console.error('Transactions error:', error);
         list.innerHTML = '<p style="color: red; padding: 20px;">Error: ' + error.message + '</p>';
       }
+    }
+
+    async function loadQuickRewardsCatalog() {
+      const list = document.getElementById('quickRewardsCatalogList');
+      if (!list || !currentStudent) return;
+      list.innerHTML = '<div class="text-center"><div class="spinner spinner-sm"></div></div>';
+
+      try {
+        const snapshot = await db.collection('schools')
+          .doc(currentStudent.schoolId)
+          .collection('quickRewards')
+          .get();
+
+        const rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(reward => reward.active !== false);
+
+        if (rewards.length === 0) {
+          list.innerHTML = '<div class="text-muted">No quick rewards available.</div>';
+          return;
+        }
+
+        const symbol = schoolData.config?.currencySymbol || '$';
+        rewards.sort((a, b) => (a.amount || 0) - (b.amount || 0));
+
+        list.innerHTML = rewards.map(reward => {
+          const amount = reward.amount || 0;
+          return `
+            <div class="quick-reward-catalog-item">
+              <div class="quick-reward-catalog-icon">${reward.icon || '⭐'}</div>
+              <div class="quick-reward-catalog-info">
+                <div class="quick-reward-catalog-name">${reward.name || 'Quick reward'}</div>
+                <div class="quick-reward-catalog-desc">${reward.description || 'No description'}</div>
+              </div>
+              <div class="quick-reward-catalog-amount ${amount < 0 ? 'negative' : ''}">${amount >= 0 ? '+' : ''}${symbol}${Math.abs(amount)}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Quick rewards load error:', error);
+        list.innerHTML = '<div class="text-muted">Unable to load quick rewards.</div>';
+      }
+    }
+
+    function openQuickRewardsInfo() {
+      document.getElementById('quickRewardsInfoBackdrop').classList.add('active');
+      document.getElementById('quickRewardsInfoModal').classList.add('active');
+      loadQuickRewardsCatalog();
+    }
+
+    function closeQuickRewardsInfo() {
+      document.getElementById('quickRewardsInfoBackdrop').classList.remove('active');
+      document.getElementById('quickRewardsInfoModal').classList.remove('active');
     }
 
     async function loadRewards() {
@@ -592,24 +770,32 @@
         const allRewards = snapshot.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(reward => reward.active !== false); // Show all except explicitly disabled
-        
-        // Filter rewards the student can afford
-        const rewards = allRewards.filter(reward => balance >= reward.cost);
-        
-        if (rewards.length === 0) {
+
+        if (allRewards.length === 0) {
           empty.classList.remove('hidden');
           return;
         }
         
         empty.classList.add('hidden');
-        list.innerHTML = rewards.map(reward => {
+
+        const affordableRewards = allRewards.filter(reward => balance >= reward.cost);
+        const unavailableRewards = allRewards.filter(reward => balance < reward.cost);
+        const sortedRewards = [
+          ...affordableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0)),
+          ...unavailableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0))
+        ];
+
+        list.innerHTML = sortedRewards.map(reward => {
+          const isAffordable = balance >= reward.cost;
           return `
-            <div class="reward-item affordable">
+            <div class="reward-item ${isAffordable ? 'affordable' : 'unavailable'}" ${isAffordable ? '' : 'data-open-quick-rewards="true"'}>
               <div class="reward-icon">${reward.icon || '🎁'}</div>
               <div class="reward-info">
                 <div class="reward-name">${reward.name}</div>
                 <div class="reward-description">${reward.description || ''}</div>
-                <button class="request-btn" data-reward-id="${reward.id}" data-reward-name="${reward.name}">Request</button>
+                <button class="request-btn ${isAffordable ? '' : 'not-enough-btn'}" data-reward-id="${reward.id}" data-reward-name="${reward.name}" data-available="${isAffordable ? 'true' : 'false'}" ${isAffordable ? '' : 'aria-disabled="true"'}>
+                  ${isAffordable ? 'Request' : 'Not enough'}
+                </button>
               </div>
               <div class="reward-cost">${symbol}${reward.cost}</div>
             </div>
@@ -618,12 +804,25 @@
         
         console.log('Rewards loaded, adding event listeners...');
         // Aggiungi event listeners ai pulsanti
-        const buttons = document.querySelectorAll('.request-btn');
+        const buttons = document.querySelectorAll('.request-btn[data-available="true"]');
         console.log('Found buttons:', buttons.length);
         buttons.forEach(btn => {
           btn.addEventListener('click', () => {
             console.log('Button clicked, reward ID:', btn.dataset.rewardId);
             requestReward(btn.dataset.rewardId, btn.dataset.rewardName);
+          });
+        });
+
+        document.querySelectorAll('.reward-item.unavailable[data-open-quick-rewards="true"]').forEach(item => {
+          item.addEventListener('click', () => {
+            openQuickRewardsInfo();
+          });
+        });
+
+        document.querySelectorAll('.not-enough-btn').forEach(btn => {
+          btn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openQuickRewardsInfo();
           });
         });
       } catch (error) {
