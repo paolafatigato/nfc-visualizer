@@ -510,6 +510,11 @@ const DB = {
     if (!rewardDoc.exists) throw new Error('Reward not found');
     
     const reward = rewardDoc.data();
+
+    const rewardNameForFollowUp = (reward?.name || request.rewardName || '').toString();
+    const isDeskMateReward = /(deskmate|desk\s*mate|compagno\s*di\s*banco|cambio\s*posti|scambio\s*posti)/i.test(rewardNameForFollowUp);
+    const isOneWeek = /(1\s*week|one\s*week|1\s*settimana|una\s*settimana|settimana)/i.test(rewardNameForFollowUp);
+    const shouldScheduleFollowUp = isDeskMateReward && isOneWeek;
     
     // Deduct cost from student
     await this.giveReward(
@@ -520,11 +525,21 @@ const DB = {
     );
     
     // Update request status
-    await this.school('rewardRequests').doc(requestId).update({
+    const updatePayload = {
       status: 'approved',
       approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
       approvedBy: Auth.currentUser?.uid
-    });
+    };
+
+    if (shouldScheduleFollowUp) {
+      const followUpDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      updatePayload.followUpAt = firebase.firestore.Timestamp.fromDate(followUpDate);
+      updatePayload.followUpText = 'Ricambia i posti: settimana finita.';
+      updatePayload.followUpDismissed = false;
+      updatePayload.followUpType = 'desk-swap';
+    }
+
+    await this.school('rewardRequests').doc(requestId).update(updatePayload);
   },
   
   async rejectRewardRequest(requestId, reason = '') {

@@ -331,6 +331,45 @@ textarea.input {
 .badge-danger { background: var(--danger-light); color: var(--danger); }
 .badge-info { background: var(--info-light); color: var(--info); }
 
+/* === REQUEST REMINDER === */
+.request-reminder {
+  border: 2px solid rgba(var(--primary-rgb), 0.85);
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.18), var(--shadow-glow);
+  background: linear-gradient(180deg, rgba(var(--primary-rgb), 0.08), rgba(255, 255, 255, 0));
+  cursor: pointer;
+}
+
+.request-reminder-note {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(var(--primary-rgb), 0.14);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.request-reminder-dismiss {
+  font-weight: var(--font-medium);
+  color: var(--primary-dark);
+}
+
+.request-processing {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.request-history-card {
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--surface);
+}
+
 /* === AVATAR === */
 .avatar {
   width: 40px;

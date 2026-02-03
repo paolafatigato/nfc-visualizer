@@ -1163,6 +1163,15 @@ ALLMETA REINA\t240\t10\t5
       Toast.success('Reward loaded. Select students.');
     }
 
+    const FOLLOW_UP_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
+
+    const shouldScheduleFollowUpForRewardName = (rewardName = '') => {
+      const name = rewardName.toString();
+      const isDeskMateReward = /(deskmate|desk\s*mate|compagno\s*di\s*banco|cambio\s*posti|scambio\s*posti)/i.test(name);
+      const isOneWeek = /(1\s*week|one\s*week|1\s*settimana|una\s*settimana|settimana)/i.test(name);
+      return isDeskMateReward && isOneWeek;
+    };
+
     async function loadPendingRequests() {
       const container = document.getElementById('requestsList');
       const empty = document.getElementById('noRequests');
@@ -1238,26 +1247,51 @@ ALLMETA REINA\t240\t10\t5
 
         empty.classList.add('hidden');
         const sectionTitle = (title) => `<div style="margin: var(--space-3) 0 var(--space-2); font-weight: 600; color: var(--text-muted);">${title}</div>`;
+        const getTimestampMillis = (value) => {
+          if (!value) return 0;
+          if (typeof value.toMillis === 'function') return value.toMillis();
+          if (typeof value.seconds === 'number') return value.seconds * 1000;
+          const parsed = new Date(value);
+          return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+        };
         const renderRequest = (req, isPending) => {
+          const rewardFromMap = rewardMap[req.rewardId];
           const reward = req._fromTransaction
             ? { name: req.rewardName || 'Reward', cost: req.rewardCost || 0, icon: req.rewardIcon || '🎁' }
-            : (rewardMap[req.rewardId] || { name: 'Reward', cost: 0, icon: '🎁' });
+            : {
+                name: req.rewardName || rewardFromMap?.name || 'Reward',
+                cost: rewardFromMap?.cost || req.rewardCost || 0,
+                icon: rewardFromMap?.icon || req.rewardIcon || '🎁'
+              };
           const statusIcon = req.status === 'approved' ? '✅' : req.status === 'rejected' ? '❌' : '';
           const statusText = req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : '';
+          const approvedAtMillis = getTimestampMillis(req.approvedAt);
+          const requestedAtMillis = getTimestampMillis(req.requestedAt);
+          const rewardNameForSchedule = req.rewardName || rewardFromMap?.name || reward.name || '';
+          const shouldSchedule = shouldScheduleFollowUpForRewardName(rewardNameForSchedule);
+          const baseMillis = approvedAtMillis || requestedAtMillis;
+          const followUpAtMillis = getTimestampMillis(req.followUpAt)
+            || (shouldSchedule && baseMillis ? baseMillis + FOLLOW_UP_DELAY_MS : 0);
+          const followUpDue = !isPending && !req._fromTransaction && req.status === 'approved'
+            && !req.followUpDismissed
+            && followUpAtMillis > 0
+            && followUpAtMillis <= Date.now();
+          const followUpText = req.followUpText || 'Ricambia i posti: settimana finita.';
 
           return `
-            <div class="transaction-item" style="flex-wrap: wrap; ${isPending ? '' : 'opacity: 0.5;'}">
+            <div class="transaction-item ${!isPending ? 'request-history-card' : ''} ${followUpDue ? 'request-reminder' : ''}" data-request-id="${req.id}" style="flex-wrap: wrap; ${isPending ? '' : (followUpDue ? '' : 'opacity: 0.5;')}" ${followUpDue ? `onclick="dismissFollowUp('${req.id}')"` : ''}>
               <div class="transaction-icon">${reward.icon}</div>
               <div class="transaction-info">
                 <div class="transaction-reason">${req.studentName}</div>
                 <div class="transaction-meta">${reward.name} • ${sym}${reward.cost} ${!isPending ? `• ${statusIcon} ${statusText}` : ''}</div>
                 ${req.message ? `<div style="margin-top: var(--space-2); padding: var(--space-2); background: rgba(93, 63, 211, 0.1); border-left: 3px solid var(--primary); border-radius: var(--radius-md); font-size: var(--text-sm);"><strong>💬 Message:</strong> ${req.message}</div>` : ''}
                 ${req.status === 'rejected' && req.rejectionReason ? `<div style="margin-top: var(--space-2); padding: var(--space-2); background: rgba(255, 99, 71, 0.1); border-left: 3px solid var(--danger); border-radius: var(--radius-md); font-size: var(--text-sm);"><strong>👨‍🏫 Teacher message:</strong> ${req.rejectionReason}</div>` : ''}
+                ${followUpDue ? `<div class="request-reminder-note">🟣 ${followUpText} <span class="request-reminder-dismiss">Clicca per chiudere</span></div>` : ''}
               </div>
               <div style="display: flex; gap: var(--space-2);">
                 ${isPending ? `
-                  <button class="btn btn-success btn-sm" onclick="approveRequest('${req.id}')">✅</button>
-                  <button class="btn btn-danger btn-sm" onclick="rejectRequest('${req.id}')">❌</button>
+                  <button class="btn btn-success btn-sm" onclick="approveRequest('${req.id}', event)">✅</button>
+                  <button class="btn btn-danger btn-sm" onclick="rejectRequest('${req.id}', event)">❌</button>
                 ` : ''}
               </div>
             </div>
@@ -1277,18 +1311,46 @@ ALLMETA REINA\t240\t10\t5
       }
     }
 
-    async function approveRequest(requestId) {
+    async function approveRequest(requestId, event) {
+      const btn = event?.currentTarget;
+      const card = btn?.closest('.transaction-item');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+      }
+      if (card) {
+        card.classList.add('request-processing');
+      }
+
       try {
         await DB.approveRewardRequest(requestId);
         Toast.success('Request approved!');
-        await loadPendingRequests();
-        await loadData();
+        loadPendingRequests();
+        loadData();
       } catch (error) {
+        console.error('Approval error:', error);
         Toast.error('Approval error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '✅';
+        }
+        if (card) {
+          card.classList.remove('request-processing');
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '✅';
+        }
+        if (card) {
+          card.classList.remove('request-processing');
+        }
       }
     }
 
-    async function rejectRequest(requestId) {
+    async function rejectRequest(requestId, event) {
+      event?.stopPropagation?.();
       const confirmed = await Modal.confirm('Reject this request?');
       if (!confirmed) return;
 
@@ -1299,7 +1361,23 @@ ALLMETA REINA\t240\t10\t5
         Toast.success('Request rejected');
         await loadPendingRequests();
       } catch (error) {
+        console.error('Rejection error:', error);
         Toast.error('Rejection error');
+      }
+    }
+
+    async function dismissFollowUp(requestId) {
+      if (!requestId || requestId.startsWith('tx_')) return;
+
+      try {
+        await DB.school('rewardRequests').doc(requestId).update({
+          followUpDismissed: true,
+          followUpDismissedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await loadPendingRequests();
+      } catch (error) {
+        console.error('Follow-up dismiss error:', error);
+        Toast.error('Reminder dismiss error');
       }
     }
 
@@ -2020,7 +2098,9 @@ ALLMETA REINA\t240\t10\t5
       const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
-      if (id === 'requests') loadPendingRequests();
+      if (id === 'requests') {
+        loadPendingRequests();
+      }
     }
 
     // === BULK STUDENT IMPORT FUNCTIONS ===
@@ -2486,7 +2566,9 @@ ALLMETA REINA\t240\t10\t5
       const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
-      if (id === 'requests') loadPendingRequests();
+      if (id === 'requests') {
+        loadPendingRequests();
+      }
     }
 
     document.addEventListener('DOMContentLoaded', init);
