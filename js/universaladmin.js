@@ -581,6 +581,43 @@ const DB = {
     });
   },
 
+  // Warnings
+  async getWarnings(limit = 2000) {
+    const snapshot = await this.school('warnings')
+      .orderBy('timestamp', 'desc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async createWarning(studentId, reason, icon = '⚠️', type = 'general') {
+    const schoolId = Auth.getEffectiveSchoolId();
+
+    const studentRef = db.collection('schools').doc(schoolId)
+      .collection('students').doc(studentId);
+
+    const studentDoc = await studentRef.get();
+    if (!studentDoc.exists) throw new Error('Student not found');
+
+    const warningRef = db.collection('schools').doc(schoolId)
+      .collection('warnings').doc();
+
+    await warningRef.set({
+      studentId,
+      studentName: studentDoc.data().name,
+      classId: studentDoc.data().classId,
+      className: studentDoc.data().className || '',
+      reason,
+      icon,
+      type,
+      teacherId: Auth.currentUser?.uid,
+      teacherName: Auth.userProfile?.name || 'System',
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    return warningRef.id;
+  },
+
   // Adjust student balance
   async adjustStudentBalance(studentId, amount) {
     const studentRef = this.school('students').doc(studentId);

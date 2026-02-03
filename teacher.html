@@ -46,8 +46,8 @@
         </div>
         <div class="nav-section">
           <div class="nav-section-title">Activity</div>
-          <button class="nav-item" data-nav="history" onclick="showSection('history')">
-            <span class="nav-item-icon">📜</span> History
+          <button class="nav-item" data-nav="warnings" onclick="showSection('warnings')">
+            <span class="nav-item-icon">⚠️</span> Warnings
           </button>
           <button class="nav-item" data-nav="requests" onclick="showSection('requests')">
             <span class="nav-item-icon">🎁</span> Requests
@@ -108,11 +108,11 @@
               </div>
               <span id="requestsHomeBadge" class="home-badge hidden">0</span>
             </div>
-            <div class="stat-card home-action" onclick="showSection('history')" title="Go to History">
-              <div class="stat-icon info">📜</div>
+            <div class="stat-card home-action" onclick="showSection('warnings')" title="Go to Warnings">
+              <div class="stat-icon danger">⚠️</div>
               <div class="stat-content">
-                <div class="stat-value">History</div>
-                <div class="stat-label">Edit recent transactions</div>
+                <div class="stat-value">Warnings</div>
+                <div class="stat-label">Monitor HW & notebooks</div>
               </div>
             </div>
           </div>
@@ -274,6 +274,75 @@
                 <div class="empty-state-icon">📭</div>
                 <div class="empty-state-title">No pending requests</div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Warnings -->
+        <section id="warningsSection" class="page-section hidden">
+          <div class="card mb-6">
+            <div class="card-header">
+              <h3 class="card-title">⚠️ Warnings Leaderboard</h3>
+              <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;">
+                <div class="search-bar" style="max-width: 260px; width: 100%;">
+                  <span class="search-bar-icon">🔍</span>
+                  <input id="warningsSearchInput" type="search" class="input" placeholder="Search student" oninput="handleWarningsSearch()">
+                </div>
+                <select id="warningsClassFilter" class="input" style="width:150px;" onchange="renderWarningsLeaderboard()"><option value="">All classes</option></select>
+                <button class="btn btn-secondary" onclick="refreshWarnings()">↻ Refresh</button>
+              </div>
+            </div>
+            <div class="card-body" id="warningsLeaderboardContainer"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📒 Monitoring HW &amp; Notebooks</h3>
+            </div>
+            <div class="card-body">
+              <div class="input-group">
+                <label class="input-label">Quick warnings</label>
+                <div id="warningButtonsGrid" class="quick-rewards"></div>
+              </div>
+
+              <div style="text-align: center; margin: var(--space-4) 0; color: var(--text-muted);">or</div>
+
+              <div class="input-group">
+                <label class="input-label">Custom warning</label>
+                <div style="display: flex; gap: var(--space-3);">
+                  <input type="text" id="warningEmoji" class="input" placeholder="⚠️" value="⚠️" style="width: 50px; height: 50px; text-align: center; font-size: 1.5rem; border-radius: 50%; padding: 0; flex-shrink: 0;" maxlength="2">
+                  <input type="text" id="warningReason" class="input" placeholder="Reason (e.g., No HW)" oninput="updateWarningButton()" style="flex: 1;">
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">Find students</label>
+                <div class="give-rewards-filters">
+                  <input type="text" id="warningGiveSearch" class="input" placeholder="Type a name or NFC tag" oninput="handleWarningGiveSearch()">
+                  <select id="warningGiveClassFilter" class="input" onchange="renderWarningStudentSelects()">
+                    <option value="">All classes</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+                  <label class="input-label" style="margin-bottom: 0;">Select Students</label>
+                  <div style="display:flex;gap:var(--space-2);align-items:center;">
+                    <button class="btn btn-ghost btn-sm" onclick="selectAllWarningStudents()" style="padding: var(--space-1) var(--space-3);">
+                      ✅ Select All
+                    </button>
+                    <button id="giveWarningBtnTop" class="btn btn-primary btn-sm" onclick="giveWarning()" disabled>
+                      ⚠️ Give Warning
+                    </button>
+                  </div>
+                </div>
+                <div id="warningStudentSelectGrid" class="student-select-grid"></div>
+              </div>
+
+              <button id="giveWarningBtn" class="btn btn-primary btn-lg w-full mt-4" onclick="giveWarning()" disabled>
+                ⚠️ Give Warning
+              </button>
             </div>
           </div>
         </section>
@@ -513,6 +582,13 @@ ALLMETA REINA\t240\t10\t5
     let students=[], classes=[], rewards=[], quickRewards=[], teachers=[], config={}, sym='$';
     let selectedStudents = new Set();
     let currentQuickReward = null;
+    let warnings = [];
+    let warningSelectedStudents = new Set();
+    let currentWarningTemplate = null;
+    const warningTemplates = [
+      { id: 'no_hw', name: 'No HW', icon: '📚' },
+      { id: 'no_notebook', name: 'No Notebook', icon: '📓' }
+    ];
 
     // Mobile sidebar toggle
     function toggleMobileSidebar() {
@@ -571,6 +647,9 @@ ALLMETA REINA\t240\t10\t5
       renderRewardButtons();
       renderStudentSelects();
       updateRewardButton();
+      renderWarningButtons();
+      renderWarningStudentSelects();
+      updateWarningButton();
       await renderTopStudents();
       await refreshRequestBadges();
     }
@@ -621,10 +700,12 @@ ALLMETA REINA\t240\t10\t5
       const selectDefaults = {
         classFilter: '<option value="">All</option>',
         studentClass: '<option value="">Select</option>',
-        giveRewardsClassFilter: '<option value="">All classes</option>'
+        giveRewardsClassFilter: '<option value="">All classes</option>',
+        warningsClassFilter: '<option value="">All classes</option>',
+        warningGiveClassFilter: '<option value="">All classes</option>'
       };
 
-      ['classFilter','studentClass','giveRewardsClassFilter'].forEach(id => {
+      ['classFilter','studentClass','giveRewardsClassFilter','warningsClassFilter','warningGiveClassFilter'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.innerHTML = selectDefaults[id] || '<option value="">Select</option>';
@@ -898,6 +979,278 @@ ALLMETA REINA\t240\t10\t5
         btn.disabled = false;
         btn.textContent = '⭐ Give Reward';
       });
+    }
+
+    function renderWarningButtons() {
+      const container = document.getElementById('warningButtonsGrid');
+      if (!container) return;
+
+      if (!warningTemplates.length) {
+        container.innerHTML = '<p class="text-muted text-center">No warning templates</p>';
+        return;
+      }
+
+      container.innerHTML = warningTemplates.map(t => `
+        <button class="quick-reward-btn" onclick="selectWarningTemplate('${t.id}')">
+          <span class="quick-reward-icon">${t.icon || '⚠️'}</span>
+          <span class="quick-reward-name">${t.name}</span>
+          <span class="quick-reward-amount">${sym}0</span>
+        </button>
+      `).join('');
+    }
+
+    function selectWarningTemplate(templateId) {
+      currentWarningTemplate = warningTemplates.find(t => t.id === templateId) || null;
+      if (!currentWarningTemplate) return;
+
+      document.getElementById('warningEmoji').value = currentWarningTemplate.icon || '⚠️';
+      document.getElementById('warningReason').value = currentWarningTemplate.name || '';
+      updateWarningButton();
+    }
+
+    function getWarningGiveFilters() {
+      const search = document.getElementById('warningGiveSearch')?.value.trim().toLowerCase() || '';
+      const classId = document.getElementById('warningGiveClassFilter')?.value || '';
+      return { search, classId };
+    }
+
+    function getWarningGiveFilteredStudents() {
+      const { search, classId } = getWarningGiveFilters();
+      let list = [...students];
+
+      if (classId) {
+        list = list.filter(s => s.classId === classId);
+      }
+
+      if (search) {
+        list = Search.filter(list, search, ['name', 'nfcTag']);
+      }
+
+      return list;
+    }
+
+    const handleWarningGiveSearchDebounced = Search.debounce(() => {
+      renderWarningStudentSelects();
+    }, 200);
+
+    function handleWarningGiveSearch() {
+      handleWarningGiveSearchDebounced();
+    }
+
+    function renderWarningStudentSelects() {
+      const grid = document.getElementById('warningStudentSelectGrid');
+      if (!grid) return;
+
+      const list = getWarningGiveFilteredStudents();
+      if (!list.length) {
+        grid.innerHTML = '<p class="text-muted text-center p-4">No students found</p>';
+        return;
+      }
+
+      const sorted = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      grid.innerHTML = sorted.map(student => `
+        <div class="student-select-card ${warningSelectedStudents.has(student.id) ? 'selected' : ''}" data-student-id="${student.id}" onclick="toggleWarningStudentSelection('${student.id}')">
+          <div class="avatar">${UI.getInitials(student.name)}</div>
+          <div class="student-select-name"><strong>${student.name || 'Student'}</strong></div>
+          <div class="student-select-balance">${sym}${student.balance || 0}</div>
+        </div>
+      `).join('');
+    }
+
+    function toggleWarningStudentSelection(studentId) {
+      const card = document.querySelector(`#warningStudentSelectGrid [data-student-id="${studentId}"]`);
+      if (warningSelectedStudents.has(studentId)) {
+        warningSelectedStudents.delete(studentId);
+        card?.classList.remove('selected');
+      } else {
+        warningSelectedStudents.add(studentId);
+        card?.classList.add('selected');
+      }
+
+      updateWarningButton();
+    }
+
+    function selectAllWarningStudents() {
+      const visibleStudents = getWarningGiveFilteredStudents();
+      const allVisibleSelected = visibleStudents.length > 0 && visibleStudents.every(student => warningSelectedStudents.has(student.id));
+
+      if (allVisibleSelected) {
+        visibleStudents.forEach(student => warningSelectedStudents.delete(student.id));
+        document.querySelectorAll('#warningStudentSelectGrid .student-select-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+      } else {
+        visibleStudents.forEach(student => warningSelectedStudents.add(student.id));
+        document.querySelectorAll('#warningStudentSelectGrid .student-select-card').forEach(card => {
+          card.classList.add('selected');
+        });
+      }
+      updateWarningButton();
+    }
+
+    function updateWarningButton() {
+      const count = warningSelectedStudents.size;
+      const reason = document.getElementById('warningReason')?.value.trim() || '';
+      const buttons = [document.getElementById('giveWarningBtn'), document.getElementById('giveWarningBtnTop')].filter(Boolean);
+      if (!buttons.length) return;
+
+      if (count > 0 && reason) {
+        buttons.forEach(btn => {
+          btn.disabled = false;
+          btn.textContent = `⚠️ Give Warning to ${count} student${count > 1 ? 's' : ''}`;
+        });
+      } else {
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = '⚠️ Give Warning';
+        });
+      }
+    }
+
+    async function giveWarning() {
+      const reason = document.getElementById('warningReason').value.trim();
+      const emoji = document.getElementById('warningEmoji').value.trim() || '⚠️';
+
+      if (!reason || warningSelectedStudents.size === 0) {
+        Toast.warning('Add a reason and select at least one student');
+        return;
+      }
+
+      const buttons = [document.getElementById('giveWarningBtn'), document.getElementById('giveWarningBtnTop')].filter(Boolean);
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span> Sending warning...';
+      });
+
+      try {
+        const type = currentWarningTemplate?.id || 'custom';
+        for (const studentId of warningSelectedStudents) {
+          await DB.createWarning(studentId, reason, emoji, type);
+        }
+
+        Toast.success(`Warning sent to ${warningSelectedStudents.size} students!`);
+
+        document.getElementById('warningReason').value = '';
+        document.getElementById('warningEmoji').value = '⚠️';
+        currentWarningTemplate = null;
+        warningSelectedStudents.clear();
+        renderWarningStudentSelects();
+        updateWarningButton();
+
+        await refreshWarnings();
+      } catch (error) {
+        console.error('Warning error:', error);
+        Toast.error('Error sending warning');
+      } finally {
+        buttons.forEach(btn => {
+          btn.disabled = false;
+          btn.textContent = '⚠️ Give Warning';
+        });
+      }
+    }
+
+    const handleWarningsSearchDebounced = Search.debounce(() => {
+      renderWarningsLeaderboard();
+    }, 200);
+
+    function handleWarningsSearch() {
+      handleWarningsSearchDebounced();
+    }
+
+    async function refreshWarnings() {
+      await loadWarnings();
+    }
+
+    async function loadWarnings() {
+      const container = document.getElementById('warningsLeaderboardContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="text-center"><div class="spinner"></div></div>';
+
+      try {
+        warnings = await DB.getWarnings(2000);
+        renderWarningsLeaderboard();
+      } catch (error) {
+        console.error('Error loading warnings:', error);
+        container.innerHTML = '<p class="text-muted text-center">Load error: ' + error.message + '</p>';
+      }
+    }
+
+    function renderWarningsLeaderboard() {
+      const container = document.getElementById('warningsLeaderboardContainer');
+      if (!container) return;
+
+      const classId = document.getElementById('warningsClassFilter')?.value || '';
+      const term = (document.getElementById('warningsSearchInput')?.value || '').trim().toLowerCase();
+
+      let list = warnings || [];
+      if (classId) {
+        list = list.filter(w => w.classId === classId);
+      }
+      if (term) {
+        list = list.filter(w => (w.studentName || '').toLowerCase().includes(term) || (w.className || '').toLowerCase().includes(term));
+      }
+
+      if (!list.length) {
+        container.innerHTML = '<p class="text-muted text-center">No warnings found</p>';
+        return;
+      }
+
+      const counts = new Map();
+      list.forEach(w => {
+        const key = w.studentId || w.studentName;
+        if (!key) return;
+        const existing = counts.get(key) || {
+          studentId: w.studentId,
+          studentName: w.studentName || 'Student',
+          classId: w.classId,
+          className: w.className || (classes.find(c => c.id === w.classId)?.name || ''),
+          count: 0,
+          lastTimestamp: null
+        };
+        existing.count += 1;
+        const tsMillis = w.timestamp?.toMillis?.() || 0;
+        const existingMillis = existing.lastTimestamp?.toMillis?.() || 0;
+        if (!existing.lastTimestamp || tsMillis > existingMillis) {
+          existing.lastTimestamp = w.timestamp;
+        }
+        counts.set(key, existing);
+      });
+
+      const leaderboard = Array.from(counts.values());
+      leaderboard.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        const timeA = a.lastTimestamp?.toMillis?.() || 0;
+        const timeB = b.lastTimestamp?.toMillis?.() || 0;
+        if (timeB !== timeA) return timeB - timeA;
+        return (a.studentName || '').localeCompare(b.studentName || '');
+      });
+
+      container.innerHTML = `
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 10%; text-align: center;">#</th>
+                <th>Student</th>
+                <th>Class</th>
+                <th style="width: 15%; text-align: center;">Warnings</th>
+                <th style="width: 20%;">Last warning</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leaderboard.map((row, index) => `
+                <tr>
+                  <td style="text-align: center; font-weight: 600;">${index + 1}</td>
+                  <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(row.studentName)}</div>${row.studentName}</div></td>
+                  <td><span class="badge badge-primary">${row.className || '-'}</span></td>
+                  <td style="text-align: center; font-weight: 700;">${row.count}</td>
+                  <td>${row.lastTimestamp ? Format.relativeTime(row.lastTimestamp) : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     function renderHistoryList(groups, emptyMessage = 'No transactions') {
@@ -2095,11 +2448,14 @@ ALLMETA REINA\t240\t10\t5
         document.getElementById('giveRewardsSection')?.classList.remove('hidden');
       }
       UI.setActiveNav(id);
-      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
       if (id === 'requests') {
         loadPendingRequests();
+      }
+      if (id === 'warnings') {
+        loadWarnings();
       }
     }
 
@@ -2563,11 +2919,14 @@ ALLMETA REINA\t240\t10\t5
         document.getElementById('giveRewardsSection')?.classList.remove('hidden');
       }
       UI.setActiveNav(id);
-      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',settings:'Settings'};
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
       if (id === 'requests') {
         loadPendingRequests();
+      }
+      if (id === 'warnings') {
+        loadWarnings();
       }
     }
 
