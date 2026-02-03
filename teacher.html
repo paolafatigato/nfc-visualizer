@@ -1206,6 +1206,7 @@ ALLMETA REINA\t240\t10\t5
         const negativeTxs = txs.filter(tx => tx.amount < 0);
         const extraHandled = negativeTxs.map(tx => {
           const reason = tx.reason || '';
+          if (!/^Redeem:\s*/i.test(reason)) return null;
           const rewardName = reason.replace(/^Redeem:\s*/i, '').trim() || 'Reward';
           const rewardIcon = tx.icon || '🎁';
           const rewardCost = Math.abs(tx.amount);

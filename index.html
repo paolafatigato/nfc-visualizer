@@ -428,12 +428,9 @@
   <div id="teacherModal" class="teacher-selection-modal" style="display: none;" onclick="closeTeacherModal()">
     <div class="card" style="max-width: 500px; margin: auto; margin-top: 100px;" onclick="event.stopPropagation()">
       <div class="card-header">
-        <h3 style="margin: 0;">👨‍🏫 Choose the teacher</h3>
+        <h3 style="margin: 0;">👨‍🏫 Ask the teacher.</h3>
       </div>
       <div class="card-body">
-        <p style="margin-bottom: var(--space-4); color: var(--text-muted);">Which teacher do you want to send the request to?</p>
-        <div id="teachersList" style="max-height: 200px; overflow-y: auto; margin-bottom: var(--space-4);"></div>
-        
         <div style="margin-top: var(--space-4);">
           <label for="requestMessage" style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-2); color: var(--text);">💬 Message (optional)</label>
           <textarea 
@@ -848,47 +845,18 @@
     }
 
     function getPlaceholderForReward(rewardName) {
-      // Specific placeholders for standard rewards
+      // Specific placeholders for default rewards
       const placeholders = {
-        // Rewards from admin.html (legacy Italian)
-        'Cambia compagno di banco': 'Example: I want to sit with Sara for one week. Can I sit near the window?',
-        'Scegli il tuo gruppo': 'Example: I want to work with Marco and Luca. I prefer a group of 4 people.',
-        'Scegli una canzone': 'Example: I want to listen to "Imagine" by John Lennon. Can we play classical music?',
-        'Ringrazia un amico, leggi una poesia, canta una canzone': 'Example: I want to read a poem for Sara’s birthday. I want to thank Marco.',
-        'Scegli ordine interrogazione': 'Example: I prefer to go first. I want to go last.',
-        'Rimuovi voto peggiore': 'Example: The math test on 15/01. My worst grade in history.',
-        'Aggiungi mezzo punto': 'Example: The last math test. The science test last week.',
-        '+1 al voto': 'Example: The math test on 15/01. The history test last week.',
-        'Niente compiti una volta': 'Example: I have football training until late. I have an important plan tomorrow.',
-        'Scegli l\'argomento': 'Example: I want to study dinosaurs. I am interested in renewable energy.',
-        'Scegli il prossimo compito': 'Example: I prefer the exercises on page 42. I want to write an essay instead of a summary.',
-        
-        // Rewards from superadmin.html (legacy Italian)
-        'Compagna di banco per una settimana': 'Example: I want to sit with Giulia. I want to change seats for one week.',
-        'Forma il gruppo': 'Example: I want a group with Marco, Sara, and Luca. I prefer groups of 3.',
-        'Messaggio pubblico': 'Example: I want to read a poem for Sara’s birthday. I want to thank Marco.',
-        'Scegli in che ordine essere interrogata': 'Example: I prefer to go first. I want to go last.',
-        'Niente compiti': 'Example: I have training until late. I have an important plan tomorrow.',
-        'Cancella un voto': 'Example: The math test on 10/01. The Italian test last week.',
-
-        // English reward names
-        'Change desk partner': 'Example: I want to sit with Sara for one week. Can I sit near the window?',
-        'Choose your group': 'Example: I want to work with Marco and Luca. I prefer a group of 4 people.',
-        'Choose a song': 'Example: I want to listen to "Imagine" by John Lennon. Can we play classical music?',
-        'Thank a friend, read a poem, sing a song': 'Example: I want to read a poem for Sara’s birthday. I want to thank Marco.',
-        'Choose the question order': 'Example: I prefer to go first. I want to go last.',
-        'Remove worst grade': 'Example: The math test on 15/01. My worst grade in history.',
-        'Add half a point': 'Example: The last math test. The science test last week.',
-        '+1 to grade': 'Example: The math test on 15/01. The history test last week.',
-        'No homework once': 'Example: I have football training until late. I have an important plan tomorrow.',
-        'Choose the topic': 'Example: I want to study dinosaurs. I am interested in renewable energy.',
-        'Choose the next assignment': 'Example: I prefer the exercises on page 42. I want to write an essay instead of a summary.',
-        'Desk partner for one week': 'Example: I want to sit with Giulia. I want to change seats for one week.',
-        'Form the group': 'Example: I want a group with Marco, Sara, and Luca. I prefer groups of 3.',
-        'Public message': 'Example: I want to read a poem for Sara’s birthday. I want to thank Marco.',
-        'Choose interview order': 'Example: I prefer to go first. I want to go last.',
-        'No homework': 'Example: I have training until late. I have an important plan tomorrow.',
-        'Delete a grade': 'Example: The math test on 10/01. The Italian test last week.'
+        '1 week no homework': 'Example: I have a tournament next week and need time ...',
+        'Deskmate for 1 week': 'Example: I would like to sit next to Eurydice next week.',
+        'Deskmate for 1h': 'Example: I would like to sit next to Persephone for the next hour.',
+        'Choose a song': 'Example: I would like to listen to "Aglio e Olio" by Fulminacci.',
+        'Choose a song in English': 'Example: I would like to listen to "Ophelia" by The Lumineers.',
+        'Group work': 'Example: I would like to be in a group with Achilles, Patroclus, and Chiron.',
+        'Shoutout to a friend': 'Example: I want to thank Daedalus for helping me with math.',
+        'Remove worst grade': 'Example: Please remove my worst grade from the test on 15/01.',
+        'No homework': 'Example: I have training tonight and would like to skip today’s homework.',
+        '+1 to grade': 'Example: Please add +1 to my test grade from last week.'
       };
       
       // If the reward has a specific placeholder, use it
@@ -918,34 +886,13 @@
       
       // Show modal with teacher list
       const modal = document.getElementById('teacherModal');
-      const list = document.getElementById('teachersList');
-      
       console.log('Modal element:', modal);
       
-      list.innerHTML = teachers.map(teacher => `
-        <div class="teacher-item" data-teacher-id="${teacher.id}" data-teacher-name="${teacher.name}">
-          <div style="width: 40px; height: 40px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
-            ${teacher.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <div style="font-weight: var(--font-semibold);">${teacher.name}</div>
-            <div style="font-size: var(--text-sm); color: var(--text-muted);">Teacher</div>
-          </div>
-        </div>
-      `).join('');
-      
-      // Add event listeners to select a teacher
-      document.querySelectorAll('.teacher-item').forEach(item => {
-        item.addEventListener('click', () => {
-          console.log('Teacher selected:', item.dataset.teacherName);
-          selectTeacher(item.dataset.teacherId, item.dataset.teacherName);
-        });
-      });
-
-      // Auto-select when only one teacher is available
-      if (teachers.length === 1) {
-        const onlyTeacher = teachers[0];
-        selectTeacher(onlyTeacher.id, onlyTeacher.name);
+      // Auto-select the first available teacher
+      if (teachers.length > 0) {
+        const defaultTeacher = teachers[0];
+        selectedTeacher = { id: defaultTeacher.id, name: defaultTeacher.name };
+        document.getElementById('sendRequestBtn').disabled = false;
       }
       
       console.log('Showing modal...');
@@ -955,6 +902,7 @@
     
     let selectedTeacher = null;
     
+    /*
     function selectTeacher(teacherId, teacherName) {
       // Deselect all teachers
       document.querySelectorAll('.teacher-item').forEach(item => {
@@ -975,11 +923,16 @@
       // Enable send button
       document.getElementById('sendRequestBtn').disabled = false;
     }
+    */
     
     async function sendSelectedRequest() {
       if (!selectedTeacher) {
-        alert('⚠️ Select a teacher before sending!');
-        return;
+        if (teachers.length === 0) {
+          alert('❌ No teacher available');
+          return;
+        }
+        const defaultTeacher = teachers[0];
+        selectedTeacher = { id: defaultTeacher.id, name: defaultTeacher.name };
       }
       
       await sendRewardRequest(selectedTeacher.id, selectedTeacher.name);
@@ -994,11 +947,6 @@
       // Reset message and button
       document.getElementById('requestMessage').value = '';
       document.getElementById('sendRequestBtn').disabled = true;
-      // Reset visual selection
-      document.querySelectorAll('.teacher-item').forEach(item => {
-        item.style.background = '';
-        item.style.border = '';
-      });
     }
     
     async function sendRewardRequest(teacherId, teacherName) {
