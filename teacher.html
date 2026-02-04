@@ -296,6 +296,10 @@
                 </div>
                 <select id="warningsClassFilter" class="input" style="width:150px;" onchange="renderWarningsLeaderboard()"><option value="">All classes</option></select>
                 <button class="btn btn-secondary" onclick="refreshWarnings()">↻ Refresh</button>
+                <div style="display:flex;gap:var(--space-2);align-items:center;">
+                  <button id="warningsTop3Btn" class="btn btn-ghost btn-sm" onclick="showWarningsTop3()">🏅 Top 3</button>
+                  <button id="warningsShowAllBtn" class="btn btn-secondary btn-sm" onclick="showWarningsAll()">⬇️ Classifica completa</button>
+                </div>
               </div>
             </div>
             <div class="card-body" id="warningsLeaderboardContainer"></div>
@@ -576,6 +580,22 @@ ALLMETA REINA\t240\t10\t5
     <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('bulkImportTransactionsModal')">Cancel</button><button class="btn btn-ghost" onclick="previewBulkTransactionImport()">👁️ Preview</button><button class="btn btn-primary" id="bulkTransactionsImportBtn" onclick="executeBulkTransactionImport()">📥 Import All</button></div>
   </div>
 
+  <!-- Warning Details Modal -->
+  <div id="warningDetailsModalBackdrop" class="modal-backdrop"></div>
+  <div id="warningDetailsModal" class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="warningDetailsTitle">⚠️ Warning Details</h3>
+      <button class="modal-close" onclick="Modal.hide('warningDetailsModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="warningDetailsMeta" class="text-muted" style="margin-bottom: var(--space-3);"></div>
+      <div id="warningDetailsList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.hide('warningDetailsModal')">Close</button>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -589,10 +609,11 @@ ALLMETA REINA\t240\t10\t5
     let selectedStudents = new Set();
     let currentQuickReward = null;
     let warnings = [];
+    let warningsLeaderboardExpanded = false;
     let warningSelectedStudents = new Set();
     let currentWarningTemplate = null;
     const warningTemplates = [
-      { id: 'no_hw', name: 'No HW', icon: '📚' },
+      { id: 'no_hw', name: 'No Homework', icon: '📚' },
       { id: 'no_notebook', name: 'No Notebook', icon: '📓' }
     ];
 
@@ -1181,6 +1202,32 @@ ALLMETA REINA\t240\t10\t5
       }
     }
 
+    function showWarningsTop3() {
+      warningsLeaderboardExpanded = false;
+      renderWarningsLeaderboard();
+    }
+
+    function showWarningsAll() {
+      warningsLeaderboardExpanded = true;
+      renderWarningsLeaderboard();
+    }
+
+    function updateWarningsLeaderboardToggle(totalCount) {
+      const topBtn = document.getElementById('warningsTop3Btn');
+      const allBtn = document.getElementById('warningsShowAllBtn');
+      const hasMore = totalCount > 3;
+
+      if (topBtn) {
+        topBtn.disabled = !warningsLeaderboardExpanded && !hasMore;
+        topBtn.classList.toggle('btn-primary', !warningsLeaderboardExpanded);
+        topBtn.classList.toggle('btn-ghost', warningsLeaderboardExpanded);
+      }
+
+      if (allBtn) {
+        allBtn.disabled = !hasMore || warningsLeaderboardExpanded;
+      }
+    }
+
     function renderWarningsLeaderboard() {
       const container = document.getElementById('warningsLeaderboardContainer');
       if (!container) return;
@@ -1198,6 +1245,7 @@ ALLMETA REINA\t240\t10\t5
 
       if (!list.length) {
         container.innerHTML = '<p class="text-muted text-center">No warnings found</p>';
+        updateWarningsLeaderboardToggle(0);
         return;
       }
 
@@ -1231,6 +1279,11 @@ ALLMETA REINA\t240\t10\t5
         return (a.studentName || '').localeCompare(b.studentName || '');
       });
 
+      const totalCount = leaderboard.length;
+      const displayLeaderboard = warningsLeaderboardExpanded ? leaderboard : leaderboard.slice(0, 3);
+
+      updateWarningsLeaderboardToggle(totalCount);
+
       container.innerHTML = `
         <div class="data-table-wrapper">
           <table class="data-table">
@@ -1244,8 +1297,8 @@ ALLMETA REINA\t240\t10\t5
               </tr>
             </thead>
             <tbody>
-              ${leaderboard.map((row, index) => `
-                <tr>
+              ${displayLeaderboard.map((row, index) => `
+                <tr style="cursor:pointer;" title="View warning reasons" onclick="openWarningDetails('${row.studentId || ''}', '${encodeURIComponent(row.studentName || '')}')">
                   <td style="text-align: center; font-weight: 600;">${index + 1}</td>
                   <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(row.studentName)}</div>${row.studentName}</div></td>
                   <td><span class="badge badge-primary">${row.className || '-'}</span></td>
@@ -1257,6 +1310,50 @@ ALLMETA REINA\t240\t10\t5
           </table>
         </div>
       `;
+    }
+
+    function openWarningDetails(studentId, encodedName) {
+      const studentName = decodeURIComponent(encodedName || '');
+      const listContainer = document.getElementById('warningDetailsList');
+      const meta = document.getElementById('warningDetailsMeta');
+      const title = document.getElementById('warningDetailsTitle');
+
+      if (!listContainer || !meta || !title) return;
+
+      const filtered = (warnings || []).filter(w => {
+        if (studentId) return w.studentId === studentId;
+        return (w.studentName || '') === studentName;
+      });
+
+      const sorted = filtered.sort((a, b) => {
+        const aTime = a.timestamp?.toMillis?.() || 0;
+        const bTime = b.timestamp?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+
+      const className = sorted[0]?.className || (sorted[0]?.classId ? (classes.find(c => c.id === sorted[0].classId)?.name || '') : '');
+      title.textContent = `⚠️ Warning Details${studentName ? ' - ' + studentName : ''}`;
+      meta.textContent = `${className ? 'Class: ' + className + ' • ' : ''}${sorted.length} warning${sorted.length !== 1 ? 's' : ''}`;
+
+      if (!sorted.length) {
+        listContainer.innerHTML = '<p class="text-muted text-center">No warning reasons found</p>';
+        Modal.show('warningDetailsModal');
+        return;
+      }
+
+      listContainer.innerHTML = sorted.map(w => `
+        <div style="display:flex;gap:var(--space-3);padding:var(--space-3);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:var(--space-2);background:var(--background-alt);">
+          <div style="font-size:1.5rem;">${w.icon || '⚠️'}</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;">${w.reason || 'No reason provided'}</div>
+            <div class="text-muted" style="font-size:var(--text-xs);margin-top:4px;">
+              ${w.teacherName ? 'By ' + w.teacherName + ' • ' : ''}${w.timestamp ? Format.relativeTime(w.timestamp) : 'Date unknown'}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      Modal.show('warningDetailsModal');
     }
 
     function renderHistoryList(groups, emptyMessage = 'No transactions') {
