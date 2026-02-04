@@ -53,6 +53,9 @@
             <span class="nav-item-icon">🎁</span> Requests
             <span id="requestsNavBadge" class="nav-item-badge hidden">0</span>
           </button>
+          <button class="nav-item" data-nav="history" onclick="showSection('history')">
+            <span class="nav-item-icon">📜</span> History
+          </button>
         </div>
         <div class="nav-section">
           <div class="nav-section-title">System</div>
@@ -251,9 +254,12 @@
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">📜 Transaction History</h3>
-              <div class="search-bar" style="max-width: 360px; width: 100%;">
-                <span class="search-bar-icon">🔍</span>
-                <input id="historySearchInput" type="search" class="input" placeholder="Search by student or reward name">
+              <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+                <div class="search-bar" style="max-width: 360px; width: 100%;">
+                  <span class="search-bar-icon">🔍</span>
+                  <input id="historySearchInput" type="search" class="input" placeholder="Search by student or reward name">
+                </div>
+                <!-- <button class="btn btn-secondary btn-sm" onclick="fixPastRewardsYear()">🗓️ Fix past rewards</button> -->
               </div>
             </div>
             <div class="card-body">
@@ -1301,6 +1307,67 @@ ALLMETA REINA\t240\t10\t5
 
       renderHistoryList(filtered, 'No results');
     }
+
+    /*
+    async function fixPastRewardsYear() {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const previousYear = currentYear - 1;
+
+      const confirmed = await Modal.confirm(
+        `This will move past rewards that are dated in ${currentYear} but are in the future to ${previousYear}. Continue?`,
+        'Fix reward year'
+      );
+
+      if (!confirmed) return;
+
+      try {
+        const snapshot = await DB.school('transactions')
+          .where('teacherId', '==', Auth.currentUser.uid)
+          .get();
+
+        const updates = [];
+
+        snapshot.forEach(doc => {
+          const data = doc.data() || {};
+          const ts = data.timestamp;
+          if (!ts) return;
+          const date = ts.toDate ? ts.toDate() : new Date(ts);
+          if (!date || Number.isNaN(date.getTime())) return;
+
+          if (date > now && date.getFullYear() === currentYear) {
+            const fixedDate = new Date(date);
+            fixedDate.setFullYear(previousYear);
+            updates.push({ id: doc.id, timestamp: firebase.firestore.Timestamp.fromDate(fixedDate) });
+          }
+        });
+
+        if (updates.length === 0) {
+          Toast.info('No past rewards to fix');
+          return;
+        }
+
+        const batchSize = 400;
+        for (let i = 0; i < updates.length; i += batchSize) {
+          const batch = db.batch();
+          updates.slice(i, i + batchSize).forEach(update => {
+            batch.update(DB.school('transactions').doc(update.id), {
+              timestamp: update.timestamp,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
+
+        Toast.success(`Fixed ${updates.length} rewards`);
+        await loadHistory();
+        await loadData();
+      } catch (error) {
+        console.error('Fix past rewards error:', error);
+        Toast.error('Fix error: ' + error.message);
+      }
+    }
+    */
 
     async function loadHistory() {
       const container = document.getElementById('historyList');
