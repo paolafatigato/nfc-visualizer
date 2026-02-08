@@ -117,6 +117,7 @@
       padding: var(--space-8) var(--space-6);
       text-align: center;
       color: white;
+      box-shadow: var(--shadow-lg);
     }
 
     .student-name { font-size: var(--text-xl); font-weight: var(--font-bold); margin-bottom: var(--space-2); }
@@ -173,6 +174,13 @@
 
     .tab-content { display: none; padding: var(--space-4); max-height: 400px; overflow-y: auto; }
     .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+    #transactionsTab {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      margin: var(--space-4);
+    }
 
     .transaction-item {
       display: flex;
@@ -1027,6 +1035,13 @@
       });
       document.getElementById(`${tabName}Tab`).classList.add('active');
     }
+
+    // Expose handlers used by inline onclick attributes
+    window.switchTab = switchTab;
+    window.openQuickRewardsInfo = openQuickRewardsInfo;
+    window.closeQuickRewardsInfo = closeQuickRewardsInfo;
+    window.closeTeacherModal = closeTeacherModal;
+    window.sendSelectedRequest = sendSelectedRequest;
 
     function showError(message) {
       document.getElementById('loadingState').classList.add('hidden');
