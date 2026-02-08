@@ -502,44 +502,82 @@ const DB = {
   },
   
   async approveRewardRequest(requestId) {
-    const requestDoc = await this.school('rewardRequests').doc(requestId).get();
-    if (!requestDoc.exists) throw new Error('Request not found');
-    
-    const request = requestDoc.data();
+    const requestRef = this.school('rewardRequests').doc(requestId);
+    let request = null;
+    let alreadyHandled = false;
+
+    await db.runTransaction(async (tx) => {
+      const requestDoc = await tx.get(requestRef);
+      if (!requestDoc.exists) throw new Error('Request not found');
+
+      const data = requestDoc.data();
+      if (data.status !== 'pending') {
+        alreadyHandled = true;
+        return;
+      }
+
+      request = data;
+      tx.update(requestRef, {
+        status: 'processing',
+        processingAt: firebase.firestore.FieldValue.serverTimestamp(),
+        processingBy: Auth.currentUser?.uid
+      });
+    });
+
+    if (alreadyHandled || !request) return;
+
     const rewardDoc = await this.school('rewards').doc(request.rewardId).get();
-    if (!rewardDoc.exists) throw new Error('Reward not found');
-    
+    if (!rewardDoc.exists) {
+      await requestRef.update({
+        status: 'pending',
+        processingAt: firebase.firestore.FieldValue.delete(),
+        processingBy: firebase.firestore.FieldValue.delete()
+      });
+      throw new Error('Reward not found');
+    }
+
     const reward = rewardDoc.data();
 
     const rewardNameForFollowUp = (reward?.name || request.rewardName || '').toString();
     const isDeskMateReward = /(deskmate|desk\s*mate|compagno\s*di\s*banco|cambio\s*posti|scambio\s*posti)/i.test(rewardNameForFollowUp);
     const isOneWeek = /(1\s*week|one\s*week|1\s*settimana|una\s*settimana|settimana)/i.test(rewardNameForFollowUp);
     const shouldScheduleFollowUp = isDeskMateReward && isOneWeek;
-    
-    // Deduct cost from student
-    await this.giveReward(
-      request.studentId,
-      -reward.cost,
-      `Redeem: ${reward.name}`,
-      reward.icon || '🎁'
-    );
-    
-    // Update request status
-    const updatePayload = {
-      status: 'approved',
-      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      approvedBy: Auth.currentUser?.uid
-    };
 
-    if (shouldScheduleFollowUp) {
-      const followUpDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      updatePayload.followUpAt = firebase.firestore.Timestamp.fromDate(followUpDate);
-      updatePayload.followUpText = 'Ricambia i posti: settimana finita.';
-      updatePayload.followUpDismissed = false;
-      updatePayload.followUpType = 'desk-swap';
+    try {
+      // Deduct cost from student
+      await this.giveReward(
+        request.studentId,
+        -reward.cost,
+        `Redeem: ${reward.name}`,
+        reward.icon || '🎁'
+      );
+
+      // Update request status
+      const updatePayload = {
+        status: 'approved',
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedBy: Auth.currentUser?.uid,
+        processingAt: firebase.firestore.FieldValue.delete(),
+        processingBy: firebase.firestore.FieldValue.delete()
+      };
+
+      if (shouldScheduleFollowUp) {
+        const followUpDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        updatePayload.followUpAt = firebase.firestore.Timestamp.fromDate(followUpDate);
+        updatePayload.followUpText = 'Ricambia i posti: settimana finita.';
+        updatePayload.followUpDismissed = false;
+        updatePayload.followUpType = 'desk-swap';
+      }
+
+      await requestRef.update(updatePayload);
+    } catch (error) {
+      await requestRef.update({
+        status: 'pending',
+        processingAt: firebase.firestore.FieldValue.delete(),
+        processingBy: firebase.firestore.FieldValue.delete()
+      });
+      throw error;
     }
-
-    await this.school('rewardRequests').doc(requestId).update(updatePayload);
   },
   
   async rejectRewardRequest(requestId, reason = '') {

@@ -1386,13 +1386,18 @@ ALLMETA REINA\t240\t10\t5
       window.transactionGroups = groups;
     }
 
-    function applyHistoryFilter() {
+    async function applyHistoryFilter() {
       const input = document.getElementById('historySearchInput');
       const term = (input?.value || '').trim().toLowerCase();
       const allGroups = window.transactionGroupsAll || [];
 
       if (!term) {
         renderHistoryList(allGroups, 'No transactions');
+        return;
+      }
+
+      if ((window.historyLoadedLimit || 0) < HISTORY_LIMIT_SEARCH) {
+        await loadHistory(HISTORY_LIMIT_SEARCH, term);
         return;
       }
 
@@ -1466,13 +1471,16 @@ ALLMETA REINA\t240\t10\t5
     }
     */
 
-    async function loadHistory() {
+    const HISTORY_LIMIT_DEFAULT = 20;
+    const HISTORY_LIMIT_SEARCH = 200;
+
+    async function loadHistory(limit = HISTORY_LIMIT_DEFAULT, searchTerm = '') {
       const container = document.getElementById('historyList');
       if (!container) return;
       container.innerHTML = '<div class="text-center"><div class="spinner"></div></div>';
 
       try {
-        const transactions = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, 50);
+        const transactions = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, limit);
 
         if (transactions.length === 0) {
           window.transactionGroupsAll = [];
@@ -1523,7 +1531,20 @@ ALLMETA REINA\t240\t10\t5
         }
 
         window.transactionGroupsAll = grouped;
-        applyHistoryFilter();
+        window.historyLoadedLimit = limit;
+
+        if (searchTerm) {
+          const normalized = searchTerm.trim().toLowerCase();
+          const filtered = grouped.filter(group => {
+            const reason = (group.reason || '').toString().toLowerCase();
+            const studentMatch = (group.students || []).some(s => (s || '').toString().toLowerCase().includes(normalized));
+            return reason.includes(normalized) || studentMatch;
+          });
+          renderHistoryList(filtered, 'No results');
+          return;
+        }
+
+        await applyHistoryFilter();
       } catch (error) {
         console.error('Error loading history:', error);
         container.innerHTML = '<p class="text-muted text-center">Load error: ' + error.message + '</p>';
