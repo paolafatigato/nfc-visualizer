@@ -1029,11 +1029,11 @@ textarea.input {
   flex-shrink: 0;
 }
 
-.stat-icon.primary { background: rgba(var(--primary-rgb), 0.15); }
-.stat-icon.success { background: var(--success-light); }
-.stat-icon.warning { background: var(--warning-light); }
-.stat-icon.danger { background: var(--danger-light); }
-.stat-icon.info { background: var(--info-light); }
+.stat-icon.primary { background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%); }
+.stat-icon.success { background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); }
+.stat-icon.warning { background: linear-gradient(135deg, var(--warning-light) 0%, var(--warning) 100%); }
+.stat-icon.danger { background: linear-gradient(135deg, var(--accent-dark) 0%,var(--primary-dark) 100%); }
+.stat-icon.info { background: linear-gradient(135deg, var(--info-light) 0%, var(--info) 100%); }
 
 .stat-content { flex: 1; }
 
