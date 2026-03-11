@@ -174,7 +174,7 @@ const Dashboard = {
       if (schoolData) {
         const schoolNameEl = document.getElementById('schoolName');
         if (schoolNameEl) {
-          schoolNameEl.textContent = schoolData.config?.name || 'SchoolBank';
+          schoolNameEl.textContent = schoolData.config?.name || 'Carducci';
         }
         
         // Store currency settings
