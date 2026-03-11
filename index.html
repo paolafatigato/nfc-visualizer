@@ -526,6 +526,13 @@
       const gradients = ['grad1', 'grad2', 'grad3'];
       const randomGradient = gradients[Math.floor(Math.random() * gradients.length)];
       document.querySelector('.student-page').classList.add(randomGradient);
+
+      // Allow Firestore writes via anonymous auth
+      try {
+        await firebase.auth().signInAnonymously();
+      } catch (e) {
+        console.warn('Anonymous auth failed:', e);
+      }
       
       const params = new URLSearchParams(location.search);
       const studentId = params.get('id');
