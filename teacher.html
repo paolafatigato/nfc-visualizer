@@ -957,6 +957,15 @@ ALLMETA REINA\t240\t10\t5
       document.getElementById('customEmoji').value = currentQuickReward.icon || '⭐';
       document.getElementById('customAmount').value = currentQuickReward.amount;
       document.getElementById('customReason').value = currentQuickReward.name || '';
+
+      // Scroll to Custom Reward input group
+      setTimeout(() => {
+        const label = Array.from(document.querySelectorAll('.input-label')).find(l => l.textContent.includes('Custom Reward'));
+        const customRewardGroup = label?.closest('.input-group');
+        if (customRewardGroup) {
+          customRewardGroup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
 
     async function giveCustomReward() {
