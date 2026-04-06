@@ -854,8 +854,11 @@
           .where('role', 'in', ['teacher', 'admin'])
           .get();
         teachers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        console.log('Teachers loaded:', teachers.length, teachers.map(t => t.name));
       } catch (error) {
-        console.error('Teachers load error:', error);
+        console.error('Teachers load error:', error.code, error.message, error);
+        // Surface the real error so we can diagnose
+        alert('⚠️ Could not load teachers: ' + (error.code || error.message));
       }
     }
 

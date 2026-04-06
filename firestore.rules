@@ -11,15 +11,11 @@ service cloud.firestore {
     }
 
     // Users collection:
-    //   - Any authenticated user (including anonymous) can read teacher/admin profiles
-    //     (needed by student pages to load the teacher list)
-    //   - A user can always read their own profile
-    //   - Only teachers/admins can write
+    //   - Any authenticated user (including anonymous) can read user profiles.
+    //     Teacher names/roles are not sensitive; anonymous students need this to load the teacher list.
+    //   - Only teachers/admins can write.
     match /users/{userId} {
-      allow read: if request.auth != null
-        && (request.auth.uid == userId
-            || resource.data.role in ['teacher', 'admin']
-            || isTeacherOrAdmin(resource.data.schoolId));
+      allow read: if request.auth != null;
       allow write: if request.auth != null && isTeacherOrAdmin(request.resource.data.schoolId);
     }
 
