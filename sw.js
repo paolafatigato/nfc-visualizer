@@ -1,4 +1,4 @@
-const CACHE_NAME = 'schoolbank-teacher-v3';
+const CACHE_NAME = 'schoolbank-teacher-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
