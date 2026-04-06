@@ -849,22 +849,13 @@
 
     async function loadTeachers() {
       try {
-        // Ensure auth before querying
-        if (!firebase.auth().currentUser) {
-          await firebase.auth().signInAnonymously();
-        }
         const snapshot = await db.collection('users')
           .where('schoolId', '==', currentStudent.schoolId)
           .where('role', 'in', ['teacher', 'admin'])
           .get();
         teachers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        // DEBUG: remove after fixing
-        alert('DEBUG teachers: found=' + teachers.length
-          + ' | schoolId used="' + currentStudent.schoolId + '"'
-          + (teachers.length === 0 ? '\n\nNo match — check schoolId in your users collection on Firebase.' : '\n\n' + teachers.map(t => t.name + ' (' + t.role + ', schoolId=' + t.schoolId + ')').join('\n')));
       } catch (error) {
         console.error('Teachers load error:', error.code, error.message, error);
-        alert('⚠️ Could not load teachers: ' + (error.code || error.message));
       }
     }
 
