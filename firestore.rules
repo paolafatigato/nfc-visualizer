@@ -22,32 +22,17 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isTeacherOrAdmin(schoolId);
 
-      // Students: anyone can read (public student pages); only teachers write
-      match /students/{studentId} {
-        allow read: if true;
-        allow write: if isTeacherOrAdmin(schoolId);
-      }
-
-      // Transactions: anyone can read; only teachers write
-      match /transactions/{txId} {
-        allow read: if true;
-        allow write: if isTeacherOrAdmin(schoolId);
-      }
-
-      // Rewards catalog: anyone can read; only teachers write
-      match /rewards/{rewardId} {
-        allow read: if true;
-        allow write: if isTeacherOrAdmin(schoolId);
-      }
-
-      // Quick rewards: anyone can read; only teachers write
-      match /quickRewards/{rewardId} {
+      // All subcollections inside a school:
+      //   - public read (student pages need students, rewards, transactions, classes)
+      //   - only teachers/admins can write
+      // Exceptions below override this for rewardRequests.
+      match /{collection}/{docId} {
         allow read: if true;
         allow write: if isTeacherOrAdmin(schoolId);
       }
 
       // Reward requests:
-      //   - ANY authenticated user (including anonymous) can CREATE a request
+      //   - ANY authenticated user (including anonymous) can CREATE
       //   - Only teachers/admins can read, update, delete
       match /rewardRequests/{requestId} {
         allow create: if request.auth != null;
