@@ -653,16 +653,23 @@ ALLMETA REINA\t240\t10\t5
     }
 
     async function loadData() {
-      const school = await DB.getSchoolData();
+      // Fetch all data in parallel (one network round instead of three)
+      const [school, studentsData, classesData, rewardsData, quickRewardsData, teachersData] = await Promise.all([
+        DB.getSchoolData(),
+        DB.getStudents(),
+        DB.getClasses(),
+        DB.getRewards(),
+        DB.getQuickRewards(),
+        UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher')
+      ]);
+
       config = school?.config || {};
       sym = config.currencySymbol || '$';
-      
-      [students, classes, rewards, quickRewards] = await Promise.all([
-        DB.getStudents(), DB.getClasses(), DB.getRewards(), DB.getQuickRewards()
-      ]);
-      
-      // Load teachers
-      teachers = await UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher');
+      students = studentsData;
+      classes = classesData;
+      rewards = rewardsData;
+      quickRewards = quickRewardsData;
+      teachers = teachersData;
       
       loadSettings();
       updateStats();
@@ -678,8 +685,9 @@ ALLMETA REINA\t240\t10\t5
       renderWarningButtons();
       renderWarningStudentSelects();
       updateWarningButton();
-      await renderTopStudents();
-      await refreshRequestBadges();
+      // Run secondary data in background without blocking initial render
+      renderTopStudents();
+      refreshRequestBadges();
     }
 
     function updateRequestBadges(count) {
@@ -1938,23 +1946,25 @@ ALLMETA REINA\t240\t10\t5
       const container = document.getElementById('topStudentsContainer');
       if (!students.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
       
-      // Calculate totalEarned for each student from transactions
-      const studentsWithEarnings = await Promise.all(
-        students.map(async student => {
-          const transactions = await db.collection('schools')
-            .doc(Auth.getEffectiveSchoolId())
-            .collection('transactions')
-            .where('studentId', '==', student.id)
-            .get();
-          
-          const totalEarned = transactions.docs.reduce((sum, doc) => {
-            const amount = doc.data().amount || 0;
-            return amount > 0 ? sum + amount : sum;
-          }, 0);
-          
-          return { ...student, totalEarned };
-        })
-      );
+      // Fetch all positive transactions in ONE query instead of N queries
+      const snapshot = await db.collection('schools')
+        .doc(Auth.getEffectiveSchoolId())
+        .collection('transactions')
+        .where('amount', '>', 0)
+        .get();
+
+      const earningsByStudent = {};
+      snapshot.docs.forEach(doc => {
+        const { studentId, amount } = doc.data();
+        if (studentId && amount > 0) {
+          earningsByStudent[studentId] = (earningsByStudent[studentId] || 0) + amount;
+        }
+      });
+
+      const studentsWithEarnings = students.map(s => ({
+        ...s,
+        totalEarned: earningsByStudent[s.id] || 0
+      }));
       
       const sorted = studentsWithEarnings
         .sort((a,b) => b.totalEarned - a.totalEarned)
