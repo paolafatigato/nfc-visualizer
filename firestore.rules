@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if the caller is an authenticated teacher/admin for this school
+    function isTeacherOrAdmin(schoolId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId == schoolId
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin'];
+    }
+
+    // Users collection: only the user themselves or teachers/admins can read
+    match /users/{userId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == userId || isTeacherOrAdmin(resource.data.schoolId));
+      allow write: if request.auth != null && isTeacherOrAdmin(request.resource.data.schoolId);
+    }
+
+    match /schools/{schoolId} {
+      // School config: anyone can read (needed for public student pages)
+      allow read: if true;
+      allow write: if isTeacherOrAdmin(schoolId);
+
+      // Students: anyone can read (public student pages); only teachers write
+      match /students/{studentId} {
+        allow read: if true;
+        allow write: if isTeacherOrAdmin(schoolId);
+      }
+
+      // Transactions: anyone can read; only teachers write
+      match /transactions/{txId} {
+        allow read: if true;
+        allow write: if isTeacherOrAdmin(schoolId);
+      }
+
+      // Rewards catalog: anyone can read; only teachers write
+      match /rewards/{rewardId} {
+        allow read: if true;
+        allow write: if isTeacherOrAdmin(schoolId);
+      }
+
+      // Quick rewards: anyone can read; only teachers write
+      match /quickRewards/{rewardId} {
+        allow read: if true;
+        allow write: if isTeacherOrAdmin(schoolId);
+      }
+
+      // Reward requests:
+      //   - ANY authenticated user (including anonymous) can CREATE a request
+      //   - Only teachers/admins can read, update, delete
+      match /rewardRequests/{requestId} {
+        allow create: if request.auth != null;
+        allow read, update, delete: if isTeacherOrAdmin(schoolId);
+      }
+    }
+  }
+}

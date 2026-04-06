@@ -966,6 +966,11 @@
     
     async function sendRewardRequest(teacherId, teacherName) {
       try {
+        // Ensure anonymous auth before writing
+        if (!firebase.auth().currentUser) {
+          await firebase.auth().signInAnonymously();
+        }
+
         const message = document.getElementById('requestMessage').value.trim();
         
         // Get reward name
@@ -1001,8 +1006,14 @@
         closeTeacherModal();
         alert('✅ Request sent to ' + teacherName + '!');
       } catch (error) {
-        console.error('Error:', error);
-        alert('❌ Sending error');
+        console.error('sendRewardRequest error:', error.code, error.message, error);
+        if (error.code === 'permission-denied') {
+          alert('❌ Permission denied: update your Firestore rules to allow anonymous writes to rewardRequests.\n\nSee firestore.rules in the project.');
+        } else if (error.code === 'auth/operation-not-allowed') {
+          alert('❌ Anonymous login is not enabled in Firebase Console.\nGo to Authentication → Sign-in methods → Anonymous → Enable.');
+        } else {
+          alert('❌ Sending error: ' + (error.message || error.code || 'unknown'));
+        }
       }
     }
 
