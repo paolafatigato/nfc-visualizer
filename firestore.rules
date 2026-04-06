@@ -10,10 +10,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin'];
     }
 
-    // Users collection: only the user themselves or teachers/admins can read
+    // Users collection:
+    //   - Any authenticated user (including anonymous) can read teacher/admin profiles
+    //     (needed by student pages to load the teacher list)
+    //   - A user can always read their own profile
+    //   - Only teachers/admins can write
     match /users/{userId} {
       allow read: if request.auth != null
-        && (request.auth.uid == userId || isTeacherOrAdmin(resource.data.schoolId));
+        && (request.auth.uid == userId
+            || resource.data.role in ['teacher', 'admin']
+            || isTeacherOrAdmin(resource.data.schoolId));
       allow write: if request.auth != null && isTeacherOrAdmin(request.resource.data.schoolId);
     }
 
