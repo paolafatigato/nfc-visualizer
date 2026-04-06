@@ -993,6 +993,7 @@ textarea.input {
   align-items: flex-start;
   gap: var(--space-4);
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
 }
 
 .home-action {
@@ -1019,21 +1020,21 @@ textarea.input {
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-xl);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   flex-shrink: 0;
 }
 
-.stat-icon.primary { background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%); }
-.stat-icon.success { background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%); }
-.stat-icon.warning { background: linear-gradient(135deg, var(--warning-light) 0%, var(--warning) 100%); }
-.stat-icon.danger { background: linear-gradient(135deg, var(--accent-dark) 0%,var(--primary-dark) 100%); }
-.stat-icon.info { background: linear-gradient(135deg, var(--info-light) 0%, var(--info) 100%); }
+.stat-icon.primary { background: linear-gradient(135deg, #9333EA 0%, #6D28D9 100%); }
+.stat-icon.success { background: linear-gradient(135deg, #2ECC71 0%, #1E8449 100%); }
+.stat-icon.warning { background: linear-gradient(135deg, #FFA033 0%, #FF7700 100%); }
+.stat-icon.danger  { background: linear-gradient(135deg, #E61E82 0%, #7E22CE 100%); }
+.stat-icon.info    { background: linear-gradient(135deg, #33CCA6 0%, #0EA882 100%); }
 
 .stat-content { flex: 1; }
 

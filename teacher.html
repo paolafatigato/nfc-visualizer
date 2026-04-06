@@ -612,6 +612,7 @@ ALLMETA REINA\t240\t10\t5
     let warningsLeaderboardExpanded = false;
     let warningSelectedStudents = new Set();
     let currentWarningTemplate = null;
+    let topStudentsExpanded = false;
     const warningTemplates = [
       { id: 'no_hw', name: 'No Homework', icon: '📚' },
       { id: 'no_notebook', name: 'No Notebook', icon: '📓' }
@@ -1919,6 +1920,11 @@ ALLMETA REINA\t240\t10\t5
       }
     }
 
+    function toggleTopStudentsList() {
+      topStudentsExpanded = !topStudentsExpanded;
+      renderTopStudents();
+    }
+
     async function renderTopStudents() {
       const container = document.getElementById('topStudentsContainer');
       if (!students.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
@@ -1986,10 +1992,18 @@ ALLMETA REINA\t240\t10\t5
         `;
       }).join('') : '<p class="text-muted">No more students</p>';
 
+      const toggleLabel = topStudentsExpanded ? '⬆️ Nascondi classifica' : '⬇️ Mostra classifica completa';
+      const toggleButton = rest.length ? `
+        <div style="text-align:center;margin-top:var(--space-3);">
+          <button class="btn btn-ghost btn-sm" onclick="toggleTopStudentsList()">${toggleLabel}</button>
+        </div>
+      ` : '';
+
       container.innerHTML = `
         <div class="top-students">
           <div class="top-students-podium">${podiumHtml}</div>
-          <div class="top-students-list">${listHtml}</div>
+          <div class="top-students-list" style="display:${topStudentsExpanded ? 'block' : 'none'};">${listHtml}</div>
+          ${toggleButton}
         </div>
       `;
     }
