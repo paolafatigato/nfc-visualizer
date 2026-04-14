@@ -141,6 +141,7 @@
                 <select id="classFilter" class="input" style="width:150px;" onchange="renderStudents()"><option value="">All</option></select>
                 <button class="btn btn-primary" onclick="openStudentModal()">+ Add</button>
                 <button class="btn btn-secondary" onclick="openBulkImportStudentModal()">📥 Bulk Import</button>
+                <button class="btn btn-ghost" onclick="openRepairNamesModal()" title="Repair student names that were shifted due to a class edit bug">🔧 Repair Names</button>
               </div>
             </div>
             <div class="card-body" id="studentsContainer"></div>
@@ -593,6 +594,27 @@ ALLMETA REINA\t240\t10\t5
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="Modal.hide('warningDetailsModal')">Close</button>
+    </div>
+  </div>
+
+  <!-- Repair Names Modal -->
+  <div id="repairNamesModalBackdrop" class="modal-backdrop"></div>
+  <div id="repairNamesModal" class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3 class="modal-title">🔧 Repair Shifted Student Names</h3>
+      <button class="modal-close" onclick="Modal.hide('repairNamesModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:var(--space-3);">This tool detects students whose <strong>name</strong> no longer matches their <strong>document ID</strong> — a sign of the shift caused by the class-edit bug. Select the rows to fix and apply corrections.</p>
+      <div class="input-group">
+        <label class="input-label">Filter by class</label>
+        <select id="repairClassFilter" class="input" onchange="runRepairScan()" style="max-width:200px;"></select>
+      </div>
+      <div id="repairScanResults" style="margin-top:var(--space-3);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.hide('repairNamesModal')">Close</button>
+      <button class="btn btn-primary" id="applyRepairBtn" onclick="applyRepairNames()" disabled>✅ Apply selected corrections</button>
     </div>
   </div>
 
@@ -2167,30 +2189,21 @@ ALLMETA REINA\t240\t10\t5
           
           // Ottieni gli studenti attuali della classe
           const currentClassStudents = students.filter(s => s.classId === classId);
-          const currentStudentNames = currentClassStudents.map(s => s.name);
+          // Match by name (case-insensitive), NEVER by index
+          const currentNameSet = new Set(currentClassStudents.map(s => s.name.toLowerCase()));
+          const newNameSet = new Set(newStudentNames.map(n => n.toLowerCase()));
           
-          // Identifica studenti da aggiornare, aggiungere o eliminare
-          const updates = [];
+          const additions = [];
           
-          // 1. Aggiorna i nomi degli studenti esistenti o aggiungi nuovi
-          for (let i = 0; i < newStudentNames.length; i++) {
-            const newName = newStudentNames[i];
-            const oldStudent = currentClassStudents[i];
-            
-            if (oldStudent) {
-              // Studente esistente - aggiorna il nome se cambiato
-              if (oldStudent.name !== newName) {
-                updates.push(DB.updateStudent(oldStudent.id, { name: newName }));
-                Toast.info(`Updated: ${oldStudent.name} → ${newName}`);
-              }
-            } else {
-              // Nuovo studente - crea
+          for (const newName of newStudentNames) {
+            if (!currentNameSet.has(newName.toLowerCase())) {
+              // New student - create
               const generatedId = buildStudentIdFromFullName(newName);
               if (!generatedId) {
                 Toast.warning(`Invalid name for ID: ${newName}`);
                 continue;
               }
-              updates.push(DB.createStudentWithId(generatedId, { 
+              additions.push(DB.createStudentWithId(generatedId, { 
                 name: newName, 
                 classId: classId,
                 className: name
@@ -2198,21 +2211,18 @@ ALLMETA REINA\t240\t10\t5
                 console.warn(`Student create error ${newName}:`, error);
                 Toast.warning(`Skipped: ${newName}`);
               }));
-              Toast.success(`Added student: ${newName}`);
+            }
+            // If student already exists with this name, skip — do NOT rename
+          }
+          
+          // Warn about students in class but removed from the textarea (without touching them)
+          for (const s of currentClassStudents) {
+            if (!newNameSet.has(s.name.toLowerCase())) {
+              Toast.warning(`Student not in list: ${s.name}. Remove manually from Students section if needed.`);
             }
           }
           
-          // 2. Rimuovi studenti in eccesso (se la lista è più corta)
-          if (newStudentNames.length < currentClassStudents.length) {
-            for (let i = newStudentNames.length; i < currentClassStudents.length; i++) {
-              const studentToRemove = currentClassStudents[i];
-              // Non eliminiamo lo studente, solo lo spostiamo in una classe vuota o lo teniamo
-              // Per sicurezza, non facciamo nulla per evitare perdite di dati
-              Toast.warning(`Student not removed: ${studentToRemove.name}. Remove manually if needed.`);
-            }
-          }
-          
-          await Promise.all(updates);
+          if (additions.length > 0) await Promise.all(additions);
         }
       }
       
@@ -3147,6 +3157,127 @@ ALLMETA REINA\t240\t10\t5
         loadWarnings();
       }
     }
+
+
+    // ===== REPAIR SHIFTED NAMES UTILITY =====
+    // Reconstructs the expected student name from their Firestore document ID.
+    // Works because IDs are built as LASTNAME.FIRSTNAME (normalised, no accents).
+    function reconstructNameFromId(docId) {
+      const parts = docId.split('.');
+      if (!parts.length) return '';
+      // Title-case each segment, then first segment = last name, rest = first name
+      const titled = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase());
+      return titled.join(' ');
+    }
+
+    let repairCandidates = []; // { id, currentName, expectedName }
+
+    function openRepairNamesModal() {
+      const select = document.getElementById('repairClassFilter');
+      select.innerHTML = '<option value="">All classes</option>' +
+        classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('repairScanResults').innerHTML = '<p class="text-muted">Select a class and the scan will run automatically, or choose "All classes".</p>';
+      document.getElementById('applyRepairBtn').disabled = true;
+      repairCandidates = [];
+      Modal.show('repairNamesModal');
+      runRepairScan();
+    }
+
+    function runRepairScan() {
+      const classId = document.getElementById('repairClassFilter').value;
+      const filtered = classId ? students.filter(s => s.classId === classId) : students;
+      repairCandidates = [];
+
+      for (const s of filtered) {
+        const expected = reconstructNameFromId(s.id);
+        if (expected && expected.toLowerCase() !== s.name.toLowerCase()) {
+          repairCandidates.push({ id: s.id, currentName: s.name, expectedName: expected });
+        }
+      }
+
+      const container = document.getElementById('repairScanResults');
+      if (!repairCandidates.length) {
+        container.innerHTML = '<p style="color:var(--success);font-weight:600;">✅ No mismatches found. All student names match their IDs.</p>';
+        document.getElementById('applyRepairBtn').disabled = true;
+        return;
+      }
+
+      container.innerHTML = `
+        <p style="margin-bottom:var(--space-3);"><strong>${repairCandidates.length}</strong> mismatch(es) found. Check the rows you want to correct:</p>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead><tr>
+              <th style="width:40px;"><input type="checkbox" id="repairSelectAll" onchange="toggleRepairSelectAll(this.checked)"></th>
+              <th>Doc ID</th>
+              <th>Current name (wrong)</th>
+              <th>Expected name (from ID)</th>
+            </tr></thead>
+            <tbody>
+              ${repairCandidates.map((c, i) => `
+                <tr>
+                  <td><input type="checkbox" class="repair-row-check" data-index="${i}" checked onchange="updateApplyRepairBtn()"></td>
+                  <td><code style="font-size:var(--text-xs);">${c.id}</code></td>
+                  <td style="color:var(--danger);">${c.currentName}</td>
+                  <td style="color:var(--success);font-weight:600;">${c.expectedName}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">⚠️ Note: accents and apostrophes may not be restored (they were stripped when the ID was created). Verify each name and use the ✏️ edit button to make manual corrections if needed.</p>
+      `;
+      updateApplyRepairBtn();
+    }
+
+    function toggleRepairSelectAll(checked) {
+      document.querySelectorAll('.repair-row-check').forEach(cb => cb.checked = checked);
+      updateApplyRepairBtn();
+    }
+
+    function updateApplyRepairBtn() {
+      const checked = document.querySelectorAll('.repair-row-check:checked').length;
+      document.getElementById('applyRepairBtn').disabled = checked === 0;
+    }
+
+    async function applyRepairNames() {
+      const checked = Array.from(document.querySelectorAll('.repair-row-check:checked'))
+        .map(cb => repairCandidates[parseInt(cb.dataset.index)])
+        .filter(Boolean);
+
+      if (!checked.length) return;
+
+      const confirmed = await Modal.confirm(
+        `Apply ${checked.length} name correction(s)? This will update the "name" field on each selected student document.`,
+        'Confirm repair'
+      );
+      if (!confirmed) return;
+
+      const btn = document.getElementById('applyRepairBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Applying...';
+
+      let ok = 0, fail = 0;
+      for (const c of checked) {
+        try {
+          await DB.updateStudent(c.id, { name: c.expectedName });
+          ok++;
+        } catch (e) {
+          console.error('Repair error for', c.id, e);
+          fail++;
+        }
+      }
+
+      await loadData();
+      runRepairScan();
+      btn.innerHTML = '✅ Apply selected corrections';
+
+      if (fail > 0) {
+        Toast.warning(`Applied ${ok}, failed ${fail}. Check console for details.`);
+      } else {
+        Toast.success(`✅ ${ok} name(s) corrected!`);
+      }
+    }
+    // ===== END REPAIR UTILITY =====
 
     document.addEventListener('DOMContentLoaded', init);
   </script>
