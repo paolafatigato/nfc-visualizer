@@ -375,6 +375,7 @@
     </div>
 
     <main id="mainContent" class="student-main-card hidden">
+      <div id="archivedBanner" class="hidden" style="background: linear-gradient(135deg, var(--secondary-light) 0%, var(--accent-light) 100%); color: var(--text-primary); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); text-align: center; font-weight: var(--font-semibold); font-size: var(--text-sm); margin-bottom: var(--space-4);"></div>
       <div class="balance-section">
         <h2 id="studentName" class="student-name">Student Name</h2>
         <p id="studentClass" class="student-class">Class 1A</p>
@@ -613,12 +614,28 @@
       const balanceEl = document.getElementById('studentBalance');
       balanceEl.textContent = `${balance < 0 ? '-' : ''}${symbol}${Math.abs(balance)}`;
       balanceEl.classList.toggle('negative', balance < 0);
+
+      // A graduated/archived class is frozen: the page is a read-only
+      // snapshot of the last day of school, so no live listeners and no
+      // reward requests - just show what's already there.
+      const isArchived = !!currentStudent.archived;
+      const archivedBanner = document.getElementById('archivedBanner');
+      if (archivedBanner) {
+        if (isArchived) {
+          const archivedTs = currentStudent.archivedAt;
+          const archivedDate = archivedTs ? (archivedTs.toDate ? archivedTs.toDate() : new Date(archivedTs)).toLocaleDateString('en-GB') : '';
+          archivedBanner.innerHTML = `🎓 This class has graduated — this page is a memory snapshot${archivedDate ? ' from ' + archivedDate : ''}. Nothing changes from here.`;
+          archivedBanner.classList.remove('hidden');
+        } else {
+          archivedBanner.classList.add('hidden');
+        }
+      }
       
       await loadTransactions();
       await loadRewards();
       await loadTeachers();
       
-      if (schoolData.config?.showLeaderboard) {
+      if (schoolData.config?.showLeaderboard && !isArchived) {
         document.getElementById('leaderboardTabBtn').classList.remove('hidden');
         await loadLeaderboard();
       }
@@ -626,6 +643,8 @@
       document.getElementById('loadingState').classList.add('hidden');
       document.getElementById('mainContent').classList.remove('hidden');
       showMotivation();
+
+      if (isArchived) return; // Frozen page: skip live listeners entirely
       
       // Real-time listener for balance updates
       db.collection('schools').doc(currentStudent.schoolId)
@@ -816,17 +835,26 @@
       const empty = document.getElementById('noRewards');
       const balance = currentStudent.balance || 0;
       const symbol = schoolData.config?.currencySymbol || '$';
-
-      pendingRequestsTotal = await getPendingRequestsTotal();
-      const availableBalance = balance - pendingRequestsTotal;
+      const isArchived = !!currentStudent.archived;
 
       const pendingNote = document.getElementById('pendingRequestsNote');
-      if (pendingNote) {
-        if (pendingRequestsTotal > 0) {
-          pendingNote.textContent = `⏳ ${symbol}${pendingRequestsTotal} pending approval • ${symbol}${availableBalance} available`;
-          pendingNote.classList.remove('hidden');
-        } else {
-          pendingNote.classList.add('hidden');
+      let availableBalance = balance;
+
+      if (isArchived) {
+        // Frozen page: no pending-budget math, no requesting - just show
+        // the catalog as it was, read-only.
+        if (pendingNote) pendingNote.classList.add('hidden');
+      } else {
+        pendingRequestsTotal = await getPendingRequestsTotal();
+        availableBalance = balance - pendingRequestsTotal;
+
+        if (pendingNote) {
+          if (pendingRequestsTotal > 0) {
+            pendingNote.textContent = `⏳ ${symbol}${pendingRequestsTotal} pending approval • ${symbol}${availableBalance} available`;
+            pendingNote.classList.remove('hidden');
+          } else {
+            pendingNote.classList.add('hidden');
+          }
         }
       }
       
@@ -847,6 +875,22 @@
         }
         
         empty.classList.add('hidden');
+
+        if (isArchived) {
+          // Read-only souvenir view: no sorting into affordable/unavailable,
+          // no buttons - just what the rewards catalog looked like.
+          list.innerHTML = allRewards.map(reward => `
+            <div class="reward-item">
+              <div class="reward-icon">${reward.icon || '🎁'}</div>
+              <div class="reward-info">
+                <div class="reward-name">${reward.name}</div>
+                <div class="reward-description">${reward.description || ''}</div>
+              </div>
+              <div class="reward-cost">${symbol}${reward.cost}</div>
+            </div>
+          `).join('');
+          return;
+        }
 
         const affordableRewards = allRewards.filter(reward => availableBalance >= reward.cost);
         const unavailableRewards = allRewards.filter(reward => availableBalance < reward.cost);
@@ -940,6 +984,11 @@
     async function requestReward(rewardId, rewardName) {
       console.log('requestReward called with ID:', rewardId);
       console.log('Teachers:', teachers);
+
+      if (currentStudent.archived) {
+        alert('🎓 This class has graduated — this page is a read-only memory snapshot, so new requests aren\'t possible.');
+        return;
+      }
       
       if (teachers.length === 0) {
         alert('❌ No teacher available');
@@ -1031,6 +1080,11 @@
     }
     
     async function sendRewardRequest(teacherId, teacherName) {
+      if (currentStudent.archived) {
+        alert('🎓 This class has graduated — this page is a read-only memory snapshot, so new requests aren\'t possible.');
+        closeTeacherModal();
+        return;
+      }
       try {
         // Ensure anonymous auth before writing
         if (!firebase.auth().currentUser) {

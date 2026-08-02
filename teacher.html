@@ -636,6 +636,7 @@ ALLMETA REINA\t240\t10\t5
 
   <script>
     let students=[], classes=[], rewards=[], quickRewards=[], teachers=[], config={}, sym='$';
+    let archivedClasses = [];
     let selectedStudents = new Set();
     let currentQuickReward = null;
     let warnings = [];
@@ -684,10 +685,11 @@ ALLMETA REINA\t240\t10\t5
 
     async function loadData() {
       // Fetch all data in parallel (one network round instead of three)
-      const [school, studentsData, classesData, rewardsData, quickRewardsData, teachersData] = await Promise.all([
+      const [school, studentsData, classesData, allClassesData, rewardsData, quickRewardsData, teachersData] = await Promise.all([
         DB.getSchoolData(),
         DB.getStudents(),
         DB.getClasses(),
+        DB.getClasses(true), // includeArchived, so we can list them below
         DB.getRewards(),
         DB.getQuickRewards(),
         UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher')
@@ -697,6 +699,7 @@ ALLMETA REINA\t240\t10\t5
       sym = config.currencySymbol || '$';
       students = studentsData;
       classes = classesData;
+      archivedClasses = allClassesData.filter(c => c.archived);
       rewards = rewardsData;
       quickRewards = quickRewardsData;
       teachers = teachersData;
@@ -820,18 +823,35 @@ ALLMETA REINA\t240\t10\t5
 
     function renderClasses() {
       const container = document.getElementById('classesContainer');
-      if (!classes.length) { container.innerHTML = '<p class="text-muted">No classes</p>'; return; }
-      
-      container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th style="width: 60%;">Name</th><th style="width: 20%; text-align: center;">Students</th><th style="width: 20%; text-align: center;">Actions</th></tr></thead><tbody>
+
+      const activeHtml = !classes.length ? '<p class="text-muted">No active classes</p>' : `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th style="width: 60%;">Name</th><th style="width: 20%; text-align: center;">Students</th><th style="width: 20%; text-align: center;">Actions</th></tr></thead><tbody>
         ${classes.map(c => {
           const count = students.filter(s=>s.classId===c.id).length;
           return `<tr><td><strong>${c.name}</strong></td><td style="text-align: center;">${count}</td><td style="text-align: center;">
-            <button class="btn btn-ghost btn-sm" onclick="editClass('${c.id}')">✏️</button>
-            <button class="btn btn-ghost btn-sm text-danger" onclick="deleteClass('${c.id}')">🗑️</button>
-            </div>
+            <button class="btn btn-ghost btn-sm" onclick="editClass('${c.id}')" title="Edit">✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="archiveClass('${c.id}')" title="Archive (graduated class)">🎓</button>
+            <button class="btn btn-ghost btn-sm text-danger" onclick="deleteClass('${c.id}')" title="Delete">🗑️</button>
           </td></tr>`;
         }).join('')}
       </tbody></table></div>`;
+
+      const archivedHtml = `
+        <div style="margin-top: var(--space-6);">
+          <h4 style="display:flex;align-items:center;gap:var(--space-2);color:var(--text-secondary);margin-bottom:var(--space-3);">🎓 Archived Classes <span class="text-muted" style="font-weight:normal;font-size:var(--text-sm);">(graduated - hidden from the active dashboard)</span></h4>
+          ${!archivedClasses.length ? '<p class="text-muted">No archived classes</p>' : `
+          <div class="data-table-wrapper"><table class="data-table"><thead><tr><th style="width: 40%;">Name</th><th style="width: 20%; text-align: center;">Students</th><th style="width: 20%; text-align: center;">Archived</th><th style="width: 20%; text-align: center;">Actions</th></tr></thead><tbody>
+          ${archivedClasses.map(c => `
+            <tr><td><strong>${c.name}</strong></td><td style="text-align: center;">${c.archivedStudentCount ?? '-'}</td><td style="text-align: center;">${c.archivedAt ? Format.relativeTime(c.archivedAt) : '-'}</td><td style="text-align: center;">
+              <button class="btn btn-ghost btn-sm" onclick="viewArchivedRoster('${c.id}')" title="View roster &amp; NFC links">👀</button>
+              <button class="btn btn-ghost btn-sm" onclick="restoreClass('${c.id}')" title="Restore to active">↩️</button>
+            </td></tr>
+          `).join('')}
+          </tbody></table></div>
+          `}
+        </div>
+      `;
+
+      container.innerHTML = activeHtml + archivedHtml;
     }
 
     function renderRewards() {
@@ -2240,11 +2260,97 @@ ALLMETA REINA\t240\t10\t5
     }
 
     async function deleteClass(id) {
-      if (students.some(s=>s.classId===id)) { Toast.warning('Class is not empty'); return; }
+      if (students.some(s=>s.classId===id)) { Toast.warning('This class still has students. If it graduated, use 🎓 Archive instead of Delete — it freezes their pages without erasing anything.'); return; }
       if (!await Modal.confirm('Delete?')) return;
       await DB.deleteClass(id);
       await loadData();
       Toast.success('Deleted');
+    }
+
+    // Archive a graduated class: freezes every student's page (balance,
+    // history, NFC link all keep working exactly as they are) and hides
+    // the class + its students from the active dashboard. Nothing is deleted.
+    async function archiveClass(id) {
+      const cls = classes.find(c => c.id === id);
+      const count = students.filter(s => s.classId === id).length;
+
+      const confirmed = await Modal.confirm(
+        `Archive "${cls?.name || ''}"${count ? ` and freeze ${count} student page${count !== 1 ? 's' : ''}` : ''}? Their NFC card/link will keep working exactly as it is today, but the class disappears from the active dashboard (lists, dropdowns, stats). You can restore it anytime from "Archived Classes" below.`,
+        '🎓 Archive Class'
+      );
+      if (!confirmed) return;
+
+      try {
+        const result = await DB.archiveClass(id, true);
+        Toast.success(`🎓 "${cls?.name || 'Class'}" archived — ${result.studentsAffected} student page(s) frozen`);
+        await loadData();
+      } catch (error) {
+        console.error('Archive class error:', error);
+        Toast.error('Error while archiving the class');
+      }
+    }
+
+    async function restoreClass(id) {
+      const cls = archivedClasses.find(c => c.id === id);
+      const confirmed = await Modal.confirm(
+        `Restore "${cls?.name || ''}" to the active dashboard? Its students will reappear in lists, dropdowns and stats.`,
+        '↩️ Restore Class'
+      );
+      if (!confirmed) return;
+
+      try {
+        await DB.archiveClass(id, false);
+        Toast.success(`"${cls?.name || 'Class'}" restored`);
+        await loadData();
+      } catch (error) {
+        console.error('Restore class error:', error);
+        Toast.error('Error while restoring the class');
+      }
+    }
+
+    // Shows the frozen roster of an archived class with a direct link to
+    // each student's page, so you can find them again years later.
+    async function viewArchivedRoster(classId) {
+      const cls = archivedClasses.find(c => c.id === classId);
+      let rosterStudents = [];
+      try {
+        rosterStudents = await DB.getStudents(classId, true);
+      } catch (error) {
+        console.error('Roster load error:', error);
+        Toast.error('Unable to load roster');
+        return;
+      }
+
+      const rows = rosterStudents.map(s => {
+        const url = NFC.getStudentUrl(s.id);
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:1px solid var(--border-light);">
+            <div><strong>${s.name}</strong><div class="text-muted" style="font-size:var(--text-xs);">${sym}${s.balance || 0}</div></div>
+            <div style="display:flex;gap:var(--space-2);">
+              <a href="${url}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">🔗 Open</a>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${url}');Toast.success('Link copied!')">📋 Copy</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const modalId = 'archivedRoster_' + Date.now();
+      const html = `
+        <div id="${modalId}Backdrop" class="modal-backdrop active" onclick="document.getElementById('${modalId}Backdrop').remove();document.getElementById('${modalId}').remove();"></div>
+        <div id="${modalId}" class="modal active" style="max-width:520px;">
+          <div class="modal-header">
+            <h3 class="modal-title">🎓 ${cls?.name || ''} — Frozen Roster</h3>
+            <button class="modal-close" onclick="document.getElementById('${modalId}Backdrop').remove();document.getElementById('${modalId}').remove();">×</button>
+          </div>
+          <div class="modal-body">
+            ${rosterStudents.length ? rows : '<p class="text-muted">No students in this archived class</p>'}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('${modalId}Backdrop').remove();document.getElementById('${modalId}').remove();">Close</button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
     }
 
     function openRewardModal() { Modal.show('rewardModal'); }

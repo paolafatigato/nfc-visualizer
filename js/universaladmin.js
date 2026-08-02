@@ -227,13 +227,16 @@ const DB = {
   },
   
   // Students
-  async getStudents(classId = null) {
+  // includeArchived=false (default) hides students from a graduated/archived
+  // class - used everywhere in the active dashboard (lists, dropdowns, stats).
+  async getStudents(classId = null, includeArchived = false) {
     let query = this.school('students');
     if (classId) {
       query = query.where('classId', '==', classId);
     }
     const snapshot = await query.orderBy('name').get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return includeArchived ? list : list.filter(s => !s.archived);
   },
   
   async getStudent(studentId) {
@@ -278,9 +281,12 @@ const DB = {
   },
   
   // Classes
-  async getClasses() {
+  // includeArchived=false (default) hides graduated/archived classes from
+  // the active dashboard.
+  async getClasses(includeArchived = false) {
     const snapshot = await this.school('classes').orderBy('name').get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return includeArchived ? list : list.filter(c => !c.archived);
   },
   
   async createClass(data) {
@@ -297,6 +303,37 @@ const DB = {
   
   async deleteClass(classId) {
     await this.school('classes').doc(classId).delete();
+  },
+
+  // Archive (or restore) a class and every student in it. Archiving hides
+  // them from active lists/dropdowns/stats but keeps every document intact,
+  // so a graduated student's NFC page keeps working exactly as it was on
+  // their last day - nothing is deleted, it's just frozen and hidden from
+  // the active dashboard.
+  async archiveClass(classId, archive = true) {
+    const classRef = this.school('classes').doc(classId);
+    const studentsSnap = await this.school('students').where('classId', '==', classId).get();
+    const studentDocs = studentsSnap.docs;
+    const CHUNK_SIZE = 200;
+
+    const studentUpdate = archive
+      ? { archived: true, archivedAt: firebase.firestore.FieldValue.serverTimestamp() }
+      : { archived: false, archivedAt: firebase.firestore.FieldValue.delete() };
+
+    const classUpdate = archive
+      ? { ...studentUpdate, archivedStudentCount: studentDocs.length }
+      : { ...studentUpdate, archivedStudentCount: firebase.firestore.FieldValue.delete() };
+
+    await classRef.update(classUpdate);
+
+    for (let i = 0; i < studentDocs.length; i += CHUNK_SIZE) {
+      const chunk = studentDocs.slice(i, i + CHUNK_SIZE);
+      const batch = db.batch();
+      chunk.forEach(doc => batch.update(doc.ref, studentUpdate));
+      await batch.commit();
+    }
+
+    return { studentsAffected: studentDocs.length };
   },
   
   // Teachers
