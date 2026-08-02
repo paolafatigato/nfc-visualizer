@@ -380,6 +380,7 @@
         <p id="studentClass" class="student-class">Class 1A</p>
         <p class="balance-label">Your balance</p>
         <div id="studentBalance" class="balance-amount">$0</div>
+        <div id="pendingRequestsNote" class="hidden" style="font-size: var(--text-sm); color: var(--text-muted); margin-top: 4px;"></div>
         <div id="subjectBalances" class="subject-balances hidden"></div>
       </div>
 
@@ -520,6 +521,8 @@
     let schoolData = null;
     let currentRewardRequest = null;
     let teachers = [];
+    let allRewardsCache = [];
+    let pendingRequestsTotal = 0;
 
     async function init() {
       // Apply random gradient on page load
@@ -633,6 +636,7 @@
             const bal = data.balance || 0;
             balanceEl.textContent = `${bal < 0 ? '-' : ''}${symbol}${Math.abs(bal)}`;
             balanceEl.classList.toggle('negative', bal < 0);
+            loadRewards(); // Refresh affordability against the new balance
           }
         });
       
@@ -641,6 +645,8 @@
         .collection('rewardRequests')
         .where('studentId', '==', currentStudent.id)
         .onSnapshot(snapshot => {
+          let shouldRefreshRewards = false;
+
           snapshot.docChanges().forEach(change => {
             if (change.type === 'modified') {
               const request = change.doc.data();
@@ -655,16 +661,23 @@
                 }
                 
                 alert(message);
+                shouldRefreshRewards = true; // Frees up pending budget
               }
               
               // Notify if the request was approved
               if (request.status === 'approved') {
                 const rewardName = request.rewardName || 'Reward';
                 alert(`✅ Your request "${rewardName}" was approved!`);
-                loadRewards(); // Reload rewards
+                shouldRefreshRewards = true;
               }
+            } else {
+              // 'added' (new request just sent) or 'removed' also change
+              // how much budget is tied up in pending requests
+              shouldRefreshRewards = true;
             }
           });
+
+          if (shouldRefreshRewards) loadRewards();
         });
     }
 
@@ -771,11 +784,51 @@
       document.getElementById('quickRewardsInfoModal').classList.remove('active');
     }
 
+    // Sum the cost of this student's still-pending reward requests.
+    // Pending requests aren't deducted from balance until a teacher approves
+    // them, so this is what keeps a student from requesting more than they
+    // actually have once everything pending gets accepted.
+    async function getPendingRequestsTotal() {
+      try {
+        const snapshot = await db.collection('schools')
+          .doc(currentStudent.schoolId)
+          .collection('rewardRequests')
+          .where('studentId', '==', currentStudent.id)
+          .where('status', '==', 'pending')
+          .get();
+
+        return snapshot.docs.reduce((sum, d) => {
+          const data = d.data();
+          if (typeof data.cost === 'number') return sum + data.cost;
+          // Fallback for older requests saved before we stored the cost:
+          // look the reward up in the currently loaded catalog.
+          const reward = allRewardsCache.find(r => r.id === data.rewardId);
+          return sum + (reward ? (reward.cost || 0) : 0);
+        }, 0);
+      } catch (error) {
+        console.error('Pending requests total error:', error);
+        return 0;
+      }
+    }
+
     async function loadRewards() {
       const list = document.getElementById('rewardsList');
       const empty = document.getElementById('noRewards');
       const balance = currentStudent.balance || 0;
       const symbol = schoolData.config?.currencySymbol || '$';
+
+      pendingRequestsTotal = await getPendingRequestsTotal();
+      const availableBalance = balance - pendingRequestsTotal;
+
+      const pendingNote = document.getElementById('pendingRequestsNote');
+      if (pendingNote) {
+        if (pendingRequestsTotal > 0) {
+          pendingNote.textContent = `⏳ ${symbol}${pendingRequestsTotal} pending approval • ${symbol}${availableBalance} available`;
+          pendingNote.classList.remove('hidden');
+        } else {
+          pendingNote.classList.add('hidden');
+        }
+      }
       
       try {
         const snapshot = await db.collection('schools')
@@ -786,6 +839,7 @@
         const allRewards = snapshot.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(reward => reward.active !== false); // Show all except explicitly disabled
+        allRewardsCache = allRewards;
 
         if (allRewards.length === 0) {
           empty.classList.remove('hidden');
@@ -794,15 +848,15 @@
         
         empty.classList.add('hidden');
 
-        const affordableRewards = allRewards.filter(reward => balance >= reward.cost);
-        const unavailableRewards = allRewards.filter(reward => balance < reward.cost);
+        const affordableRewards = allRewards.filter(reward => availableBalance >= reward.cost);
+        const unavailableRewards = allRewards.filter(reward => availableBalance < reward.cost);
         const sortedRewards = [
           ...affordableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0)),
           ...unavailableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0))
         ];
 
         list.innerHTML = sortedRewards.map(reward => {
-          const isAffordable = balance >= reward.cost;
+          const isAffordable = availableBalance >= reward.cost;
           return `
             <div class="reward-item ${isAffordable ? 'affordable' : 'unavailable'}" ${isAffordable ? '' : 'data-open-quick-rewards="true"'}>
               <div class="reward-icon">${reward.icon || '🎁'}</div>
@@ -889,6 +943,18 @@
       
       if (teachers.length === 0) {
         alert('❌ No teacher available');
+        return;
+      }
+
+      // Re-check the available budget right before opening the request modal,
+      // in case the balance or other pending requests changed since the page loaded.
+      const rewardForCheck = allRewardsCache.find(r => r.id === rewardId);
+      const freshPendingTotal = await getPendingRequestsTotal();
+      const availableForCheck = (currentStudent.balance || 0) - freshPendingTotal;
+      if (rewardForCheck && availableForCheck < rewardForCheck.cost) {
+        const symbol = schoolData.config?.currencySymbol || '$';
+        alert(`❌ Not enough available balance. You have ${symbol}${freshPendingTotal} tied up in pending requests, leaving ${symbol}${availableForCheck} available.`);
+        loadRewards();
         return;
       }
       
@@ -980,13 +1046,28 @@
           .doc(currentRewardRequest)
           .get();
         
-        const rewardName = rewardDoc.exists ? rewardDoc.data().name : 'Reward';
+        const rewardData = rewardDoc.exists ? rewardDoc.data() : null;
+        const rewardName = rewardData ? rewardData.name : 'Reward';
+        const rewardCost = rewardData ? (rewardData.cost || 0) : 0;
+
+        // Final safety check right before writing (covers the gap between
+        // opening the modal and confirming the request).
+        const finalPendingTotal = await getPendingRequestsTotal();
+        const finalAvailable = (currentStudent.balance || 0) - finalPendingTotal;
+        if (rewardData && finalAvailable < rewardCost) {
+          const symbol = schoolData.config?.currencySymbol || '$';
+          alert(`❌ Not enough available balance. You have ${symbol}${finalPendingTotal} tied up in pending requests, leaving ${symbol}${finalAvailable} available.`);
+          closeTeacherModal();
+          loadRewards();
+          return;
+        }
         
         const requestData = {
           studentId: currentStudent.id,
           studentName: currentStudent.name,
           rewardId: currentRewardRequest,
           rewardName: rewardName,
+          cost: rewardCost,
           teacherId: teacherId,
           teacherName: teacherName,
           status: 'pending',

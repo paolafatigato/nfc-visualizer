@@ -662,6 +662,75 @@ const DB = {
     await studentRef.update({
       balance: firebase.firestore.FieldValue.increment(amount)
     });
+  },
+
+  // Reset ALL student balances to zero (e.g. start of a new school year).
+  // For every student with a non-zero balance, creates a 'reset' transaction
+  // recording the previous balance (so the change is auditable in the history),
+  // then zeroes the balance. Also auto-rejects any pending reward requests so
+  // students start the new year with a clean slate. Processes students in
+  // chunks to stay under Firestore's 500-writes-per-batch limit.
+  async resetAllBalances(reason = 'New school year reset') {
+    const snapshot = await this.school('students').get();
+    const studentDocs = snapshot.docs;
+    const CHUNK_SIZE = 200; // up to 2 writes/student -> max 400 writes/batch
+    let resetCount = 0;
+
+    for (let i = 0; i < studentDocs.length; i += CHUNK_SIZE) {
+      const chunk = studentDocs.slice(i, i + CHUNK_SIZE);
+      const batch = db.batch();
+
+      chunk.forEach(doc => {
+        const data = doc.data();
+        const balance = data.balance || 0;
+        if (balance === 0) return;
+
+        batch.update(doc.ref, {
+          balance: 0,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        const txRef = this.school('transactions').doc();
+        batch.set(txRef, {
+          studentId: doc.id,
+          studentName: data.name,
+          classId: data.classId || null,
+          amount: -balance,
+          reason,
+          icon: '🔄',
+          type: 'reset',
+          teacherId: Auth.currentUser?.uid,
+          teacherName: Auth.userProfile?.name || 'System',
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        resetCount++;
+      });
+
+      await batch.commit();
+    }
+
+    // Auto-reject any still-pending reward requests, so leftover requests
+    // from the previous year don't lock budget against the fresh balances.
+    let pendingCleared = 0;
+    const pendingSnap = await this.school('rewardRequests').where('status', '==', 'pending').get();
+    const pendingDocs = pendingSnap.docs;
+    for (let i = 0; i < pendingDocs.length; i += CHUNK_SIZE) {
+      const chunk = pendingDocs.slice(i, i + CHUNK_SIZE);
+      const batch = db.batch();
+      chunk.forEach(doc => {
+        batch.update(doc.ref, {
+          status: 'rejected',
+          rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          rejectedBy: Auth.currentUser?.uid,
+          rejectionReason: 'Auto-rejected: new school year reset'
+        });
+        pendingCleared++;
+      });
+      await batch.commit();
+    }
+
+    return { resetCount, totalStudents: studentDocs.length, pendingCleared };
   }
 };
 

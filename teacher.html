@@ -374,6 +374,14 @@
               </form>
             </div>
           </div>
+
+          <div class="card" style="margin-top: var(--space-4); border: 1px solid var(--danger-light);">
+            <div class="card-header"><h3 class="card-title" style="color: var(--danger);">⚠️ Danger Zone</h3></div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: var(--space-4);">At the start of a new school year, reset every student's balance to zero. A snapshot (CSV) of the current balances downloads automatically before the reset, and a 🔄 record of each reset stays in that student's transaction history so nothing is lost.</p>
+              <button type="button" id="resetYearBtn" class="btn btn-danger" onclick="startYearReset()">🔄 Reset All Balances (New School Year)</button>
+            </div>
+          </div>
         </section>
       </div>
     </main>
@@ -2528,6 +2536,51 @@ ALLMETA REINA\t240\t10\t5
       ], 'students');
     }
 
+    function exportYearEndSnapshot() {
+      Export.download(students, [
+        {key:'name',label:'Name'},
+        {key:'className',label:'Class'},
+        {key:'balance',label:'Balance'},
+        {key:'nfcTag',label:'NFC'}
+      ], 'year_end_balance_snapshot');
+    }
+
+    async function startYearReset() {
+      if (!students.length) {
+        Toast.warning('No students to reset');
+        return;
+      }
+
+      const totalBalance = students.reduce((sum, s) => sum + (s.balance || 0), 0);
+      const confirmed = await Modal.confirm(
+        `This will reset the balance of all ${students.length} students to ${sym}0 (current total: ${sym}${totalBalance}). A snapshot CSV will download first, and a reset entry is kept in each student's history. Continue?`,
+        '⚠️ Reset All Balances'
+      );
+      if (!confirmed) return;
+
+      const typed = prompt('This affects ALL students at once and cannot be undone from the interface. Type RESET to confirm:');
+      if (typed !== 'RESET') {
+        Toast.info('Reset cancelled');
+        return;
+      }
+
+      const btn = document.getElementById('resetYearBtn');
+      try {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Resetting...'; }
+
+        exportYearEndSnapshot();
+
+        const result = await DB.resetAllBalances(`New school year reset - ${new Date().toLocaleDateString('en-GB')}`);
+        Toast.success(`✅ Reset complete: ${result.resetCount} of ${result.totalStudents} students reset` + (result.pendingCleared ? `, ${result.pendingCleared} pending request(s) cleared` : ''));
+        await loadData();
+      } catch (error) {
+        console.error('Reset error:', error);
+        Toast.error('Error while resetting balances');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Reset All Balances (New School Year)'; }
+      }
+    }
+
     // === BULK CLASS IMPORT FUNCTIONS ===
     function openBulkImportClassModal() {
       document.getElementById('bulkClassList').value = '';
@@ -3283,4 +3336,3 @@ ALLMETA REINA\t240\t10\t5
   </script>
 </body>
 </html>
-
