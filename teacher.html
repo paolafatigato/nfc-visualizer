@@ -883,8 +883,14 @@ ALLMETA REINA\t240\t10\t5
     // ===== CLASS COLOR HELPERS =====
     // Preset palette pulled directly from the site's existing design tokens
     // (variables.css) so any class color always feels "in palette".
-    const CLASS_COLOR_PRESETS = ['#F39C12', '#2ECC71', '#33CCA6', '#4F8EF7', '#9333EA', '#F553A6'];
-    let currentClassColor = null;
+const CLASS_COLOR_PRESETS = [
+  '#F553A6', // fuxia   (accent)
+  '#E74C3C', // rosso   (danger)
+  '#FFC845', // giallo  (oro vivace, in stile con la palette)
+  '#2ECC71', // verde   (success)
+  '#4F8EF7', // azzurro (blu già usato nell'arcobaleno del picker)
+  '#C084FC'  // lilla   (primary-light)
+];    let currentClassColor = null;
 
     function getClassColor(classId) {
       const cls = classes.find(c => c.id === classId) || archivedClasses.find(c => c.id === classId);
