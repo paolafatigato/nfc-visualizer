@@ -373,6 +373,56 @@ const DB = {
     });
     return ref.id;
   },
+
+  // Recurring Rewards - a quick reward scheduled on specific weekdays
+  // (e.g. "Clean class" every Tue+Thu for a given class). daysOfWeek uses
+  // JS Date.getDay() convention: 0=Sun ... 6=Sat.
+  async getRecurringRewards() {
+    const snapshot = await this.school('recurringRewards').orderBy('createdAt', 'desc').get();
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async createRecurringReward(data) {
+    const ref = await this.school('recurringRewards').add({
+      ...data,
+      active: data.active !== false,
+      createdBy: Auth.currentUser?.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+
+  async updateRecurringReward(id, data) {
+    await this.school('recurringRewards').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+
+  async deleteRecurringReward(id) {
+    await this.school('recurringRewards').doc(id).delete();
+  },
+
+  // One log doc per rule per calendar day (id = `${ruleId}_${YYYY-MM-DD}`).
+  // Its existence is what stops the same rule being asked about twice on
+  // the same day, and what remembers a teacher's ✓/✗ decision.
+  async getRecurringRewardLogsForDate(dateStr) {
+    const snapshot = await this.school('recurringRewardLogs')
+      .where('date', '==', dateStr)
+      .get();
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async setRecurringRewardLog(ruleId, dateStr, data) {
+    await this.school('recurringRewardLogs').doc(`${ruleId}_${dateStr}`).set({
+      recurringRewardId: ruleId,
+      date: dateStr,
+      decidedBy: Auth.currentUser?.uid,
+      decidedByName: Auth.userProfile?.name || 'Teacher',
+      decidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ...data
+    });
+  },
   
   // Transactions
   async createTransaction(data) {

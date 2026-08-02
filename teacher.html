@@ -119,6 +119,8 @@
               </div>
             </div>
           </div>
+
+          <div id="recurringRewardsBar" class="recurring-bar-container hidden"></div>
         </section>
 
         <!-- Students -->
@@ -247,6 +249,17 @@
               </div>
             </div>
             <div class="card-body"><p class="text-muted mb-4">Teachers use these buttons to give points quickly.</p><div id="quickRewardsContainer" class="quick-rewards"></div></div>
+          </div>
+
+          <div class="card mt-6">
+            <div class="card-header">
+              <h3 class="card-title">🔁 Recurring Rewards</h3>
+              <button class="btn btn-primary" onclick="openRecurringRewardModal()">+ Add</button>
+            </div>
+            <div class="card-body">
+              <p class="text-muted mb-4">Schedule a quick reward for a class on specific weekdays (e.g. "Clean class" every Tue &amp; Thu). On those days, when you open the app, you'll be asked to confirm ✓ or skip ✗.</p>
+              <div id="recurringRewardsContainer"></div>
+            </div>
           </div>
         </section>
 
@@ -421,6 +434,12 @@
     <div class="modal-body">
       <input type="hidden" id="classId">
       <div class="input-group"><label class="input-label">Name *</label><input type="text" id="className" class="input" placeholder="Example: 1A" required></div>
+      <div class="input-group">
+        <label class="input-label">Class Color</label>
+        <div id="classColorSwatches" class="color-swatch-row"></div>
+        <input type="color" id="classColorCustomInput" style="display:none;" onchange="selectClassColor(this.value)">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="resetClassColor()" style="margin-top:var(--space-2);padding-left:0;">↺ Reset to default (violet)</button>
+      </div>
       <div class="input-group"><label class="input-label">Student list (separated by ; )</label><textarea id="classStudents" class="input" placeholder="Example: Rossi Mario; Bianchi Luca; Verdi Anna" rows="4" style="resize: vertical;"></textarea><small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">Edit names to fix errors. Changes apply everywhere. Add new students with: Surname Name</small></div>
       <div class="input-group"><label class="input-label">Teacher list (separated by ; )</label><textarea id="classTeachers" class="input" placeholder="Example: Prof. Rossi; Prof. Bianchi" rows="3" style="resize: vertical;"></textarea><small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">For display only. Manage teachers in the Teachers section.</small></div>
     </div>
@@ -455,6 +474,42 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('quickRewardModal')">Cancel</button><button class="btn btn-primary" onclick="saveQuickReward()">Save</button></div>
+  </div>
+
+  <!-- Recurring Reward Modal -->
+  <div id="recurringRewardModalBackdrop" class="modal-backdrop"></div>
+  <div id="recurringRewardModal" class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="recurringRewardModalTitle">🔁 Recurring Reward</h3><button class="modal-close" onclick="Modal.hide('recurringRewardModal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="rrId">
+      <div class="input-group">
+        <label class="input-label">Quick Reward *</label>
+        <select id="rrQuickRewardId" class="input"><option value="">Select a quick reward</option></select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Class *</label>
+        <select id="rrClassId" class="input" onchange="renderRecurringRewardStudentPicker()"><option value="">Select a class</option></select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Who gets it</label>
+        <label style="display:flex;align-items:center;gap:var(--space-2);font-weight:normal;cursor:pointer;">
+          <input type="checkbox" id="rrWholeClass" checked onchange="renderRecurringRewardStudentPicker()">
+          Whole class
+        </label>
+        <div id="rrStudentPicker" class="hidden" style="margin-top:var(--space-2);max-height:220px;overflow-y:auto;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2);"></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Repeat on *</label>
+        <div id="rrDaysPicker" style="display:flex;gap:var(--space-2);flex-wrap:wrap;"></div>
+      </div>
+      <div class="input-group">
+        <label style="display:flex;align-items:center;gap:var(--space-2);font-weight:normal;cursor:pointer;">
+          <input type="checkbox" id="rrActive" checked>
+          Active
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('recurringRewardModal')">Cancel</button><button class="btn btn-primary" onclick="saveRecurringReward()">Save</button></div>
   </div>
 
   <!-- Teacher Modal -->
@@ -636,6 +691,7 @@ ALLMETA REINA\t240\t10\t5
 
   <script>
     let students=[], classes=[], rewards=[], quickRewards=[], teachers=[], config={}, sym='$';
+    let recurringRewards=[];
     let archivedClasses = [];
     let selectedStudents = new Set();
     let currentQuickReward = null;
@@ -681,18 +737,20 @@ ALLMETA REINA\t240\t10\t5
       }
       await loadData();
       showSection('dashboard');
+      checkTodayRecurringRewards();
     }
 
     async function loadData() {
       // Fetch all data in parallel (one network round instead of three)
-      const [school, studentsData, classesData, allClassesData, rewardsData, quickRewardsData, teachersData] = await Promise.all([
+      const [school, studentsData, classesData, allClassesData, rewardsData, quickRewardsData, teachersData, recurringRewardsData] = await Promise.all([
         DB.getSchoolData(),
         DB.getStudents(),
         DB.getClasses(),
         DB.getClasses(true), // includeArchived, so we can list them below
         DB.getRewards(),
         DB.getQuickRewards(),
-        UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher')
+        UserManager.getSchoolUsers(Auth.getEffectiveSchoolId(), 'teacher'),
+        DB.getRecurringRewards()
       ]);
 
       config = school?.config || {};
@@ -703,6 +761,7 @@ ALLMETA REINA\t240\t10\t5
       rewards = rewardsData;
       quickRewards = quickRewardsData;
       teachers = teachersData;
+      recurringRewards = recurringRewardsData;
       
       loadSettings();
       updateStats();
@@ -718,6 +777,7 @@ ALLMETA REINA\t240\t10\t5
       renderWarningButtons();
       renderWarningStudentSelects();
       updateWarningButton();
+      renderRecurringRewards();
       // Run secondary data in background without blocking initial render
       renderTopStudents();
       refreshRequestBadges();
@@ -805,10 +865,9 @@ ALLMETA REINA\t240\t10\t5
       
       container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Class</th><th>Balance</th><th>NFC</th><th>Actions</th></tr></thead><tbody>
         ${list.map(s => {
-          const cls = classes.find(c=>c.id===s.classId);
           return `<tr>
-            <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(s.name)}</div>${s.name}</div></td>
-            <td><span class="badge badge-primary">${cls?.name||'-'}</span></td>
+            <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm"${avatarStyleAttr(s.classId)}>${UI.getInitials(s.name)}</div>${s.name}</div></td>
+            <td>${classBadgeHtml(s.classId)}</td>
             <td class="${s.balance<0?'text-danger':'text-success'}" style="font-weight:bold;">${sym}${s.balance||0}</td>
             <td><code style="font-size:var(--text-xs);">${s.nfcTag||'-'}</code></td>
             <td><div class="actions">
@@ -821,13 +880,74 @@ ALLMETA REINA\t240\t10\t5
       </tbody></table></div>`;
     }
 
+    // ===== CLASS COLOR HELPERS =====
+    // Preset palette pulled directly from the site's existing design tokens
+    // (variables.css) so any class color always feels "in palette".
+    const CLASS_COLOR_PRESETS = ['#F39C12', '#2ECC71', '#33CCA6', '#4F8EF7', '#9333EA', '#F553A6'];
+    let currentClassColor = null;
+
+    function getClassColor(classId) {
+      const cls = classes.find(c => c.id === classId) || archivedClasses.find(c => c.id === classId);
+      return cls?.color || null;
+    }
+
+    function hexToRgba(hex, alpha) {
+      if (!hex) return null;
+      let h = hex.replace('#', '');
+      if (h.length === 3) h = h.split('').map(c => c + c).join('');
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Class name badge (e.g. "1A"): uses the class's custom color if set,
+    // otherwise falls back to the original violet badge-primary look.
+    function classBadgeHtml(classId, fallbackName) {
+      const cls = classes.find(c => c.id === classId) || archivedClasses.find(c => c.id === classId);
+      const name = cls?.name || fallbackName || '-';
+      if (cls?.color) {
+        return `<span class="badge" style="background:${hexToRgba(cls.color, 0.15)};color:${cls.color};">${name}</span>`;
+      }
+      return `<span class="badge badge-primary">${name}</span>`;
+    }
+
+    // Student avatar gradient: half the existing violet, half the class color.
+    // Returns an empty string (default gradient) when the class has no color set.
+    function avatarStyleAttr(classId) {
+      const color = getClassColor(classId);
+      return color ? ` style="background:linear-gradient(135deg, var(--primary), ${color});"` : '';
+    }
+
+    function renderClassColorSwatches() {
+      const container = document.getElementById('classColorSwatches');
+      if (!container) return;
+      const isCustom = currentClassColor && !CLASS_COLOR_PRESETS.includes(currentClassColor);
+      container.innerHTML = CLASS_COLOR_PRESETS.map(hex => `
+        <div class="color-swatch ${currentClassColor === hex ? 'selected' : ''}" style="background:${hex};" onclick="selectClassColor('${hex}')" title="${hex}"></div>
+      `).join('') + `
+        <div class="color-swatch color-swatch-rainbow ${isCustom ? 'selected' : ''}" onclick="document.getElementById('classColorCustomInput').click()" title="Custom color"></div>
+      `;
+    }
+
+    function selectClassColor(hex) {
+      currentClassColor = hex;
+      renderClassColorSwatches();
+    }
+
+    function resetClassColor() {
+      currentClassColor = null;
+      renderClassColorSwatches();
+    }
+
     function renderClasses() {
       const container = document.getElementById('classesContainer');
 
       const activeHtml = !classes.length ? '<p class="text-muted">No active classes</p>' : `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th style="width: 60%;">Name</th><th style="width: 20%; text-align: center;">Students</th><th style="width: 20%; text-align: center;">Actions</th></tr></thead><tbody>
         ${classes.map(c => {
           const count = students.filter(s=>s.classId===c.id).length;
-          return `<tr><td><strong>${c.name}</strong></td><td style="text-align: center;">${count}</td><td style="text-align: center;">
+          const dot = c.color ? `<span class="class-color-dot" style="background:${c.color};"></span>` : '';
+          return `<tr><td>${dot}<strong>${c.name}</strong></td><td style="text-align: center;">${count}</td><td style="text-align: center;">
             <button class="btn btn-ghost btn-sm" onclick="editClass('${c.id}')" title="Edit">✏️</button>
             <button class="btn btn-ghost btn-sm" onclick="archiveClass('${c.id}')" title="Archive (graduated class)">🎓</button>
             <button class="btn btn-ghost btn-sm text-danger" onclick="deleteClass('${c.id}')" title="Delete">🗑️</button>
@@ -953,7 +1073,7 @@ ALLMETA REINA\t240\t10\t5
       const sorted = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       grid.innerHTML = sorted.map(student => `
         <div class="student-select-card ${selectedStudents.has(student.id) ? 'selected' : ''}" data-student-id="${student.id}" onclick="toggleStudentSelection('${student.id}')">
-          <div class="avatar">${UI.getInitials(student.name)}</div>
+          <div class="avatar"${avatarStyleAttr(student.classId)}>${UI.getInitials(student.name)}</div>
           <div class="student-select-name"><strong>${student.name || 'Student'}</strong></div>
           <div class="student-select-balance">${sym}${student.balance || 0}</div>
         </div>
@@ -1145,7 +1265,7 @@ ALLMETA REINA\t240\t10\t5
       const sorted = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       grid.innerHTML = sorted.map(student => `
         <div class="student-select-card ${warningSelectedStudents.has(student.id) ? 'selected' : ''}" data-student-id="${student.id}" onclick="toggleWarningStudentSelection('${student.id}')">
-          <div class="avatar">${UI.getInitials(student.name)}</div>
+          <div class="avatar"${avatarStyleAttr(student.classId)}>${UI.getInitials(student.name)}</div>
           <div class="student-select-name"><strong>${student.name || 'Student'}</strong></div>
           <div class="student-select-balance">${sym}${student.balance || 0}</div>
         </div>
@@ -1368,8 +1488,8 @@ ALLMETA REINA\t240\t10\t5
               ${displayLeaderboard.map((row, index) => `
                 <tr style="cursor:pointer;" title="View warning reasons" onclick="openWarningDetails('${row.studentId || ''}', '${encodeURIComponent(row.studentName || '')}')">
                   <td style="text-align: center; font-weight: 600;">${index + 1}</td>
-                  <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(row.studentName)}</div>${row.studentName}</div></td>
-                  <td><span class="badge badge-primary">${row.className || '-'}</span></td>
+                  <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm"${avatarStyleAttr(row.classId)}>${UI.getInitials(row.studentName)}</div>${row.studentName}</div></td>
+                  <td>${classBadgeHtml(row.classId, row.className)}</td>
                   <td style="text-align: center; font-weight: 700;">${row.count}</td>
                   <td>${row.lastTimestamp ? Format.relativeTime(row.lastTimestamp) : '-'}</td>
                 </tr>
@@ -2174,6 +2294,8 @@ ALLMETA REINA\t240\t10\t5
     function openClassModal(c=null) {
       document.getElementById('classId').value = c?.id || '';
       document.getElementById('className').value = c?.name || '';
+      currentClassColor = c?.color || null;
+      renderClassColorSwatches();
       
       // Popola elenco studenti della classe
       if (c?.id) {
@@ -2203,9 +2325,9 @@ ALLMETA REINA\t240\t10\t5
       // Salva o aggiorna la classe
       let classId = id;
       if (id) {
-        await DB.updateClass(id, {name});
+        await DB.updateClass(id, {name, color: currentClassColor});
       } else {
-        classId = await DB.createClass({name});
+        classId = await DB.createClass({name, color: currentClassColor});
       }
       
       // Gestisci gli studenti
@@ -2396,6 +2518,301 @@ ALLMETA REINA\t240\t10\t5
     async function deleteQuickReward(id) {
       await DB.school('quickRewards').doc(id).delete();
       await loadData();
+    }
+
+    // ========== RECURRING REWARDS (scheduled quick rewards) ==========
+    // daysOfWeek values use JS Date.getDay() convention: 0=Sun ... 6=Sat.
+    const RR_DAYS = [
+      { value: 1, label: 'Mon' },
+      { value: 2, label: 'Tue' },
+      { value: 3, label: 'Wed' },
+      { value: 4, label: 'Thu' },
+      { value: 5, label: 'Fri' },
+      { value: 6, label: 'Sat' },
+      { value: 0, label: 'Sun' }
+    ];
+
+    function renderRecurringRewards() {
+      const container = document.getElementById('recurringRewardsContainer');
+      if (!container) return;
+      if (!recurringRewards.length) { container.innerHTML = '<p class="text-muted">No recurring rewards scheduled</p>'; return; }
+
+      container.innerHTML = `
+        <div class="rewards-grid">
+          ${recurringRewards.map(r => {
+            const days = (r.daysOfWeek || []).slice().sort().map(d => RR_DAYS.find(x => x.value === d)?.label || '').join(', ');
+            const targetLabel = r.target === 'students'
+              ? `${(r.studentIds || []).length} student${(r.studentIds || []).length !== 1 ? 's' : ''}`
+              : 'Whole class';
+            return `
+              <div class="reward-card">
+                <div class="reward-card-header">
+                  <div class="reward-icon">${r.icon || '⭐'}</div>
+                  <div class="reward-main">
+                    <div class="reward-name">${r.name}</div>
+                    <div class="reward-description">${r.className || ''} • ${targetLabel} • ${days || 'No days set'}</div>
+                  </div>
+                  <div class="reward-cost">${r.amount >= 0 ? '+' : ''}${sym}${Math.abs(r.amount)}</div>
+                </div>
+                <div class="reward-card-actions" style="display:flex;justify-content:space-between;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:var(--space-2);font-weight:normal;cursor:pointer;font-size:var(--text-sm);">
+                    <input type="checkbox" ${r.active !== false ? 'checked' : ''} onchange="toggleRecurringRewardActive('${r.id}', this.checked)">
+                    Active
+                  </label>
+                  <div>
+                    <button class="btn btn-ghost btn-sm" onclick="editRecurringReward('${r.id}')">✏️</button>
+                    <button class="btn btn-ghost btn-sm text-danger" onclick="deleteRecurringRewardRule('${r.id}')">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderRecurringRewardDaysPicker(selectedDays = []) {
+      const picker = document.getElementById('rrDaysPicker');
+      picker.innerHTML = RR_DAYS.map(d => `
+        <label style="display:flex;align-items:center;gap:var(--space-1);font-weight:normal;cursor:pointer;padding:var(--space-1) var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);">
+          <input type="checkbox" class="rr-day-check" value="${d.value}" ${selectedDays.includes(d.value) ? 'checked' : ''}>
+          ${d.label}
+        </label>
+      `).join('');
+    }
+
+    function renderRecurringRewardStudentPicker(preselectedIds = []) {
+      const wholeClass = document.getElementById('rrWholeClass').checked;
+      const picker = document.getElementById('rrStudentPicker');
+      const classId = document.getElementById('rrClassId').value;
+
+      if (wholeClass || !classId) {
+        picker.classList.add('hidden');
+        picker.innerHTML = '';
+        return;
+      }
+
+      picker.classList.remove('hidden');
+      const classStudents = students.filter(s => s.classId === classId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      if (!classStudents.length) {
+        picker.innerHTML = '<p class="text-muted p-2">No students in this class</p>';
+        return;
+      }
+
+      picker.innerHTML = classStudents.map(s => `
+        <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2);font-weight:normal;cursor:pointer;">
+          <input type="checkbox" class="rr-student-check" value="${s.id}" ${preselectedIds.includes(s.id) ? 'checked' : ''}>
+          ${s.name || 'Student'}
+        </label>
+      `).join('');
+    }
+
+    function openRecurringRewardModal(rule = null) {
+      document.getElementById('recurringRewardModalTitle').textContent = rule ? '✏️ Edit Recurring Reward' : '🔁 Recurring Reward';
+      document.getElementById('rrId').value = rule?.id || '';
+
+      const qrSelect = document.getElementById('rrQuickRewardId');
+      qrSelect.innerHTML = '<option value="">Select a quick reward</option>' +
+        quickRewards.map(qr => `<option value="${qr.id}" ${rule?.quickRewardId === qr.id ? 'selected' : ''}>${qr.icon || '⭐'} ${qr.name} (${qr.amount >= 0 ? '+' : ''}${sym}${Math.abs(qr.amount)})</option>`).join('');
+
+      const classSelect = document.getElementById('rrClassId');
+      classSelect.innerHTML = '<option value="">Select a class</option>' +
+        classes.map(c => `<option value="${c.id}" ${rule?.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+
+      document.getElementById('rrWholeClass').checked = !rule || rule.target !== 'students';
+      document.getElementById('rrActive').checked = rule ? rule.active !== false : true;
+
+      renderRecurringRewardDaysPicker(rule?.daysOfWeek || []);
+      renderRecurringRewardStudentPicker(rule?.studentIds || []);
+
+      Modal.show('recurringRewardModal');
+    }
+
+    function editRecurringReward(id) {
+      openRecurringRewardModal(recurringRewards.find(r => r.id === id));
+    }
+
+    async function saveRecurringReward() {
+      const id = document.getElementById('rrId').value;
+      const quickRewardId = document.getElementById('rrQuickRewardId').value;
+      const classId = document.getElementById('rrClassId').value;
+      const wholeClass = document.getElementById('rrWholeClass').checked;
+      const active = document.getElementById('rrActive').checked;
+      const daysOfWeek = Array.from(document.querySelectorAll('.rr-day-check:checked')).map(cb => parseInt(cb.value));
+      const studentIds = wholeClass ? [] : Array.from(document.querySelectorAll('.rr-student-check:checked')).map(cb => cb.value);
+
+      const quickReward = quickRewards.find(qr => qr.id === quickRewardId);
+      const klass = classes.find(c => c.id === classId);
+
+      if (!quickReward || !klass || !daysOfWeek.length) {
+        Toast.warning('Select a quick reward, a class, and at least one day');
+        return;
+      }
+      if (!wholeClass && !studentIds.length) {
+        Toast.warning('Select at least one student, or check "Whole class"');
+        return;
+      }
+
+      const data = {
+        quickRewardId,
+        name: quickReward.name,
+        icon: quickReward.icon || '⭐',
+        amount: quickReward.amount,
+        classId,
+        className: klass.name,
+        target: wholeClass ? 'class' : 'students',
+        studentIds,
+        daysOfWeek,
+        active
+      };
+
+      try {
+        if (id) {
+          await DB.updateRecurringReward(id, data);
+        } else {
+          await DB.createRecurringReward(data);
+        }
+        Modal.hide('recurringRewardModal');
+        await loadData();
+        Toast.success('Recurring reward saved!');
+      } catch (error) {
+        console.error('Save recurring reward error:', error);
+        Toast.error('Error saving recurring reward');
+      }
+    }
+
+    async function toggleRecurringRewardActive(id, active) {
+      try {
+        await DB.updateRecurringReward(id, { active });
+        const rule = recurringRewards.find(r => r.id === id);
+        if (rule) rule.active = active;
+      } catch (error) {
+        console.error('Toggle recurring reward error:', error);
+        Toast.error('Error updating recurring reward');
+        renderRecurringRewards();
+      }
+    }
+
+    async function deleteRecurringRewardRule(id) {
+      const confirmed = await Modal.confirm('Delete this recurring reward? This will not undo rewards already given.', 'Delete recurring reward');
+      if (!confirmed) return;
+      try {
+        await DB.deleteRecurringReward(id);
+        await loadData();
+        Toast.success('Recurring reward deleted');
+      } catch (error) {
+        console.error('Delete recurring reward error:', error);
+        Toast.error('Error deleting recurring reward');
+      }
+    }
+
+    // ---- Daily prompt: "did this happen today?" ----
+    function todayDateStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    async function checkTodayRecurringRewards() {
+      const bar = document.getElementById('recurringRewardsBar');
+      if (!bar) return;
+      if (!recurringRewards.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+
+      const todayDow = new Date().getDay();
+      const dateStr = todayDateStr();
+      const candidates = recurringRewards.filter(r => r.active !== false && (r.daysOfWeek || []).includes(todayDow));
+      if (!candidates.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+
+      let logs = [];
+      try {
+        logs = await DB.getRecurringRewardLogsForDate(dateStr);
+      } catch (error) {
+        console.warn('Recurring reward log check failed:', error);
+        return;
+      }
+
+      const decidedIds = new Set(logs.map(l => l.recurringRewardId));
+      const pending = candidates.filter(r => !decidedIds.has(r.id));
+      if (!pending.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+
+      renderRecurringBar(pending, dateStr);
+    }
+
+    function renderRecurringBar(pending, dateStr) {
+      const bar = document.getElementById('recurringRewardsBar');
+      if (!bar) return;
+
+      bar.innerHTML = pending.map(r => {
+        const targetLabel = r.target === 'students'
+          ? `${(r.studentIds || []).length} student${(r.studentIds || []).length !== 1 ? 's' : ''}`
+          : 'whole class';
+        const classColor = getClassColor(r.classId);
+        const colorStyle = classColor
+          ? ` style="border-left-color:${classColor};background:${hexToRgba(classColor, 0.12)};"`
+          : '';
+        return `
+          <div class="recurring-bar-item"${colorStyle} data-rule-id="${r.id}">
+            <span class="recurring-bar-icon">${r.icon || '⭐'}</span>
+            <span class="recurring-bar-text">
+              <strong>${r.name}</strong> for ${r.className || 'class'} (${targetLabel}) today?
+            </span>
+            <span class="recurring-bar-amount">${r.amount >= 0 ? '+' : ''}${sym}${Math.abs(r.amount)}</span>
+            <div class="recurring-bar-actions">
+              <button class="btn btn-success btn-sm" title="Assign reward" onclick="decideRecurringReward('${r.id}','${dateStr}',true,this)">✓</button>
+              <button class="btn btn-danger btn-sm" title="Not deserved" onclick="decideRecurringReward('${r.id}','${dateStr}',false,this)">✗</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      bar.classList.remove('hidden');
+    }
+
+    async function decideRecurringReward(ruleId, dateStr, confirmed, btnEl) {
+      const rule = recurringRewards.find(r => r.id === ruleId);
+      if (!rule) return;
+
+      const item = btnEl.closest('.recurring-bar-item');
+      item?.querySelectorAll('button').forEach(b => b.disabled = true);
+
+      try {
+        let studentIds = [];
+        if (confirmed) {
+          if (rule.target === 'students') {
+            studentIds = rule.studentIds || [];
+            for (const sid of studentIds) {
+              await DB.giveReward(sid, rule.amount, rule.name, rule.icon || '⭐');
+            }
+          } else {
+            const classStudents = await DB.getStudents(rule.classId);
+            studentIds = classStudents.map(s => s.id);
+            await DB.giveClassReward(rule.classId, rule.amount, rule.name, rule.icon || '⭐');
+          }
+        }
+
+        await DB.setRecurringRewardLog(ruleId, dateStr, {
+          status: confirmed ? 'confirmed' : 'skipped',
+          studentIds
+        });
+
+        item?.remove();
+        Toast.success(confirmed ? 'Reward given!' : 'Skipped for today');
+
+        const bar = document.getElementById('recurringRewardsBar');
+        if (bar && !bar.children.length) bar.classList.add('hidden');
+
+        if (confirmed) {
+          students = await DB.getStudents();
+          renderStudents();
+          renderStudentSelects();
+          updateStats();
+        }
+      } catch (error) {
+        console.error('Recurring reward decision error:', error);
+        Toast.error('Error, try again');
+        item?.querySelectorAll('button').forEach(b => b.disabled = false);
+      }
     }
 
     // ========== DEFAULT QUICK REWARDS ==========
