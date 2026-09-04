@@ -383,7 +383,9 @@
         <div id="studentBalance" class="balance-amount">$0</div>
         <div id="pendingRequestsNote" class="hidden" style="font-size: var(--text-sm); color: var(--text-muted); margin-top: 4px;"></div>
         <div id="subjectBalances" class="subject-balances hidden"></div>
+        <!-- Leaderboard button temporarily disabled until the feature is ready.
         <button id="leaderboardTabBtn" class="leaderboard-tab-btn hidden" data-tab="leaderboard" onclick="switchTab('leaderboard')" aria-label="Leaderboard">🏆</button>
+        -->
       </div>
 
       <div class="student-tabs">
@@ -635,9 +637,10 @@
       await loadRewards();
       await loadTeachers();
       
-      if (schoolData.config?.showLeaderboard && !isArchived) {
-        document.getElementById('leaderboardTabBtn').classList.remove('hidden');
-        await loadLeaderboard();
+      // Leaderboard temporarily disabled until the feature is ready.
+      if (false && schoolData.config?.showLeaderboard && !isArchived) {
+        // document.getElementById('leaderboardTabBtn').classList.remove('hidden');
+        // await loadLeaderboard();
       }
       
       document.getElementById('loadingState').classList.add('hidden');
