@@ -383,12 +383,12 @@
         <div id="studentBalance" class="balance-amount">$0</div>
         <div id="pendingRequestsNote" class="hidden" style="font-size: var(--text-sm); color: var(--text-muted); margin-top: 4px;"></div>
         <div id="subjectBalances" class="subject-balances hidden"></div>
+        <button id="leaderboardTabBtn" class="leaderboard-tab-btn hidden" data-tab="leaderboard" onclick="switchTab('leaderboard')" aria-label="Leaderboard">🏆</button>
       </div>
 
       <div class="student-tabs">
         <button class="student-tab active" data-tab="transactions" onclick="switchTab('transactions')">📜 Transactions</button>
         <button class="student-tab" data-tab="rewards" onclick="switchTab('rewards')">🎁 Rewards</button>
-        <button id="leaderboardTabBtn" class="student-tab hidden" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆</button>
       </div>
 
       <div id="transactionsTab" class="tab-content active">
