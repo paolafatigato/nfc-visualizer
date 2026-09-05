@@ -127,8 +127,13 @@
         <section id="studentsSection" class="page-section hidden">
           <div class="card mb-6">
             <div class="card-header">
-              <h3 class="card-title">🏆 Top Students</h3>
-              <p class="text-muted" style="font-size:var(--text-sm);margin:0;">Ranking based on total money received</p>
+              <div>
+                <h3 class="card-title">🏆 Top Students</h3>
+                <div style="display:flex;align-items:center;gap:var(--space-2);">
+                  <p class="text-muted" style="font-size:var(--text-sm);margin:0;">Ranking based on total money received</p>
+                  <button id="topStudentsToggleBtn" class="btn btn-ghost btn-sm" onclick="toggleTopStudentsView()" title="Toggle between all time and current year ranking" style="padding:var(--space-1) var(--space-2);font-size:var(--text-sm);">📅 All Time</button>
+                </div>
+              </div>
             </div>
             <div class="card-body" id="topStudentsContainer"></div>
           </div>
@@ -700,6 +705,7 @@ ALLMETA REINA\t240\t10\t5
     let warningSelectedStudents = new Set();
     let currentWarningTemplate = null;
     let topStudentsExpanded = false;
+    let topStudentsShowCurrentYear = false;
     const warningTemplates = [
       { id: 'no_hw', name: 'No Homework', icon: '📚' },
       { id: 'no_notebook', name: 'No Notebook', icon: '📓' }
@@ -2118,6 +2124,15 @@ const CLASS_COLOR_PRESETS = [
       renderTopStudents();
     }
 
+    function toggleTopStudentsView() {
+      topStudentsShowCurrentYear = !topStudentsShowCurrentYear;
+      const btn = document.getElementById('topStudentsToggleBtn');
+      if (btn) {
+        btn.textContent = topStudentsShowCurrentYear ? '📅 Current Year' : '📅 All Time';
+      }
+      renderTopStudents();
+    }
+
     async function renderTopStudents() {
       const container = document.getElementById('topStudentsContainer');
       if (!students.length) { container.innerHTML = '<p class="text-muted">No students</p>'; return; }
@@ -2129,10 +2144,36 @@ const CLASS_COLOR_PRESETS = [
         .where('amount', '>', 0)
         .get();
 
+      // Get current school year for filtering (1 September - 31 August)
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth(); // 0=Jan, 8=Sept
+      
+      let schoolYearStart, schoolYearEnd;
+      if (currentMonth >= 8) { // September (8) or later
+        // We're in Sept-Dec of the starting year
+        schoolYearStart = new Date(currentYear, 8, 1); // Sept 1
+        schoolYearEnd = new Date(currentYear + 1, 7, 31, 23, 59, 59); // Aug 31 next year
+      } else {
+        // We're in Jan-Aug of the ending year
+        schoolYearStart = new Date(currentYear - 1, 8, 1); // Sept 1 previous year
+        schoolYearEnd = new Date(currentYear, 7, 31, 23, 59, 59); // Aug 31 current year
+      }
+
       const earningsByStudent = {};
       snapshot.docs.forEach(doc => {
-        const { studentId, amount } = doc.data();
+        const data = doc.data();
+        const { studentId, amount, timestamp } = data;
+        
         if (studentId && amount > 0) {
+          // If filtering by current school year, check if timestamp is in current school year
+          if (topStudentsShowCurrentYear && timestamp) {
+            const txDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (txDate < schoolYearStart || txDate > schoolYearEnd) {
+              return; // Skip this transaction
+            }
+          }
+          
           earningsByStudent[studentId] = (earningsByStudent[studentId] || 0) + amount;
         }
       });
