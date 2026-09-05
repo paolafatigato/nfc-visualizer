@@ -111,6 +111,52 @@ const LoginPage = {
     }
   },
   
+  async handleGoogleLogin() {
+    const btn = document.getElementById('googleLoginBtn');
+    const originalHTML = btn ? btn.innerHTML : '';
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span> Accesso in corso...';
+      }
+
+      const profile = await Auth.loginWithGoogle();
+      if (!profile) {
+        throw Object.assign(new Error('User profile missing or inaccessible'), { code: 'auth/profile-missing' });
+      }
+      Toast.success(`Welcome, ${profile.name}!`);
+
+      setTimeout(() => {
+        Router.redirectByRole(profile.role);
+      }, 500);
+
+    } catch (error) {
+      console.error('Google login error:', error);
+      let message = 'Login error';
+
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+        case 'auth/cancelled-popup-request':
+          message = null; // the teacher just closed the popup, no need to alarm them
+          break;
+        case 'auth/profile-missing':
+          message = 'Profilo non trovato o accesso negato. Contatta l\'amministratore.';
+          break;
+        case 'auth/account-exists-with-different-credential':
+          message = 'Questa email è già registrata con un altro metodo di accesso.';
+          break;
+      }
+
+      if (message) Toast.error(message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    }
+  },
+
   async handleLogout() {
     try {
       await Auth.logout();

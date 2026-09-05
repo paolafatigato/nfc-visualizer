@@ -118,6 +118,13 @@
                 <div class="stat-label">Monitor HW & notebooks</div>
               </div>
             </div>
+            <div class="stat-card home-action" onclick="window.open('https://paolafatigato.github.io/PanoramicaProf/?view=schoolbank', '_blank', 'noopener')" title="Apri le statistiche SchoolBank in Panoramica Prof (nuova scheda)">
+              <div class="stat-icon info">📊</div>
+              <div class="stat-content">
+                <div class="stat-value">Statistiche</div>
+                <div class="stat-label">Vai a Panoramica Prof</div>
+              </div>
+            </div>
           </div>
 
           <div id="recurringRewardsBar" class="recurring-bar-container hidden"></div>
@@ -393,6 +400,28 @@
             </div>
           </div>
 
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header"><h3 class="card-title">🔗 Collegamenti</h3></div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: var(--space-4);">Collega SchoolBank a Classroom Manager per importare le tue classi e i tuoi alunni veri, senza doverli ricreare qui a mano. La connessione è di sola lettura: da qui non viene mai scritto nulla su Classroom Manager. I saldi, gli NFC e lo storico premi/richiami restano solo in SchoolBank.</p>
+
+              <div id="classroomBridgeStatus" style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-3);">
+                <span class="text-muted">Verifica connessione…</span>
+              </div>
+
+              <div id="classroomBridgeResult"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header"><h3 class="card-title">🧹 Pulizia duplicati</h3></div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: var(--space-4);">Trova classi con lo stesso nome create per errore (es. da più sincronizzazioni ravvicinate con Classroom Manager) e le unisce: tiene quella con più alunni, sposta nella classe che resta gli eventuali alunni rimasti nelle doppie, poi cancella le classi ormai vuote. Non tocca mai saldo, NFC o storico di nessun alunno.</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="scanForDuplicateClasses()">🔍 Cerca duplicati</button>
+              <div id="dedupResult" style="margin-top:var(--space-3);"></div>
+            </div>
+          </div>
+
           <div class="card" style="margin-top: var(--space-4); border: 1px solid var(--danger-light);">
             <div class="card-header"><h3 class="card-title" style="color: var(--danger);">⚠️ Danger Zone</h3></div>
             <div class="card-body">
@@ -439,7 +468,11 @@
     <div class="modal-body">
       <input type="hidden" id="classId">
       <div class="input-group"><label class="input-label">Name *</label><input type="text" id="className" class="input" placeholder="Example: 1A" required></div>
-      <div class="input-group">
+      <!-- Selezione colore disattivata: il colore delle classi si sceglie
+           ora da un solo punto (Classroom Manager). Elemento lasciato nel
+           DOM ma nascosto, per non rompere renderClassColorSwatches() e
+           poterlo riattivare in futuro con un solo cambio. -->
+      <div class="input-group" hidden>
         <label class="input-label">Class Color</label>
         <div id="classColorSwatches" class="color-swatch-row"></div>
         <input type="color" id="classColorCustomInput" style="display:none;" onchange="selectClassColor(this.value)">
@@ -690,6 +723,7 @@ ALLMETA REINA\t240\t10\t5
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/script.js"></script>
   <script src="js/universaladmin.js"></script>
@@ -710,6 +744,358 @@ ALLMETA REINA\t240\t10\t5
       { id: 'no_hw', name: 'No Homework', icon: '📚' },
       { id: 'no_notebook', name: 'No Notebook', icon: '📓' }
     ];
+
+    /* =============================================
+       Classroom Bridge — sola lettura verso Classroom Manager
+       Stesso progetto Firebase usato da Classroom Manager e Teacher
+       Registro, stesso pattern già collaudato in Panoramica Prof:
+       una seconda app Firebase, autenticata separatamente con Google
+       (indipendente dal login principale di SchoolBank), usata SOLO
+       per leggere /users/{uid}/classes. Da qui non si scrive MAI
+       nulla su Classroom Manager.
+       ============================================= */
+    const ClassroomBridge = {
+      config: {
+        apiKey: "AIzaSyA6O12KFRkZ4gGBi2LEGKZni33c3a2NBcU",
+        authDomain: "classroomanager.firebaseapp.com",
+        databaseURL: "https://classroomanager-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "classroomanager",
+        storageBucket: "classroomanager.firebasestorage.app",
+        messagingSenderId: "995055049853",
+        appId: "1:995055049853:web:5b3674ae12f7c0b504e514"
+      },
+      app: null,
+      auth: null,
+      db: null,
+
+      init() {
+        if (this.db) return true;
+        if (!window.firebase || !firebase.database) {
+          console.error('Firebase Database SDK non caricato (serve firebase-database-compat.js).');
+          return false;
+        }
+        this.app = firebase.apps.find(a => a.name === 'classroomManager')
+          || firebase.initializeApp(this.config, 'classroomManager');
+        this.auth = this.app.auth();
+        this.db = this.app.database();
+        return true;
+      },
+
+      isConnected() {
+        return Boolean(this.auth && this.auth.currentUser);
+      },
+
+      getUser() {
+        return this.auth ? this.auth.currentUser : null;
+      },
+
+      onAuthStateChanged(callback) {
+        if (!this.init()) { callback(null); return () => {}; }
+        return this.auth.onAuthStateChanged(callback);
+      },
+
+      async connect() {
+        if (!this.init()) throw new Error('Impossibile collegarsi a Classroom Manager.');
+        const provider = new firebase.auth.GoogleAuthProvider();
+        return this.auth.signInWithPopup(provider);
+      },
+
+      async disconnect() {
+        if (this.auth) await this.auth.signOut();
+      },
+
+      // Legge /users/{uid}/classes e lo appiattisce in {className, fullName}.
+      // Gli alunni, su Classroom Manager, non hanno un ID stabile: il nome
+      // completo è la chiave condivisa fra tutte le app (come già avviene
+      // fra Classroom Manager e Teacher Registro).
+      async fetchRoster() {
+        const user = this.getUser();
+        if (!user) throw new Error('Non ancora collegato a Classroom Manager.');
+        const snap = await this.db.ref(`users/${user.uid}/classes`).once('value');
+        const data = snap.val();
+        const rawClasses = Array.isArray(data) ? data : Object.values(data || {});
+        const roster = [];
+        rawClasses.forEach(cls => {
+          if (!cls || !cls.name) return;
+          const className = String(cls.name).trim();
+          if (!className) return;
+          const rawStudents = Array.isArray(cls.students) ? cls.students : Object.values(cls.students || {});
+          rawStudents.forEach(st => {
+            if (!st) return;
+            const fullName = (st.fullName || st.displayName || st.name || '').trim();
+            if (!fullName) return;
+            roster.push({ className, fullName });
+          });
+        });
+        return roster;
+      }
+    };
+
+    let classroomSyncInProgress = false;
+
+    function renderClassroomBridgeStatus() {
+      const el = document.getElementById('classroomBridgeStatus');
+      if (!el) return;
+      const user = ClassroomBridge.getUser();
+      if (user) {
+        el.innerHTML = `
+          <span class="badge badge-success">✅ Collegato come ${user.email}</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="syncRosterFromClassroomManager()" ${classroomSyncInProgress ? 'disabled' : ''}>🔄 Importa/Sincronizza classi e alunni</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="disconnectClassroomManager()">Scollega</button>
+        `;
+      } else {
+        el.innerHTML = `
+          <span class="text-muted">Non collegato</span>
+          <button type="button" class="btn btn-primary btn-sm" onclick="connectClassroomManager()">🔗 Connetti a Classroom Manager</button>
+        `;
+      }
+    }
+
+    async function connectClassroomManager() {
+      try {
+        await ClassroomBridge.connect();
+        renderClassroomBridgeStatus();
+        Toast.success('Collegato a Classroom Manager');
+      } catch (error) {
+        console.error('Errore di collegamento a Classroom Manager:', error);
+        Toast.error('Collegamento non riuscito: ' + error.message);
+      }
+    }
+
+    async function disconnectClassroomManager() {
+      await ClassroomBridge.disconnect();
+      renderClassroomBridgeStatus();
+    }
+
+    // Importa/sincronizza classi e alunni da Classroom Manager, per nome.
+    // Non tocca mai saldo, NFC o dati di alunni già presenti in SchoolBank:
+    // crea solo ciò che manca (stesso spirito del sync per nome già usato
+    // in saveClass() con l'elenco alunni separato da ";").
+    async function syncRosterFromClassroomManager() {
+      // Un doppio click (o un click mentre il giro precedente sta ancora
+      // ricaricando i dati) poteva creare classi/alunni duplicati: questa
+      // guardia lo impedisce del tutto, a prescindere da cos'altro l'abbia
+      // causato in passato.
+      if (classroomSyncInProgress) return;
+      classroomSyncInProgress = true;
+      renderClassroomBridgeStatus();
+
+      const resultEl = document.getElementById('classroomBridgeResult');
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      try {
+        if (resultEl) resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Importazione in corso…</p>';
+
+        const roster = await ClassroomBridge.fetchRoster();
+        if (!roster.length) {
+          if (resultEl) resultEl.innerHTML = '<p class="text-muted">Nessuna classe trovata su Classroom Manager per questo account.</p>';
+          return;
+        }
+
+        const byClassName = new Map();
+        roster.forEach(r => {
+          if (!byClassName.has(r.className)) byClassName.set(r.className, []);
+          byClassName.get(r.className).push(r.fullName);
+        });
+
+        // Classi create durante QUESTA sincronizzazione (l'elenco globale
+        // "classes" resta quello caricato all'ultimo loadData() finché non
+        // ricarichiamo tutto alla fine, quindi teniamo qui un elenco a parte
+        // per non creare due volte la stessa classe nuova nello stesso giro).
+        const createdThisRun = new Map();
+
+        let newClasses = 0;
+        let newStudents = 0;
+        let unchangedStudents = 0;
+        const skipped = [];
+
+        for (const [className, fullNames] of byClassName.entries()) {
+          let cls = classes.find(c => norm(c.name) === norm(className))
+            || createdThisRun.get(norm(className));
+          if (!cls) {
+            const classId = await DB.createClass({ name: className });
+            cls = { id: classId, name: className };
+            createdThisRun.set(norm(className), cls);
+            newClasses += 1;
+          }
+
+          for (const fullName of fullNames) {
+            const alreadyExists = students.some(s => s.classId === cls.id && norm(s.name) === norm(fullName));
+            if (alreadyExists) { unchangedStudents += 1; continue; }
+
+            const generatedId = buildStudentIdFromFullName(fullName);
+            if (!generatedId) { skipped.push(fullName); continue; }
+
+            try {
+              await DB.createStudentWithId(generatedId, {
+                name: fullName,
+                classId: cls.id,
+                className: cls.name,
+                nfcTag: null
+              });
+              newStudents += 1;
+            } catch (error) {
+              console.warn(`Import saltato per ${fullName}:`, error);
+              skipped.push(fullName);
+            }
+          }
+        }
+
+        if (resultEl) {
+          resultEl.innerHTML = `
+            <p class="text-muted">
+              ✅ ${newClasses} nuove class${newClasses === 1 ? 'e' : 'i'}, ${newStudents} nuov${newStudents === 1 ? 'o alunno' : 'i alunni'}, ${unchangedStudents} già present${unchangedStudents === 1 ? 'e' : 'i'} (non modificat${unchangedStudents === 1 ? 'o' : 'i'}).
+              ${skipped.length ? `<br>⚠️ Nomi saltati (controlla manualmente): ${skipped.map(escapeHtmlSafe).join(', ')}` : ''}
+            </p>`;
+        }
+        Toast.success('Sincronizzazione completata');
+
+        // Ricarica tutto da Firestore così ogni vista (classi, alunni,
+        // selettori, classifiche) riparte da dati freschi e coerenti.
+        await loadData();
+
+      } catch (error) {
+        console.error('Errore sincronizzazione Classroom Manager:', error);
+        if (resultEl) resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      } finally {
+        classroomSyncInProgress = false;
+        renderClassroomBridgeStatus();
+      }
+    }
+
+    let dedupPlan = null;
+
+    // Analizza le classi (comprese le archiviate) e propone un piano di
+    // unione: per ogni nome duplicato, tiene la classe con più alunni e
+    // marca le altre come "da svuotare e rimuovere". Non scrive nulla:
+    // solo lettura, finché non si preme "Conferma".
+    async function scanForDuplicateClasses() {
+      const resultEl = document.getElementById('dedupResult');
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Ricerca in corso…</p>';
+
+      try {
+        const [allClasses, allStudents] = await Promise.all([
+          DB.getClasses(true),
+          DB.getStudents(null, true)
+        ]);
+
+        const groups = new Map();
+        allClasses.forEach(c => {
+          const key = norm(c.name);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(c);
+        });
+
+        const duplicateGroups = [...groups.values()].filter(g => g.length > 1);
+
+        if (!duplicateGroups.length) {
+          resultEl.innerHTML = '<p class="text-muted">✅ Nessuna classe duplicata trovata.</p>';
+          dedupPlan = null;
+          return;
+        }
+
+        const plan = duplicateGroups.map(group => {
+          const withCounts = group.map(cls => ({
+            cls,
+            count: allStudents.filter(s => s.classId === cls.id).length
+          }));
+          withCounts.sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            const ta = a.cls.createdAt?.toMillis?.() || 0;
+            const tb = b.cls.createdAt?.toMillis?.() || 0;
+            return ta - tb; // a parità di alunni, tiene la più vecchia
+          });
+          const [keep, ...remove] = withCounts;
+          return {
+            name: keep.cls.name,
+            keepId: keep.cls.id,
+            keepCount: keep.count,
+            remove: remove.map(r => ({ id: r.cls.id, count: r.count }))
+          };
+        });
+
+        dedupPlan = plan;
+        const totalToRemove = plan.reduce((sum, g) => sum + g.remove.length, 0);
+        const studentsToMove = plan.reduce((sum, g) => sum + g.remove.reduce((s2, r) => s2 + r.count, 0), 0);
+
+        resultEl.innerHTML = `
+          <p class="text-muted">Trovat${duplicateGroups.length === 1 ? 'a' : 'e'} ${duplicateGroups.length} class${duplicateGroups.length === 1 ? 'e' : 'i'} duplicat${duplicateGroups.length === 1 ? 'a' : 'e'} (${totalToRemove} doppion${totalToRemove === 1 ? 'e' : 'i'} da rimuovere${studentsToMove ? `, ${studentsToMove} alunni da spostare prima` : ''}):</p>
+          <ul style="margin:0 0 var(--space-3) 0; padding-left: 1.2em;">
+            ${plan.map(g => `<li><strong>${escapeHtmlSafe(g.name)}</strong>: tengo quella con ${g.keepCount} alunni, rimuovo ${g.remove.length} doppion${g.remove.length === 1 ? 'e' : 'i'}${g.remove.some(r => r.count > 0) ? ` (${g.remove.reduce((s, r) => s + r.count, 0)} alunni verranno spostati nella classe che resta)` : ' (vuote)'}.</li>`).join('')}
+          </ul>
+          <button type="button" class="btn btn-danger btn-sm" onclick="applyDuplicateClassesCleanup()">✅ Conferma ed esegui la pulizia</button>
+        `;
+      } catch (error) {
+        console.error('Errore ricerca duplicati:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+
+    async function applyDuplicateClassesCleanup() {
+      if (!dedupPlan) return;
+      const resultEl = document.getElementById('dedupResult');
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Pulizia in corso…</p>';
+
+      let movedStudents = 0;
+      let removedClasses = 0;
+      const flagged = [];
+
+      try {
+        // Una sola lettura di tutti gli alunni, poi filtriamo in memoria per
+        // classe: DB.getStudents(classId, ...) richiederebbe un indice
+        // composito Firestore (classId + name) non sempre presente, mentre
+        // così basta l'indice semplice già usato ovunque nell'app.
+        const allStudents = await DB.getStudents(null, true);
+
+        for (const group of dedupPlan) {
+          const keepNames = new Set(
+            allStudents.filter(s => s.classId === group.keepId).map(s => norm(s.name))
+          );
+
+          for (const dup of group.remove) {
+            const studentsInDup = allStudents.filter(s => s.classId === dup.id);
+
+            for (const student of studentsInDup) {
+              if (keepNames.has(norm(student.name))) {
+                // Stesso nome già presente nella classe che resta: caso
+                // molto raro (gli ID sono univoci per nome), lo segnaliamo
+                // invece di rischiare di mescolare due alunni diversi.
+                flagged.push(`${student.name} (in "${group.name}")`);
+                continue;
+              }
+              await DB.updateStudent(student.id, { classId: group.keepId, className: group.name });
+              keepNames.add(norm(student.name)); // evita di spostarne due con lo stesso nome nello stesso giro
+              movedStudents += 1;
+            }
+
+            await DB.deleteClass(dup.id);
+            removedClasses += 1;
+          }
+        }
+
+        dedupPlan = null;
+        await loadData();
+
+        resultEl.innerHTML = `
+          <p class="text-muted">
+            ✅ Pulizia completata: ${removedClasses} class${removedClasses === 1 ? 'e' : 'i'} duplicat${removedClasses === 1 ? 'a' : 'e'} rimoss${removedClasses === 1 ? 'a' : 'e'}, ${movedStudents} alunn${movedStudents === 1 ? 'o spostato' : 'i spostati'}.
+            ${flagged.length ? `<br>⚠️ Da controllare a mano (nome già presente nella classe tenuta): ${flagged.map(escapeHtmlSafe).join(', ')}` : ''}
+          </p>`;
+        Toast.success('Pulizia duplicati completata');
+      } catch (error) {
+        console.error('Errore pulizia duplicati:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore durante la pulizia: ${error.message}. Riprova a cercare i duplicati per vedere lo stato attuale.</p>`;
+      }
+    }
+
+    function escapeHtmlSafe(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
+    }
 
     // Mobile sidebar toggle
     function toggleMobileSidebar() {
@@ -744,6 +1130,10 @@ ALLMETA REINA\t240\t10\t5
       await loadData();
       showSection('dashboard');
       checkTodayRecurringRewards();
+
+      // Stato del collegamento a Classroom Manager: si aggiorna da solo se
+      // la sessione Google è ancora valida da una visita precedente.
+      ClassroomBridge.onAuthStateChanged(() => renderClassroomBridgeStatus());
     }
 
     async function loadData() {

@@ -146,6 +146,24 @@ const Auth = {
     }
     return this.userProfile;
   },
+
+  // Login with Google (same account used for Classroom Manager / Teacher Registro).
+  // loadUserProfile() already knows how to "adopt" an existing users/{uid} document
+  // by matching on email when the uid doesn't match yet (see the pending-user
+  // migration above), so a teacher who previously logged in with email/password
+  // keeps their role, schoolId and classes the first time they switch to Google.
+  async loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const credential = await firebase.auth().signInWithPopup(provider);
+    await this.loadUserProfile(credential.user.uid);
+    if (!this.userProfile) {
+      await firebase.auth().signOut();
+      const error = new Error('User profile missing or inaccessible');
+      error.code = 'auth/profile-missing';
+      throw error;
+    }
+    return this.userProfile;
+  },
   
   // Logout
   async logout() {
