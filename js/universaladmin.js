@@ -247,15 +247,12 @@ const DB = {
   // Students
   // includeArchived=false (default) hides students from a graduated/archived
   // class - used everywhere in the active dashboard (lists, dropdowns, stats).
-  async getStudents(classId = null, includeArchived = false) {
-    let query = this.school('students');
-    if (classId) {
-      query = query.where('classId', '==', classId);
-    }
-    const snapshot = await query.orderBy('name').get();
-    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    return includeArchived ? list : list.filter(s => !s.archived);
-  },
+async getStudents(classId = null, includeArchived = false) {
+  const snapshot = await this.school('students').orderBy('name').get();
+  let list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (classId) list = list.filter(s => s.classId === classId);
+  return includeArchived ? list : list.filter(s => !s.archived);
+},
   
   async getStudent(studentId) {
     const doc = await this.school('students').doc(studentId).get();
