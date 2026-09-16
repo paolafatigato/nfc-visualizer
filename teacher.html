@@ -410,11 +410,26 @@
           </div>
 
           <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header"><h3 class="card-title">🔄 Riconcilia nomi con Classroom Manager</h3></div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: var(--space-4);">Confronta l'elenco alunni di Classroom Manager (il nome "giusto") con gli alunni già presenti qui. Se trova un alunno simile con premi/richiami già registrati, gli assegna il nome di Classroom Manager mantenendo la sua storia; se trova più alunni simili per la stessa persona, tiene quello con lo storico e cancella gli altri come doppioni. Non crea alunni nuovi (per quello usa "Importa/Sincronizza" qui sopra) e non tocca chi non trova corrispondenza.</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="scanForNameReconciliation()">🔍 Confronta nomi</button>
+              <div id="reconcileResult" style="margin-top:var(--space-3);"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: var(--space-4);">
             <div class="card-header"><h3 class="card-title">🧹 Pulizia duplicati</h3></div>
             <div class="card-body">
               <p class="text-muted" style="margin-bottom: var(--space-4);">Trova classi con lo stesso nome create per errore (es. da più sincronizzazioni ravvicinate con Classroom Manager) e le unisce: tiene quella con più alunni, sposta nella classe che resta gli eventuali alunni rimasti nelle doppie, poi cancella le classi ormai vuote. Non tocca mai saldo, NFC o storico di nessun alunno.</p>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="scanForDuplicateClasses()">🔍 Cerca duplicati</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="scanForDuplicateClasses()">🔍 Cerca classi duplicate</button>
               <div id="dedupResult" style="margin-top:var(--space-3);"></div>
+
+              <div style="margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);">
+                <p class="text-muted" style="margin-bottom: var(--space-4);">Oppure, cerca alunni con lo stesso nome nella stessa classe (es. da sincronizzazioni ripetute): mette insieme i loro premi e transazioni, poi cancella i duplicati.</p>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="scanForDuplicateStudents()">🔍 Cerca alunni duplicate</button>
+                <div id="dedupStudentResult" style="margin-top:var(--space-3);"></div>
+              </div>
             </div>
           </div>
 
@@ -959,6 +974,274 @@ ALLMETA REINA\t240\t10\t5
       }
     }
 
+    // ===== NAME RECONCILIATION WITH CLASSROOM MANAGER =====
+    // Fuzzy name matching (handles typos, missing spaces, missing middle
+    // names) so students created here with a slightly different spelling
+    // than Classroom Manager still get recognised as the same person.
+    function levenshteinDistance(a, b) {
+      const m = a.length, n = b.length;
+      if (!m) return n;
+      if (!n) return m;
+      const dp = new Array(n + 1);
+      for (let j = 0; j <= n; j++) dp[j] = j;
+      for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+          const temp = dp[j];
+          dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+          prev = temp;
+        }
+      }
+      return dp[n];
+    }
+
+    function flattenNameForMatch(name) {
+      return (name || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function nameSimilarity(a, b) {
+      const fa = flattenNameForMatch(a), fb = flattenNameForMatch(b);
+      if (!fa || !fb) return 0;
+      if (fa === fb) return 1;
+      const maxLen = Math.max(fa.length, fb.length);
+      return maxLen ? 1 - levenshteinDistance(fa, fb) / maxLen : 0;
+    }
+
+    const NAME_MATCH_THRESHOLD = 0.55;
+
+    let reconcilePlan = null;
+
+    // Confronta il roster di Classroom Manager con gli alunni già presenti
+    // qui (per classe). Per ogni nome del roster cerca il/i corrispondenti
+    // locali più simili: se ce n'è più di uno per la stessa persona, tiene
+    // quello con transazioni registrate (la vera storia) e propone di
+    // cancellare gli altri come doppioni; in ogni caso propone di rinominare
+    // l'alunno tenuto con il nome esatto di Classroom Manager. Non scrive
+    // nulla finché non si preme "Applica".
+    async function scanForNameReconciliation() {
+      const resultEl = document.getElementById('reconcileResult');
+      if (!ClassroomBridge.isConnected()) {
+        resultEl.innerHTML = '<p class="text-muted">Connettiti prima a Classroom Manager (sezione qui sopra).</p>';
+        return;
+      }
+
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Confronto in corso…</p>';
+
+      try {
+        const [roster, allStudents, allTransactions] = await Promise.all([
+          ClassroomBridge.fetchRoster(),
+          DB.getStudents(null, true),
+          DB.getTransactions({}, 5000)
+        ]);
+
+        if (!roster.length) {
+          resultEl.innerHTML = '<p class="text-muted">Nessuna classe trovata su Classroom Manager per questo account.</p>';
+          reconcilePlan = null;
+          return;
+        }
+
+        const txStudentIds = new Set(allTransactions.map(t => t.studentId).filter(Boolean));
+
+        const byClassName = new Map();
+        roster.forEach(r => {
+          if (!byClassName.has(r.className)) byClassName.set(r.className, []);
+          byClassName.get(r.className).push(r.fullName);
+        });
+
+        const plan = [];
+        const unmatchedInfo = [];
+        const extraLocalInfo = [];
+
+        for (const [className, fullNames] of byClassName.entries()) {
+          const cls = classes.find(c => norm(c.name) === norm(className));
+          if (!cls) {
+            unmatchedInfo.push({ className, names: fullNames, reason: 'classe non trovata in SchoolBank' });
+            continue;
+          }
+
+          const localPool = allStudents.filter(s => s.classId === cls.id);
+          const usedLocalIds = new Set();
+          const notFoundNames = [];
+
+          for (const rosterName of fullNames) {
+            const candidates = localPool
+              .filter(s => !usedLocalIds.has(s.id))
+              .map(s => ({ student: s, score: nameSimilarity(s.name, rosterName) }))
+              .filter(c => c.score >= NAME_MATCH_THRESHOLD)
+              .sort((a, b) => {
+                const aHasTx = txStudentIds.has(a.student.id) ? 1 : 0;
+                const bHasTx = txStudentIds.has(b.student.id) ? 1 : 0;
+                if (aHasTx !== bHasTx) return bHasTx - aHasTx;
+                if (b.score !== a.score) return b.score - a.score;
+                return (b.student.balance || 0) - (a.student.balance || 0);
+              });
+
+            if (!candidates.length) {
+              notFoundNames.push(rosterName);
+              continue;
+            }
+
+            const keeper = candidates[0].student;
+            const duplicates = candidates.slice(1).map(c => c.student);
+            [keeper, ...duplicates].forEach(s => usedLocalIds.add(s.id));
+
+            const needsRename = keeper.name !== rosterName;
+            if (needsRename || duplicates.length) {
+              plan.push({
+                className: cls.name,
+                classId: cls.id,
+                rosterName,
+                keeperId: keeper.id,
+                keeperOldName: keeper.name,
+                keeperBalance: keeper.balance || 0,
+                needsRename,
+                duplicates: duplicates.map(d => ({ id: d.id, name: d.name, balance: d.balance || 0 }))
+              });
+            }
+          }
+
+          if (notFoundNames.length) {
+            unmatchedInfo.push({ className: cls.name, names: notFoundNames, reason: 'non trovato qui (usa "Importa/Sincronizza" qui sopra per crearlo)' });
+          }
+
+          const extraLocal = localPool.filter(s => !usedLocalIds.has(s.id));
+          if (extraLocal.length) {
+            extraLocalInfo.push({ className: cls.name, names: extraLocal.map(s => s.name) });
+          }
+        }
+
+        reconcilePlan = plan;
+
+        const notesHtml = renderReconcileNotes(unmatchedInfo, extraLocalInfo);
+
+        if (!plan.length) {
+          resultEl.innerHTML = '<p class="text-muted">✅ Nessuna corrispondenza da correggere.</p>' + notesHtml;
+          return;
+        }
+
+        resultEl.innerHTML = `
+          <p class="text-muted">Trovat${plan.length === 1 ? 'a' : 'e'} <strong>${plan.length}</strong> corrispondenz${plan.length === 1 ? 'a' : 'e'} da sistemare. Deseleziona quelle che non vuoi applicare:</p>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr>
+                <th style="width:40px;"><input type="checkbox" id="reconcileSelectAll" checked onchange="toggleReconcileSelectAll(this.checked)"></th>
+                <th>Classe</th>
+                <th>Nome attuale (qui)</th>
+                <th>Nome Classroom Manager</th>
+                <th>Note</th>
+              </tr></thead>
+              <tbody>
+                ${plan.map((g, i) => `
+                  <tr>
+                    <td><input type="checkbox" class="reconcile-row-check" data-index="${i}" checked></td>
+                    <td>${escapeHtmlSafe(g.className)}</td>
+                    <td>${escapeHtmlSafe(g.keeperOldName)}</td>
+                    <td style="font-weight:600;color:var(--success);">${escapeHtmlSafe(g.rosterName)}</td>
+                    <td class="text-muted" style="font-size:var(--text-xs);">
+                      ${g.needsRename ? 'rinomina' : ''}${g.needsRename && g.duplicates.length ? ' + ' : ''}${g.duplicates.length ? `unisce ${g.duplicates.length} doppion${g.duplicates.length === 1 ? 'e' : 'i'} (${g.duplicates.map(d => escapeHtmlSafe(d.name)).join(', ')})` : ''}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm" style="margin-top:var(--space-3);" onclick="applyNameReconciliation()">✅ Applica correzioni selezionate</button>
+          ${notesHtml}
+        `;
+      } catch (error) {
+        console.error('Errore riconciliazione nomi:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+
+    function renderReconcileNotes(unmatchedInfo, extraLocalInfo) {
+      let html = '';
+      if (unmatchedInfo.length) {
+        html += `<div style="margin-top:var(--space-3);"><p class="text-muted" style="font-size:var(--text-xs);"><strong>⚠️ Su Classroom Manager ma non trovati qui:</strong></p><ul style="margin:0;padding-left:1.2em;font-size:var(--text-xs);">${unmatchedInfo.map(u => `<li>${escapeHtmlSafe(u.className)}: ${u.names.map(escapeHtmlSafe).join(', ')} <em>(${escapeHtmlSafe(u.reason)})</em></li>`).join('')}</ul></div>`;
+      }
+      if (extraLocalInfo.length) {
+        html += `<div style="margin-top:var(--space-3);"><p class="text-muted" style="font-size:var(--text-xs);"><strong>ℹ️ Qui ma non trovati su Classroom Manager (non toccati):</strong></p><ul style="margin:0;padding-left:1.2em;font-size:var(--text-xs);">${extraLocalInfo.map(u => `<li>${escapeHtmlSafe(u.className)}: ${u.names.map(escapeHtmlSafe).join(', ')}</li>`).join('')}</ul></div>`;
+      }
+      return html;
+    }
+
+    function toggleReconcileSelectAll(checked) {
+      document.querySelectorAll('.reconcile-row-check').forEach(cb => cb.checked = checked);
+    }
+
+    async function applyNameReconciliation() {
+      if (!reconcilePlan) return;
+      const selected = Array.from(document.querySelectorAll('.reconcile-row-check:checked'))
+        .map(cb => reconcilePlan[parseInt(cb.dataset.index)])
+        .filter(Boolean);
+      if (!selected.length) return;
+
+      const confirmed = await Modal.confirm(
+        `Applicare ${selected.length} correzion${selected.length === 1 ? 'e' : 'i'}? Le transazioni degli alunni non vengono mai perse.`,
+        'Conferma riconciliazione'
+      );
+      if (!confirmed) return;
+
+      const resultEl = document.getElementById('reconcileResult');
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Applicazione in corso…</p>';
+
+      let renamed = 0, merged = 0;
+      const errors = [];
+
+      try {
+        const allTransactions = await DB.getTransactions({}, 5000);
+
+        for (const group of selected) {
+          try {
+            let keeperBalance = group.keeperBalance;
+
+            for (const dup of group.duplicates) {
+              if (dup.balance) keeperBalance += dup.balance;
+
+              const dupTx = allTransactions.filter(tx => tx.studentId === dup.id);
+              for (const tx of dupTx) {
+                await DB.school('transactions').doc(tx.id).update({
+                  studentId: group.keeperId,
+                  studentName: group.rosterName
+                });
+              }
+
+              await DB.deleteStudent(dup.id);
+              merged++;
+            }
+
+            const updates = {};
+            if (group.needsRename) updates.name = group.rosterName;
+            if (keeperBalance !== group.keeperBalance) updates.balance = keeperBalance;
+            if (Object.keys(updates).length) {
+              await DB.updateStudent(group.keeperId, updates);
+              if (group.needsRename) renamed++;
+            }
+          } catch (error) {
+            console.warn(`Errore riconciliazione per ${group.rosterName}:`, error);
+            errors.push(group.rosterName);
+          }
+        }
+
+        reconcilePlan = null;
+        await loadData();
+
+        resultEl.innerHTML = `
+          <p class="text-muted">✅ Fatto: ${renamed} nom${renamed === 1 ? 'e' : 'i'} corrett${renamed === 1 ? 'o' : 'i'}, ${merged} doppion${merged === 1 ? 'e' : 'i'} unit${merged === 1 ? 'o' : 'i'}.
+          ${errors.length ? `<br>⚠️ Errori su: ${errors.map(escapeHtmlSafe).join(', ')}` : ''}</p>`;
+        Toast.success('Riconciliazione completata');
+      } catch (error) {
+        console.error('Errore applicazione riconciliazione:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+    // ===== END NAME RECONCILIATION =====
+
     let dedupPlan = null;
 
     // Analizza le classi (comprese le archiviate) e propone un piano di
@@ -1083,6 +1366,131 @@ ALLMETA REINA\t240\t10\t5
         Toast.success('Pulizia duplicati completata');
       } catch (error) {
         console.error('Errore pulizia duplicati:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore durante la pulizia: ${error.message}. Riprova a cercare i duplicati per vedere lo stato attuale.</p>`;
+      }
+    }
+
+    let dedupStudentPlan = null;
+
+    // Scansiona gli studenti e trova quelli con lo stesso nome nella stessa
+    // classe (es. da sincronizzazioni ripetute). Propone un piano di unione
+    // senza scrivere nulla fino a conferma.
+    async function scanForDuplicateStudents() {
+      const resultEl = document.getElementById('dedupStudentResult');
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Ricerca in corso…</p>';
+
+      try {
+        const allStudents = await DB.getStudents(null, true);
+
+        // Raggruppa per (classId, nome normalizzato)
+        const groups = new Map();
+        allStudents.forEach(s => {
+          const key = `${s.classId || ''}|${norm(s.name)}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(s);
+        });
+
+        // Trova i gruppi con più di 1 studente
+        const duplicateGroups = [...groups.values()].filter(g => g.length > 1);
+
+        if (!duplicateGroups.length) {
+          resultEl.innerHTML = '<p class="text-muted">✅ Nessun alunno duplicato trovato.</p>';
+          dedupStudentPlan = null;
+          return;
+        }
+
+        // Costruisci il piano: per ogni gruppo, scegli chi tenere
+        const plan = duplicateGroups.map(group => {
+          // Ordina per balance (discendente) poi per createdAt (ascendente per tenere il più vecchio a parità)
+          const sorted = [...group].sort((a, b) => {
+            const balA = a.balance || 0;
+            const balB = b.balance || 0;
+            if (balA !== balB) return balB - balA; // Balance più alto prima
+            const timeA = a.createdAt?.toMillis?.() || 0;
+            const timeB = b.createdAt?.toMillis?.() || 0;
+            return timeA - timeB; // Più vecchio prima
+          });
+          const [keep, ...remove] = sorted;
+          return {
+            className: keep.className,
+            classId: keep.classId,
+            name: keep.name,
+            keepId: keep.id,
+            keepBalance: keep.balance || 0,
+            remove: remove.map(r => ({ id: r.id, balance: r.balance || 0 }))
+          };
+        });
+
+        dedupStudentPlan = plan;
+        const totalToRemove = plan.reduce((sum, g) => sum + g.remove.length, 0);
+        const totalBalanceToMerge = plan.reduce((sum, g) => sum + g.remove.reduce((s2, r) => s2 + r.balance, 0), 0);
+
+        resultEl.innerHTML = `
+          <p class="text-muted">Trovat${duplicateGroups.length === 1 ? 'o' : 'i'} ${duplicateGroups.length} alunno${duplicateGroups.length === 1 ? '' : 'i'} duplicato${duplicateGroups.length === 1 ? '' : 'i'} (${totalToRemove} doppion${totalToRemove === 1 ? 'e' : 'i'} da rimuovere):</p>
+          <ul style="margin:0 0 var(--space-3) 0; padding-left: 1.2em;">
+            ${plan.map(g => `<li><strong>${escapeHtmlSafe(g.className)} - ${escapeHtmlSafe(g.name)}</strong>: tengo quello con ${sym}${g.keepBalance}, rimuovo ${g.remove.length} doppion${g.remove.length === 1 ? 'e' : 'i'}${g.remove.some(r => r.balance !== 0) ? ` (${sym}${g.remove.reduce((s, r) => s + r.balance, 0)} da trasferire)` : ' (senza saldo)'}.</li>`).join('')}
+          </ul>
+          <button type="button" class="btn btn-danger btn-sm" onclick="applyDuplicateStudentsCleanup()">✅ Conferma ed esegui la pulizia</button>
+        `;
+      } catch (error) {
+        console.error('Errore ricerca duplicati alunni:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+
+    async function applyDuplicateStudentsCleanup() {
+      if (!dedupStudentPlan) return;
+      const resultEl = document.getElementById('dedupStudentResult');
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Pulizia in corso…</p>';
+
+      let movedBalance = 0;
+      let removedStudents = 0;
+      const flagged = [];
+
+      try {
+        // Leggi una sola volta tutte le transazioni
+        const allTransactions = await DB.getTransactions({}, 5000);
+
+        for (const group of dedupStudentPlan) {
+          for (const dup of group.remove) {
+            // Trasferisci il balance
+            if (dup.balance !== 0) {
+              await DB.updateStudent(group.keepId, {
+                balance: (group.keepBalance || 0) + (dup.balance || 0)
+              });
+              movedBalance += Math.abs(dup.balance);
+              group.keepBalance = (group.keepBalance || 0) + (dup.balance || 0);
+            }
+
+            // Ricerca transazioni dello studente da rimuovere e cambiane l'ID
+            const dupTransactions = allTransactions.filter(tx => tx.studentId === dup.id);
+            for (const tx of dupTransactions) {
+              await DB.school('transactions').doc(tx.id).update({
+                studentId: group.keepId,
+                studentName: group.name
+              });
+            }
+
+            // Elimina lo studente duplicato
+            await DB.deleteStudent(dup.id);
+            removedStudents += 1;
+          }
+        }
+
+        dedupStudentPlan = null;
+        await loadData();
+
+        resultEl.innerHTML = `
+          <p class="text-muted">
+            ✅ Pulizia completata: ${removedStudents} alunno${removedStudents === 1 ? '' : 'i'} rimosso${removedStudents === 1 ? '' : 'i'}, ${movedBalance ? `${sym}${movedBalance} di saldo trasferit${movedBalance === 1 ? 'o' : 'i'}` : 'nessun saldo da trasferire'}.
+            ${flagged.length ? `<br>⚠️ Da controllare a mano: ${flagged.map(escapeHtmlSafe).join(', ')}` : ''}
+          </p>`;
+        Toast.success('Pulizia duplicati completata');
+      } catch (error) {
+        console.error('Errore pulizia duplicati alunni:', error);
         resultEl.innerHTML = `<p style="color:var(--danger);">Errore durante la pulizia: ${error.message}. Riprova a cercare i duplicati per vedere lo stato attuale.</p>`;
       }
     }
