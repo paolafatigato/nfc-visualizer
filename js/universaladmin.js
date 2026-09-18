@@ -832,7 +832,28 @@ async getStudents(classId = null, includeArchived = false) {
       await batch.commit();
     }
 
+    // Move the "current" boundary for the Warnings Leaderboard forward to
+    // now: teacher.html's default warnings view only counts warnings dated
+    // after this timestamp unless the teacher switches to "Sempre" (always).
+    // Warnings themselves are never deleted here, only hidden from the
+    // default view, exactly like balances keep a full transaction history.
+    await this.schoolDoc().update({
+      'config.lastWarningsResetAt': firebase.firestore.FieldValue.serverTimestamp()
+    });
+
     return { resetCount, totalStudents: studentDocs.length, pendingCleared };
+  },
+
+  // Reset ONLY the Warnings Leaderboard's "current" boundary, without
+  // touching balances/transactions. Useful when the balance reset already
+  // happened (e.g. start of year) but warnings need their own fresh count
+  // partway through the year. Never deletes any warning: old ones stay
+  // fully visible via the "Sempre" toggle.
+  async resetWarningsBoundary() {
+    await this.schoolDoc().update({
+      'config.lastWarningsResetAt': firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return { success: true };
   }
 };
 

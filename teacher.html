@@ -321,6 +321,8 @@
                 <div style="display:flex;gap:var(--space-2);align-items:center;">
                   <button id="warningsTop3Btn" class="btn btn-ghost btn-sm" onclick="showWarningsTop3()">🏅 Top 3</button>
                   <button id="warningsShowAllBtn" class="btn btn-secondary btn-sm" onclick="showWarningsAll()">⬇️ Classifica completa</button>
+                  <button id="warningsYearToggleBtn" class="btn btn-ghost btn-sm" onclick="toggleWarningsYearView()" title="Mostra i warning di quest'anno scolastico o di sempre">📅 Quest'anno</button>
+                  <button id="resetWarningsBtn" class="btn btn-secondary btn-sm" onclick="resetWarningsOnly()" title="Azzera solo il punto di partenza della vista &quot;Quest'anno&quot;, senza toccare saldi né cancellare warning">🔄 Reset warning</button>
                 </div>
               </div>
             </div>
@@ -436,8 +438,7 @@
           <div class="card" style="margin-top: var(--space-4); border: 1px solid var(--danger-light);">
             <div class="card-header"><h3 class="card-title" style="color: var(--danger);">⚠️ Danger Zone</h3></div>
             <div class="card-body">
-              <p class="text-muted" style="margin-bottom: var(--space-4);">At the start of a new school year, reset every student's balance to zero. A snapshot (CSV) of the current balances downloads automatically before the reset, and a 🔄 record of each reset stays in that student's transaction history so nothing is lost.</p>
-              <button type="button" id="resetYearBtn" class="btn btn-danger" onclick="startYearReset()">🔄 Reset All Balances (New School Year)</button>
+              <p class="text-muted" style="margin-bottom: var(--space-4);">At the start of a new school year, reset every student's balance to zero. A snapshot (CSV) of the current balances downloads automatically before the reset, and a 🔄 record of each reset stays in that student's transaction history so nothing is lost. The Warnings Leaderboard's default "Quest'anno" view also starts fresh from this point on (old warnings stay fully accessible via "Sempre").</p>              <button type="button" id="resetYearBtn" class="btn btn-danger" onclick="startYearReset()">🔄 Reset All Balances (New School Year)</button>
             </div>
           </div>
         </section>
@@ -747,6 +748,7 @@ ALLMETA REINA\t240\t10\t5
     let currentQuickReward = null;
     let warnings = [];
     let warningsLeaderboardExpanded = false;
+    let warningsShowAlways = false;
     let warningSelectedStudents = new Set();
     let currentWarningTemplate = null;
     let topStudentsExpanded = false;
@@ -2206,6 +2208,47 @@ const CLASS_COLOR_PRESETS = [
       renderWarningsLeaderboard();
     }
 
+    // Sposta la vista dei warning fra "quest'anno" (dall'ultimo reset
+    // dell'anno scolastico, se mai fatto) e "sempre" (tutta la storia).
+    // Non cancella mai nulla: filtra solo cosa viene mostrato di default.
+    function toggleWarningsYearView() {
+      warningsShowAlways = !warningsShowAlways;
+      const btn = document.getElementById('warningsYearToggleBtn');
+      if (btn) btn.textContent = warningsShowAlways ? "📅 Sempre" : "📅 Quest'anno";
+      renderWarningsLeaderboard();
+    }
+
+    // Reset SOLO il contatore warning (senza toccare saldi/transazioni):
+    // utile quando il reset dell'anno scolastico è già stato fatto e serve
+    // solo far ripartire da zero la vista "Quest'anno" dei warning.
+    async function resetWarningsOnly() {
+      const confirmed = await Modal.confirm(
+        `Questo NON cancella nessun warning e non tocca i saldi: sposta solo il punto di partenza della vista "Quest'anno" a adesso. I warning già dati restano sempre visibili cliccando "Sempre". Continuare?`,
+        '🔄 Reset contatore warning'
+      );
+      if (!confirmed) return;
+
+      const btn = document.getElementById('resetWarningsBtn');
+      try {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Reset...'; }
+
+        await DB.resetWarningsBoundary();
+        await loadData(); // ricarica config con il nuovo lastWarningsResetAt
+
+        warningsShowAlways = false;
+        const yearBtn = document.getElementById('warningsYearToggleBtn');
+        if (yearBtn) yearBtn.textContent = "📅 Quest'anno";
+        renderWarningsLeaderboard();
+
+        Toast.success('✅ Contatore warning azzerato per la vista "Quest\'anno"');
+      } catch (error) {
+        console.error('Errore reset warning:', error);
+        Toast.error('Errore durante il reset dei warning');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '🔄 Reset warning'; }
+      }
+    }
+
     function updateWarningsLeaderboardToggle(totalCount) {
       const topBtn = document.getElementById('warningsTop3Btn');
       const allBtn = document.getElementById('warningsShowAllBtn');
@@ -2230,6 +2273,10 @@ const CLASS_COLOR_PRESETS = [
       const term = (document.getElementById('warningsSearchInput')?.value || '').trim().toLowerCase();
 
       let list = warnings || [];
+      const warningsResetCutoff = config?.lastWarningsResetAt?.toMillis?.() || 0;
+      if (!warningsShowAlways && warningsResetCutoff) {
+        list = list.filter(w => (w.timestamp?.toMillis?.() || 0) >= warningsResetCutoff);
+      }
       if (classId) {
         list = list.filter(w => w.classId === classId);
       }
@@ -3917,8 +3964,7 @@ const CLASS_COLOR_PRESETS = [
 
       const totalBalance = students.reduce((sum, s) => sum + (s.balance || 0), 0);
       const confirmed = await Modal.confirm(
-        `This will reset the balance of all ${students.length} students to ${sym}0 (current total: ${sym}${totalBalance}). A snapshot CSV will download first, and a reset entry is kept in each student's history. Continue?`,
-        '⚠️ Reset All Balances'
+        `This will reset the balance of all ${students.length} students to ${sym}0 (current total: ${sym}${totalBalance}), and the Warnings Leaderboard's "Quest'anno" view will start fresh from now (old warnings stay available via "Sempre"). A snapshot CSV will download first, and a reset entry is kept in each student's history. Continue?`,        '⚠️ Reset All Balances'
       );
       if (!confirmed) return;
 
