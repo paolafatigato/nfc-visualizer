@@ -465,8 +465,8 @@
       </div>
       <div class="input-group">
         <label class="input-label">Generated ID</label>
-        <input type="text" id="studentGeneratedId" class="input" readonly>
-        <small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">Format: LASTNAME.FIRSTNAME</small>
+        <input type="text" id="studentGeneratedId" class="input" oninput="studentIdManuallyEdited = true" autocomplete="off" spellcheck="false" style="text-transform: uppercase;">
+        <small class="text-muted" style="font-size: var(--text-xs); margin-top: 4px; display: block;">Format: LASTNAME.FIRSTNAME — editable (e.g. PRINCE.SAMUEL.OPOKU). Changing it on an existing student moves balance, transactions, warnings and requests to the new ID.</small>
       </div>
       <div class="input-group"><label class="input-label">Class *</label><select id="studentClass" class="input" required></select></div>
       <div class="input-group"><label class="input-label">NFC Tag</label><div style="display:flex;gap:var(--space-2);"><input type="text" id="studentNFC" class="input"><button type="button" class="btn btn-secondary" onclick="document.getElementById('studentNFC').value=NFC.generateTag()">🎲</button></div></div>
@@ -3138,7 +3138,10 @@ const CLASS_COLOR_PRESETS = [
       return buildStudentIdFromParts(parts.last, parts.first);
     }
 
+    let studentIdManuallyEdited = false;
+
     function updateStudentIdPreview() {
+      if (studentIdManuallyEdited) return; // don't overwrite an ID typed by hand
       const currentId = document.getElementById('studentId').value;
       const lastName = document.getElementById('studentLastName').value;
       const firstName = document.getElementById('studentFirstName').value;
@@ -3154,6 +3157,7 @@ const CLASS_COLOR_PRESETS = [
       document.getElementById('studentFirstName').value = nameParts.first;
       document.getElementById('studentClass').value = s?.classId || '';
       document.getElementById('studentNFC').value = s?.nfcTag || '';
+      studentIdManuallyEdited = false;
       updateStudentIdPreview();
       Modal.show('studentModal');
     }
@@ -3173,12 +3177,26 @@ const CLASS_COLOR_PRESETS = [
         className: classes.find(c=>c.id===classId)?.name || ''
       };
       if (!lastName || !firstName || !classId) { Toast.warning('Fill in required fields'); return; }
+
+      const typedId = normalizeIdPart(document.getElementById('studentGeneratedId').value || '');
       
       try {
         if (id) {
           await DB.updateStudent(id, data);
+
+          // ID changed by hand -> move the student to the new ID
+          if (typedId && typedId !== id) {
+            const ok = await Modal.confirm(
+              `Change ID from ${id} to ${typedId}?<br><br>Balance, transactions, warnings, requests and recurring rewards will be moved to the new ID. Old links with ?id=${id} will stop working (NFC tags keep working).`,
+              'Change student ID'
+            );
+            if (ok) {
+              await renameStudentId(id, typedId);
+              Toast.success(`ID changed to ${typedId}`);
+            }
+          }
         } else {
-          id = buildStudentIdFromParts(lastName, firstName);
+          id = typedId || buildStudentIdFromParts(lastName, firstName);
           if (!id) { Toast.warning('Invalid name for ID'); return; }
 
           const schoolId = Auth.getEffectiveSchoolId();
@@ -3193,7 +3211,52 @@ const CLASS_COLOR_PRESETS = [
         Modal.hide('studentModal');
         await loadData();
         Toast.success('Saved!');
-      } catch(e) { Toast.error('Error'); }
+      } catch(e) {
+        console.error('Save student error:', e);
+        Toast.error(e?.message ? escapeHtmlSafe(e.message) : 'Error');
+      }
+    }
+
+    // Moves a student document to a new ID and updates every reference to it
+    async function renameStudentId(oldId, newId) {
+      const studentsCol = DB.school('students');
+      const oldRef = studentsCol.doc(oldId);
+      const newRef = studentsCol.doc(newId);
+
+      const [oldDoc, newDoc] = await Promise.all([oldRef.get(), newRef.get()]);
+      if (!oldDoc.exists) throw new Error('Student not found');
+      if (newDoc.exists) throw new Error(`ID ${newId} already exists`);
+
+      // 1. Copy the student to the new ID
+      await newRef.set({
+        ...oldDoc.data(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // 2. Collect all the references to update
+      const updates = []; // { ref, data }
+      for (const col of ['transactions', 'warnings', 'rewardRequests']) {
+        const snap = await DB.school(col).where('studentId', '==', oldId).get();
+        snap.docs.forEach(d => updates.push({ ref: d.ref, data: { studentId: newId } }));
+      }
+      const rrSnap = await DB.school('recurringRewards').where('studentIds', 'array-contains', oldId).get();
+      rrSnap.docs.forEach(d => {
+        const ids = (d.data().studentIds || []).map(x => x === oldId ? newId : x);
+        updates.push({ ref: d.ref, data: { studentIds: ids } });
+      });
+
+      // 3. Write in batches (Firestore max 500 operations per batch)
+      for (let i = 0; i < updates.length; i += 400) {
+        const batch = db.batch();
+        updates.slice(i, i + 400).forEach(u => batch.update(u.ref, u.data));
+        await batch.commit();
+      }
+
+      // 4. Remove the old student only at the end
+      await oldRef.delete();
+
+      selectedStudents.delete(oldId);
+      warningSelectedStudents.delete(oldId);
     }
 
     async function deleteStudent(id) {
