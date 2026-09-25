@@ -742,7 +742,7 @@ ALLMETA REINA\t240\t10\t5
     <div class="modal-body">
       <div class="nb-toolbar">
         <select id="nbCheckClass" class="input" onchange="changeNbClass()"></select>
-        <button class="btn btn-ghost btn-sm" onclick="nbFillAll('ok')">📓 All ok</button>
+        <button class="btn btn-ghost btn-sm" onclick="nbFillAll('ok')">📒 All ok</button>
         <button class="btn btn-ghost btn-sm" onclick="nbClearAll()">🧽 Clear</button>
       </div>
       <div id="nbCheckLegend" class="nb-legend"></div>
@@ -3794,7 +3794,7 @@ const CLASS_COLOR_PRESETS = [
     const NB_GRADES = [
       { key: 'missing', label: 'No NB', icon: '⚠️', amount: 0, reason: 'No Notebook', warning: true, warningIcon: '📓', warningType: 'no_notebook' },
       { key: 'ugly',   label: 'Ugly',   icon: '😬', amount: 0,   reason: 'Notebook ugly' },
-      { key: 'ok',     label: 'Ok',     icon: '📓', amount: 10,  reason: 'Notebook ok' },
+      { key: 'ok',     label: 'Ok',     icon: '📒', amount: 10,  reason: 'Notebook ok' },
       { key: 'pretty', label: 'Pretty', icon: '🎨', amount: 20,  reason: 'Beautiful notebook' },
       { key: 'best',   label: 'Best',   icon: '🤩', amount: 100, reason: 'The best Notebook!' }
     ];
@@ -3954,7 +3954,7 @@ const CLASS_COLOR_PRESETS = [
       { name: 'Optional homework', description: 'Complete the optional homework, strictly handwritten', icon: '📚', amount: 30 },
       { name: 'Clean class', description: 'The class is clean when you leave', icon: '🧹', amount: 5 },
       { name: 'Weekly email', description: 'Send an email to a family member, explaining what you did in class this week', icon: '📧', amount: 50 },
-      { name: 'Notebook ok', description: 'Show the notebook for checking', icon: '📓', amount: 10 },
+      { name: 'Notebook ok', description: 'Show the notebook for checking', icon: '📒', amount: 10 },
       { name: 'Beautiful notebook', description: 'Creative work with drawing and color', icon: '🎨', amount: 20 },
       { name: 'The best Notebook!', description: 'Perfectly organized, with drawings and color', icon: '🤩', amount: 100 },
       { name: 'Book comment', description: 'Finish reading a book and write a summary and a review', icon: '📖', amount: 150 }
