@@ -193,6 +193,7 @@
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">⭐ Give Rewards</h3>
+              <button class="btn btn-secondary btn-sm" onclick="openNbCheckModal()">📓 NB Check</button>
               <!--<div style="display:flex;gap:var(--space-2);">
                 <button class="btn btn-secondary" onclick="openBulkImportTransactionsModal()">📥 Bulk Import Sheet</button>
               </div>-->
@@ -728,6 +729,29 @@ ALLMETA REINA\t240\t10\t5
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="Modal.hide('repairNamesModal')">Close</button>
       <button class="btn btn-primary" id="applyRepairBtn" onclick="applyRepairNames()" disabled>✅ Apply selected corrections</button>
+    </div>
+  </div>
+
+  <!-- NB Check Modal -->
+  <div id="nbCheckModalBackdrop" class="modal-backdrop"></div>
+  <div id="nbCheckModal" class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📓 Notebook Check</h3>
+      <button class="modal-close" onclick="Modal.hide('nbCheckModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="nb-toolbar">
+        <select id="nbCheckClass" class="input" onchange="changeNbClass()"></select>
+        <button class="btn btn-ghost btn-sm" onclick="nbFillAll('ok')">📓 All ok</button>
+        <button class="btn btn-ghost btn-sm" onclick="nbClearAll()">🧽 Clear</button>
+      </div>
+      <div id="nbCheckLegend" class="nb-legend"></div>
+      <div id="nbCheckList" class="nb-list"></div>
+    </div>
+    <div class="modal-footer">
+      <span id="nbCheckSummary" class="nb-summary"></span>
+      <button class="btn btn-secondary" onclick="Modal.hide('nbCheckModal')">Cancel</button>
+      <button class="btn btn-primary" id="nbCheckSaveBtn" onclick="saveNbCheck()" disabled>✅ Save</button>
     </div>
   </div>
 
@@ -3700,6 +3724,156 @@ const CLASS_COLOR_PRESETS = [
         console.error('Recurring reward decision error:', error);
         Toast.error('Error, try again');
         item?.querySelectorAll('button').forEach(b => b.disabled = false);
+      }
+    }
+
+    // ========== NOTEBOOK CHECK ==========
+    const NB_GRADES = [
+      { key: 'ugly',   label: 'Ugly',   icon: '😬', amount: 0,   reason: 'Notebook ugly' },
+      { key: 'ok',     label: 'Ok',     icon: '📓', amount: 10,  reason: 'Notebook ok' },
+      { key: 'pretty', label: 'Pretty', icon: '🎨', amount: 20,  reason: 'Beautiful notebook' },
+      { key: 'best',   label: 'Best',   icon: '🤩', amount: 100, reason: 'The best Notebook!' }
+    ];
+    let nbSelections = {}; // studentId -> grade key
+
+    function openNbCheckModal() {
+      const sel = document.getElementById('nbCheckClass');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">Select a class</option>' +
+        [...classes]
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+          .map(c => `<option value="${c.id}">${escapeHtmlSafe(c.name)}</option>`).join('');
+      if (prev && classes.some(c => c.id === prev)) sel.value = prev;
+
+      document.getElementById('nbCheckLegend').innerHTML =
+        NB_GRADES.map(g => `<span>${g.icon} ${g.label} = ${sym}${g.amount}</span>`).join('');
+
+      nbSelections = {};
+      renderNbCheck();
+      Modal.show('nbCheckModal');
+    }
+
+    function changeNbClass() {
+      nbSelections = {};
+      renderNbCheck();
+    }
+
+    function getNbClassStudents() {
+      const classId = document.getElementById('nbCheckClass').value;
+      if (!classId) return [];
+      return students
+        .filter(s => s.classId === classId)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    function renderNbCheck() {
+      const list = document.getElementById('nbCheckList');
+      const classId = document.getElementById('nbCheckClass').value;
+
+      if (!classId) {
+        list.innerHTML = '<p class="text-muted text-center p-4">Choose a class to start 👆</p>';
+        updateNbSummary();
+        return;
+      }
+
+      const classStudents = getNbClassStudents();
+      if (!classStudents.length) {
+        list.innerHTML = '<p class="text-muted text-center p-4">No students in this class</p>';
+        updateNbSummary();
+        return;
+      }
+
+      list.innerHTML = classStudents.map(s => `
+        <div class="nb-row" data-student-id="${s.id}">
+          <div class="nb-name">${escapeHtmlSafe(s.name || 'Student')}</div>
+          <div class="nb-options">
+            ${NB_GRADES.map(g => `
+              <button type="button"
+                class="nb-box nb-${g.key} ${nbSelections[s.id] === g.key ? 'checked' : ''}"
+                data-grade="${g.key}"
+                onclick="setNbGrade('${s.id}', '${g.key}')"
+                title="${g.label} (${sym}${g.amount})">
+                <span class="nb-box-icon">${g.icon}</span>
+                <span class="nb-box-amount">${sym}${g.amount}</span>
+              </button>`).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      updateNbSummary();
+    }
+
+    function setNbGrade(studentId, key) {
+      if (nbSelections[studentId] === key) delete nbSelections[studentId];
+      else nbSelections[studentId] = key;
+
+      const row = document.querySelector(`#nbCheckList .nb-row[data-student-id="${studentId}"]`);
+      row?.querySelectorAll('.nb-box').forEach(b =>
+        b.classList.toggle('checked', b.dataset.grade === nbSelections[studentId])
+      );
+      updateNbSummary();
+    }
+
+    // Fills only the students still without a mark
+    function nbFillAll(key) {
+      getNbClassStudents().forEach(s => {
+        if (!nbSelections[s.id]) nbSelections[s.id] = key;
+      });
+      renderNbCheck();
+    }
+
+    function nbClearAll() {
+      nbSelections = {};
+      renderNbCheck();
+    }
+
+    function updateNbSummary() {
+      const keys = Object.values(nbSelections);
+      const total = keys.reduce((sum, k) => sum + (NB_GRADES.find(g => g.key === k)?.amount || 0), 0);
+      document.getElementById('nbCheckSummary').textContent =
+        keys.length ? `${keys.length} checked · ${sym}${total}` : '';
+      document.getElementById('nbCheckSaveBtn').disabled = keys.length === 0;
+    }
+
+    async function saveNbCheck() {
+      const entries = Object.entries(nbSelections);
+      if (!entries.length) return;
+
+      const btn = document.getElementById('nbCheckSaveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
+
+      const failed = [];
+      for (const [studentId, key] of entries) {
+        const g = NB_GRADES.find(x => x.key === key);
+        try {
+          await DB.giveReward(studentId, g.amount, g.reason, g.icon);
+          delete nbSelections[studentId];
+        } catch (error) {
+          console.error('NB check error:', error);
+          failed.push(students.find(s => s.id === studentId)?.name || studentId);
+        }
+      }
+
+      try {
+        students = await DB.getStudents();
+        renderStudents();
+        renderStudentSelects();
+        updateStats();
+        renderTopStudents();
+      } catch (e) {
+        console.error('Refresh after NB check failed:', e);
+      }
+
+      btn.innerHTML = '✅ Save';
+
+      if (failed.length) {
+        Toast.error(`Error for: ${failed.map(escapeHtmlSafe).join(', ')}. Try again.`);
+        renderNbCheck(); // failed students keep their mark
+      } else {
+        Toast.success(`Notebook check saved for ${entries.length} students! 📓`);
+        nbSelections = {};
+        Modal.hide('nbCheckModal');
       }
     }
 
