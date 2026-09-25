@@ -3729,6 +3729,7 @@ const CLASS_COLOR_PRESETS = [
 
     // ========== NOTEBOOK CHECK ==========
     const NB_GRADES = [
+      { key: 'missing', label: 'No NB', icon: '⚠️', amount: 0, reason: 'No Notebook', warning: true, warningIcon: '📓', warningType: 'no_notebook' },
       { key: 'ugly',   label: 'Ugly',   icon: '😬', amount: 0,   reason: 'Notebook ugly' },
       { key: 'ok',     label: 'Ok',     icon: '📓', amount: 10,  reason: 'Notebook ok' },
       { key: 'pretty', label: 'Pretty', icon: '🎨', amount: 20,  reason: 'Beautiful notebook' },
@@ -3746,7 +3747,7 @@ const CLASS_COLOR_PRESETS = [
       if (prev && classes.some(c => c.id === prev)) sel.value = prev;
 
       document.getElementById('nbCheckLegend').innerHTML =
-        NB_GRADES.map(g => `<span>${g.icon} ${g.label} = ${sym}${g.amount}</span>`).join('');
+        NB_GRADES.map(g => `<span>${g.icon} ${g.label} = ${g.warning ? 'warning' : sym + g.amount}</span>`).join('');
 
       nbSelections = {};
       renderNbCheck();
@@ -3792,9 +3793,9 @@ const CLASS_COLOR_PRESETS = [
                 class="nb-box nb-${g.key} ${nbSelections[s.id] === g.key ? 'checked' : ''}"
                 data-grade="${g.key}"
                 onclick="setNbGrade('${s.id}', '${g.key}')"
-                title="${g.label} (${sym}${g.amount})">
+                title="${g.warning ? 'Warning: no notebook' : `${g.label} (${sym}${g.amount})`}">
                 <span class="nb-box-icon">${g.icon}</span>
-                <span class="nb-box-amount">${sym}${g.amount}</span>
+                <span class="nb-box-amount">${g.warning ? 'No NB' : sym + g.amount}</span>
               </button>`).join('')}
           </div>
         </div>
@@ -3830,8 +3831,9 @@ const CLASS_COLOR_PRESETS = [
     function updateNbSummary() {
       const keys = Object.values(nbSelections);
       const total = keys.reduce((sum, k) => sum + (NB_GRADES.find(g => g.key === k)?.amount || 0), 0);
+      const warnings = keys.filter(k => NB_GRADES.find(g => g.key === k)?.warning).length;
       document.getElementById('nbCheckSummary').textContent =
-        keys.length ? `${keys.length} checked · ${sym}${total}` : '';
+        keys.length ? `${keys.length} checked · ${sym}${total}${warnings ? ` · ⚠️ ${warnings}` : ''}` : '';
       document.getElementById('nbCheckSaveBtn').disabled = keys.length === 0;
     }
 
@@ -3844,10 +3846,16 @@ const CLASS_COLOR_PRESETS = [
       btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
 
       const failed = [];
+      let hadWarnings = false;
       for (const [studentId, key] of entries) {
         const g = NB_GRADES.find(x => x.key === key);
         try {
-          await DB.giveReward(studentId, g.amount, g.reason, g.icon);
+          if (g.warning) {
+            await DB.createWarning(studentId, g.reason, g.warningIcon, g.warningType);
+            hadWarnings = true;
+          } else {
+            await DB.giveReward(studentId, g.amount, g.reason, g.icon);
+          }
           delete nbSelections[studentId];
         } catch (error) {
           console.error('NB check error:', error);
@@ -3861,6 +3869,7 @@ const CLASS_COLOR_PRESETS = [
         renderStudentSelects();
         updateStats();
         renderTopStudents();
+        if (hadWarnings) await refreshWarnings();
       } catch (e) {
         console.error('Refresh after NB check failed:', e);
       }
