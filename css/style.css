@@ -2415,12 +2415,14 @@ textarea.input {
 .nb-box.nb-ugly.checked   { border-color: var(--danger);    background: var(--danger-light); }
 .nb-box.nb-ok.checked     { border-color: var(--info);      background: var(--info-light); }
 .nb-box.nb-pretty.checked { border-color: var(--secondary); background: var(--secondary-light); }
+.nb-box.nb-stunning.checked { border-color: var(--secondary); background: var(--secondary-light); box-shadow: var(--shadow-glow); }
+.nb-box.nb-nohw { border-style: dashed; }
+.nb-box.nb-nohw.checked { border-style: solid; border-color: var(--danger-dark); background: var(--warning-light); }
 .nb-box.nb-best.checked   { border-color: var(--primary);   background: var(--primary-light); box-shadow: var(--shadow-glow); }
 .nb-summary { margin-right: auto; font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--text-secondary); }
 #nbCheckModal .modal-body { max-height: 65vh; }
 @media (max-width: 480px) {
-  .nb-box { width: 40px; height: 44px; }
-  .nb-box-icon { font-size: 1.05rem; }
+  .nb-box { width: 40px; height: 44px; }  .nb-box-icon { font-size: 1.05rem; }
   .nb-box-amount { font-size: 10px; }
   .nb-options { gap: var(--space-1); }
   .nb-name { font-size: var(--text-sm); }
