@@ -415,9 +415,18 @@
           <div class="card" style="margin-top: var(--space-4);">
             <div class="card-header"><h3 class="card-title">🔄 Riconcilia nomi con Classroom Manager</h3></div>
             <div class="card-body">
-              <p class="text-muted" style="margin-bottom: var(--space-4);">Confronta l'elenco alunni di Classroom Manager (il nome "giusto") con gli alunni già presenti qui. Se trova un alunno simile con premi/richiami già registrati, gli assegna il nome di Classroom Manager mantenendo la sua storia; se trova più alunni simili per la stessa persona, tiene quello con lo storico e cancella gli altri come doppioni. Non crea alunni nuovi (per quello usa "Importa/Sincronizza" qui sopra) e non tocca chi non trova corrispondenza.</p>
+              <p class="text-muted" style="margin-bottom: var(--space-4);">Confronta i nomi degli alunni già presenti qui con quelli di Classroom Manager e propone correzioni quando sembrano la stessa persona scritta in modo leggermente diverso (refuso, accento, nome più o meno completo). Non tocca nulla finché non scegli, riga per riga, quali accettare.</p>
               <button type="button" class="btn btn-secondary btn-sm" onclick="scanForNameReconciliation()">🔍 Confronta nomi</button>
               <div id="reconcileResult" style="margin-top:var(--space-3);"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header"><h3 class="card-title">👀 Alunni scomparsi o cambiati di classe</h3></div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: var(--space-4);">Classroom Manager fa testo: confronta gli alunni già presenti qui con il suo elenco e propone, per ciascuno che non torna, l'azione più sicura — "archivia" per chi non c'è più da nessuna parte (saldo e storico restano, come fine terza media), "sposta" per chi sembra passato in un'altra classe, "unisci" quando in quella classe esiste già un doppione dello stesso alunno. Non tocca nulla finché non scegli, riga per riga, cosa fare. Usalo dopo aver fatto "Importa/Sincronizza" e "Riconcilia nomi" qui sopra, così restano solo i casi veri.</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="scanForStudentChanges()">🔍 Verifica alunni</button>
+              <div id="studentChangesResult" style="margin-top:var(--space-3);"></div>
             </div>
           </div>
 
@@ -1029,15 +1038,44 @@ ALLMETA REINA\t240\t10\t5
         .replace(/[^a-z0-9]/g, '');
     }
 
+    function tokenizeName(name) {
+      return (name || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    }
+
     function nameSimilarity(a, b) {
       const fa = flattenNameForMatch(a), fb = flattenNameForMatch(b);
       if (!fa || !fb) return 0;
       if (fa === fb) return 1;
+
+      // Un nome fatto delle STESSE parole dell'altro, solo in numero minore
+      // (es. "Prince Samuel" dentro "Prince Samuel Opoku") è quasi certamente
+      // la stessa persona con nome più/meno completo, anche se le stringhe
+      // intere sono molto diverse in lunghezza. Richiede almeno 2 parole in
+      // comune, altrimenti un solo nome di battesimo condiviso (es. "Leonardo"
+      // in "Leonardo Fermi" e "Leonardo Fernandi", due alunni DIVERSI)
+      // basterebbe a far scattare un match sbagliato.
+      const tokensA = tokenizeName(a), tokensB = tokenizeName(b);
+      const [shorter, longer] = tokensA.length <= tokensB.length ? [tokensA, tokensB] : [tokensB, tokensA];
+      if (shorter.length >= 2) {
+        const longerSet = new Set(longer);
+        if (shorter.every(t => longerSet.has(t))) return 0.95;
+      }
+
       const maxLen = Math.max(fa.length, fb.length);
       return maxLen ? 1 - levenshteinDistance(fa, fb) / maxLen : 0;
     }
 
-    const NAME_MATCH_THRESHOLD = 0.55;
+    // Soglia alzata da 0.55 a 0.82: a 0.55 "Leonardo Fermi" e "Leonardo
+    // Fernandi" (due alunni diversi, stesso nome di battesimo) risultavano
+    // simili all'75% e venivano proposti come "stessa persona". A 0.82
+    // restano fuori, mentre i refusi veri (es. "Giulia Rossi"/"Giuglia
+    // Rossi", accenti, "Marco"/"Marko") restano quasi sempre sopra il 90%.
+    const NAME_MATCH_THRESHOLD = 0.82;
 
     let reconcilePlan = null;
 
@@ -1267,6 +1305,247 @@ ALLMETA REINA\t240\t10\t5
       }
     }
     // ===== END NAME RECONCILIATION =====
+
+    // ===== STUDENTS MISSING OR MOVED (Classroom Manager) =====
+    let studentChangesPlan = null;
+
+    async function scanForStudentChanges() {
+      const resultEl = document.getElementById('studentChangesResult');
+      if (!ClassroomBridge.isConnected()) {
+        resultEl.innerHTML = '<p class="text-muted">Connettiti prima a Classroom Manager (sezione qui sopra).</p>';
+        return;
+      }
+
+      const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Verifica in corso…</p>';
+
+      try {
+        const [roster, allStudents] = await Promise.all([
+          ClassroomBridge.fetchRoster(),
+          DB.getStudents(null, false) // solo alunni di classi attive
+        ]);
+
+        if (!roster.length) {
+          resultEl.innerHTML = '<p class="text-muted">Nessuna classe trovata su Classroom Manager per questo account.</p>';
+          studentChangesPlan = null;
+          return;
+        }
+
+        const rosterByClass = new Map(); // nome classe normalizzato -> [nomi completi]
+        roster.forEach(r => {
+          const key = norm(r.className);
+          if (!rosterByClass.has(key)) rosterByClass.set(key, []);
+          rosterByClass.get(key).push(r.fullName);
+        });
+
+        const localByClassId = new Map();
+        allStudents.forEach(s => {
+          if (!localByClassId.has(s.classId)) localByClassId.set(s.classId, []);
+          localByClassId.get(s.classId).push(s);
+        });
+
+        const plan = [];
+
+        for (const student of allStudents) {
+          const cls = classes.find(c => c.id === student.classId);
+          if (!cls) continue;
+
+          const sameClassNames = rosterByClass.get(norm(cls.name)) || [];
+          const bestSameClassScore = sameClassNames.reduce(
+            (max, n) => Math.max(max, nameSimilarity(student.name, n)), 0
+          );
+          if (bestSameClassScore >= NAME_MATCH_THRESHOLD) continue;
+
+          let bestMatch = null;
+          for (const [key, names] of rosterByClass.entries()) {
+            if (key === norm(cls.name)) continue;
+            for (const n of names) {
+              const score = nameSimilarity(student.name, n);
+              if (score >= NAME_MATCH_THRESHOLD && (!bestMatch || score > bestMatch.score)) {
+                const targetClass = classes.find(c => norm(c.name) === key);
+                if (targetClass) bestMatch = { className: targetClass.name, classId: targetClass.id, score, rosterName: n };
+              }
+            }
+          }
+
+          if (bestMatch) {
+            const candidatesThere = (localByClassId.get(bestMatch.classId) || [])
+              .filter(s => s.id !== student.id);
+            let mergeTarget = null;
+            for (const cand of candidatesThere) {
+              const score = nameSimilarity(student.name, cand.name);
+              if (score >= NAME_MATCH_THRESHOLD && (!mergeTarget || score > mergeTarget.score)) {
+                mergeTarget = { id: cand.id, name: cand.name, balance: cand.balance || 0, score };
+              }
+            }
+
+            if (mergeTarget) {
+              plan.push({
+                type: 'duplicate',
+                studentId: student.id, name: student.name, balance: student.balance || 0,
+                fromClassId: cls.id, fromClassName: cls.name,
+                toClassId: bestMatch.classId, toClassName: bestMatch.className,
+                mergeTargetId: mergeTarget.id, mergeTargetName: mergeTarget.name, mergeTargetBalance: mergeTarget.balance
+              });
+            } else {
+              plan.push({
+                type: 'moved',
+                studentId: student.id, name: student.name, balance: student.balance || 0,
+                fromClassId: cls.id, fromClassName: cls.name,
+                toClassId: bestMatch.classId, toClassName: bestMatch.className, rosterName: bestMatch.rosterName
+              });
+            }
+          } else {
+            plan.push({
+              type: 'missing',
+              studentId: student.id, name: student.name, balance: student.balance || 0,
+              fromClassId: cls.id, fromClassName: cls.name
+            });
+          }
+        }
+
+        studentChangesPlan = plan;
+
+        if (!plan.length) {
+          resultEl.innerHTML = '<p class="text-muted">✅ Tutti gli alunni risultano ancora presenti su Classroom Manager.</p>';
+          return;
+        }
+
+        resultEl.innerHTML = `
+          <p class="text-muted">Trovat${plan.length === 1 ? 'o' : 'i'} <strong>${plan.length}</strong> alunn${plan.length === 1 ? 'o' : 'i'} da verificare. Scegli l'azione per ciascuno, poi conferma:</p>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr>
+                <th>Alunno</th>
+                <th>Classe qui</th>
+                <th>Situazione</th>
+                <th>Saldo</th>
+                <th>Azione</th>
+              </tr></thead>
+              <tbody>
+                ${plan.map((p, i) => `
+                  <tr>
+                    <td>${escapeHtmlSafe(p.name)}</td>
+                    <td>${escapeHtmlSafe(p.fromClassName)}</td>
+                    <td style="font-size:var(--text-xs);">${
+                      p.type === 'duplicate'
+                        ? `sembra un doppione di <strong>${escapeHtmlSafe(p.mergeTargetName)}</strong> già in ${escapeHtmlSafe(p.toClassName)} (saldo lì: ${sym}${p.mergeTargetBalance})`
+                        : p.type === 'moved'
+                          ? `sembra passato in <strong>${escapeHtmlSafe(p.toClassName)}</strong> (come "${escapeHtmlSafe(p.rosterName)}")`
+                          : `non trovato su Classroom Manager`
+                    }</td>
+                    <td>${sym}${p.balance}</td>
+                    <td>
+                      <select class="input" id="studentChangeAction_${i}" style="width:auto;">
+                        ${p.type === 'duplicate' ? `<option value="merge" selected>🔀 Unisci in ${escapeHtmlSafe(p.mergeTargetName)} (trasferisci saldo e storico)</option>` : ''}
+                        ${p.type === 'moved' ? `<option value="move" selected>🔀 Sposta in ${escapeHtmlSafe(p.toClassName)} (mantieni guadagni)</option>` : ''}
+                        ${p.type === 'missing' ? `<option value="archive" selected>📦 Archivia (fine anno, mantieni guadagni)</option>` : ''}
+                        <option value="keep">✅ Mantieni qui com'è</option>
+                        <option value="delete">🗑️ Cancella (perde i guadagni)</option>
+                      </select>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm" style="margin-top:var(--space-3);" onclick="applyStudentChangeDecisions()">✅ Applica le scelte</button>
+        `;
+      } catch (error) {
+        console.error('Errore verifica alunni:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+
+    async function applyStudentChangeDecisions() {
+      if (!studentChangesPlan) return;
+      const resultEl = document.getElementById('studentChangesResult');
+
+      const decisions = studentChangesPlan
+        .map((p, i) => {
+          const sel = document.getElementById(`studentChangeAction_${i}`);
+          return { ...p, action: sel ? sel.value : 'keep' };
+        })
+        .filter(d => d.action !== 'keep');
+
+      if (!decisions.length) {
+        resultEl.innerHTML = '<p class="text-muted">Nessuna modifica da applicare (tutto lasciato com\'è).</p>';
+        return;
+      }
+
+      const toDelete = decisions.filter(d => d.action === 'delete');
+      if (toDelete.length) {
+        const confirmed = await Modal.confirm(
+          `Stai per cancellare ${toDelete.length} alunn${toDelete.length === 1 ? 'o' : 'i'} e perdere il su${toDelete.length === 1 ? 'o' : 'i'} guadagn${toDelete.length === 1 ? 'o' : 'i'} (${toDelete.map(d => `${escapeHtmlSafe(d.name)}: ${sym}${d.balance}`).join(', ')}). Non si può annullare. Confermi?`,
+          'Conferma cancellazione'
+        );
+        if (!confirmed) return;
+      }
+
+      resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Applicazione in corso…</p>';
+
+      let moved = 0, archived = 0, merged = 0, deleted = 0;
+      const errors = [];
+
+      try {
+        const needsTransactions = decisions.some(d => d.action === 'merge');
+        const allTransactions = needsTransactions ? await DB.getTransactions({}, 5000) : [];
+
+        for (const d of decisions) {
+          try {
+            if (d.action === 'move') {
+              await DB.updateStudent(d.studentId, { classId: d.toClassId, className: d.toClassName });
+              moved++;
+            } else if (d.action === 'archive') {
+              await DB.updateStudent(d.studentId, {
+                archived: true,
+                archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+              archived++;
+            } else if (d.action === 'merge') {
+              if (d.balance) {
+                await DB.updateStudent(d.mergeTargetId, {
+                  balance: (d.mergeTargetBalance || 0) + d.balance
+                });
+              }
+              const dupTransactions = allTransactions.filter(tx => tx.studentId === d.studentId);
+              for (const tx of dupTransactions) {
+                await DB.school('transactions').doc(tx.id).update({
+                  studentId: d.mergeTargetId,
+                  studentName: d.mergeTargetName
+                });
+              }
+              await DB.deleteStudent(d.studentId);
+              merged++;
+            } else if (d.action === 'delete') {
+              await DB.deleteStudent(d.studentId);
+              deleted++;
+            }
+          } catch (error) {
+            console.warn(`Errore applicazione scelta per ${d.name}:`, error);
+            errors.push(d.name);
+          }
+        }
+
+        studentChangesPlan = null;
+        await loadData();
+
+        const parts = [];
+        if (moved) parts.push(`${moved} spostat${moved === 1 ? 'o' : 'i'}`);
+        if (archived) parts.push(`${archived} archiviat${archived === 1 ? 'o' : 'i'}`);
+        if (merged) parts.push(`${merged} unit${merged === 1 ? 'o' : 'i'}`);
+        if (deleted) parts.push(`${deleted} cancellat${deleted === 1 ? 'o' : 'i'}`);
+
+        resultEl.innerHTML = `
+          <p class="text-muted">✅ Fatto: ${parts.join(', ') || 'nessuna modifica'}.
+          ${errors.length ? `<br>⚠️ Errori su: ${errors.map(escapeHtmlSafe).join(', ')}` : ''}</p>`;
+        Toast.success('Scelte applicate');
+      } catch (error) {
+        console.error('Errore applicazione scelte:', error);
+        resultEl.innerHTML = `<p style="color:var(--danger);">Errore: ${error.message}</p>`;
+      }
+    }
+    // ===== END STUDENTS MISSING OR MOVED =====
 
     let dedupPlan = null;
 
