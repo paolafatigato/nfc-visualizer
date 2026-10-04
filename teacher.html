@@ -779,6 +779,10 @@ ALLMETA REINA\t240\t10\t5
         <select id="hwCheckClass" class="input" onchange="changeHwClass()"></select>
       </div>
       <div class="hw-settings">
+        <div class="input-group hw-icon">
+          <label class="input-label" for="hwCheckIcon">Icon</label>
+          <input type="text" id="hwCheckIcon" class="input" value="📚" placeholder="📚" maxlength="4">
+        </div>
         <div class="input-group">
           <label class="input-label" for="hwCheckName">Homework</label>
           <input type="text" id="hwCheckName" class="input" value="Optional homework" placeholder="Optional homework">
@@ -4294,6 +4298,7 @@ const CLASS_COLOR_PRESETS = [
 
     // ========== OPTIONAL HOMEWORK ==========
     const HW_DEFAULT_NAME = 'Optional homework';
+    const HW_DEFAULT_ICON = '📚';
     const HW_OPTIONS = [
       { key: 'nohw',   label: 'No HW', icon: '📚', warning: true },
       { key: 'custom', label: 'Other', icon: '✏️', comment: true },
@@ -4330,6 +4335,7 @@ const CLASS_COLOR_PRESETS = [
       if (prev && classes.some(c => c.id === prev)) sel.value = prev;
 
       document.getElementById('hwCheckName').value = HW_DEFAULT_NAME;
+      document.getElementById('hwCheckIcon').value = HW_DEFAULT_ICON;
       document.getElementById('hwCheckPrice').value = 30;
 
       hwSelections = {};
@@ -4481,6 +4487,7 @@ const CLASS_COLOR_PRESETS = [
       }
 
       const hwName = getHwName();
+      const hwIcon = document.getElementById('hwCheckIcon').value.trim() || HW_DEFAULT_ICON;
       const btn = document.getElementById('hwCheckSaveBtn');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
@@ -4496,7 +4503,7 @@ const CLASS_COLOR_PRESETS = [
           } else {
             const comment = hwOption(sel.key).comment ? (sel.comment || '').trim() : '';
             const reason = comment ? `${hwName} — ${comment}` : hwName;
-            await DB.giveReward(studentId, getHwAmount(sel), reason, '📚');
+            await DB.giveReward(studentId, getHwAmount(sel), reason, hwIcon);
           }
           delete hwSelections[studentId];
         } catch (error) {

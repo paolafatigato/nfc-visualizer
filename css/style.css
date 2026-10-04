@@ -2427,6 +2427,8 @@ textarea.input {
 .hw-settings { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 .hw-settings .input-group { flex: 1; min-width: 180px; margin-bottom: var(--space-2); }
 .hw-settings .hw-price { flex: 0 0 110px; min-width: 0; }
+.hw-settings .hw-icon { flex: 0 0 64px; min-width: 0; }
+.hw-settings .hw-icon .input { text-align: center; font-size: 1.25rem; padding-left: 0; padding-right: 0; }
 .hw-row { flex-wrap: wrap; }
 .hw-extra { flex-basis: 100%; display: flex; gap: var(--space-2); }
 .hw-extra .hw-amount { width: 90px; flex-shrink: 0; }
