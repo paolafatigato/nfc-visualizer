@@ -193,7 +193,10 @@
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">⭐ Give Rewards</h3>
-              <button class="btn btn-secondary btn-sm" onclick="openNbCheckModal()">📓 NB Check</button>
+              <div style="display:flex;gap:var(--space-2);">
+                <button class="btn btn-secondary btn-sm" onclick="openNbCheckModal()">📓 NB Check</button>
+                <button class="btn btn-secondary btn-sm" onclick="openHwCheckModal()">📚 Optional HW</button>
+              </div>
               <!--<div style="display:flex;gap:var(--space-2);">
                 <button class="btn btn-secondary" onclick="openBulkImportTransactionsModal()">📥 Bulk Import Sheet</button>
               </div>-->
@@ -761,6 +764,40 @@ ALLMETA REINA\t240\t10\t5
       <span id="nbCheckSummary" class="nb-summary"></span>
       <button class="btn btn-secondary" onclick="Modal.hide('nbCheckModal')">Cancel</button>
       <button class="btn btn-primary" id="nbCheckSaveBtn" onclick="saveNbCheck()" disabled>✅ Save</button>
+    </div>
+  </div>
+
+  <!-- Optional HW Modal -->
+  <div id="hwCheckModalBackdrop" class="modal-backdrop"></div>
+  <div id="hwCheckModal" class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📚 Optional Homework</h3>
+      <button class="modal-close" onclick="Modal.hide('hwCheckModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="nb-toolbar">
+        <select id="hwCheckClass" class="input" onchange="changeHwClass()"></select>
+      </div>
+      <div class="hw-settings">
+        <div class="input-group">
+          <label class="input-label" for="hwCheckName">Homework</label>
+          <input type="text" id="hwCheckName" class="input" value="Optional homework" placeholder="Optional homework">
+        </div>
+        <div class="input-group hw-price">
+          <label class="input-label" for="hwCheckPrice">Reward</label>
+          <input type="number" id="hwCheckPrice" class="input" value="30" min="0" step="1" oninput="renderHwCheck()">
+        </div>
+      </div>
+      <div class="nb-toolbar">
+        <button class="btn btn-ghost btn-sm" onclick="hwFillAll('full')">✅ All full</button>
+        <button class="btn btn-ghost btn-sm" onclick="hwClearAll()">🧽 Clear</button>
+      </div>
+      <div id="hwCheckList" class="nb-list"></div>
+    </div>
+    <div class="modal-footer">
+      <span id="hwCheckSummary" class="nb-summary"></span>
+      <button class="btn btn-secondary" onclick="Modal.hide('hwCheckModal')">Cancel</button>
+      <button class="btn btn-primary" id="hwCheckSaveBtn" onclick="saveHwCheck()" disabled>✅ Save</button>
     </div>
   </div>
 
@@ -4255,9 +4292,244 @@ const CLASS_COLOR_PRESETS = [
       }
     }
 
+    // ========== OPTIONAL HOMEWORK ==========
+    const HW_DEFAULT_NAME = 'Optional homework';
+    const HW_OPTIONS = [
+      { key: 'full',   label: 'Full', icon: '✅' },
+      { key: 'half',   label: 'Half', icon: '🌗', comment: true },
+      { key: 'custom', label: 'Other', icon: '✏️', comment: true },
+      { key: 'nohw',   label: 'No HW', icon: '📚', warning: true }
+    ];
+    let hwSelections = {}; // studentId -> { key, amount (custom only), comment }
+    const hwOption = key => HW_OPTIONS.find(o => o.key === key);
+
+    function getHwPrice() {
+      const p = parseInt(document.getElementById('hwCheckPrice').value, 10);
+      return Number.isFinite(p) && p >= 0 ? p : 0;
+    }
+
+    function getHwName() {
+      return document.getElementById('hwCheckName').value.trim() || HW_DEFAULT_NAME;
+    }
+
+    // Amount for a selection, or null when a custom amount is still missing
+    function getHwAmount(sel) {
+      if (sel.key === 'full') return getHwPrice();
+      if (sel.key === 'half') return Math.round(getHwPrice() / 2);
+      if (sel.key === 'custom') return Number.isFinite(sel.amount) ? sel.amount : null;
+      return 0;
+    }
+
+    function openHwCheckModal() {
+      const sel = document.getElementById('hwCheckClass');
+      const prev = sel.value || document.getElementById('nbCheckClass').value;
+      sel.innerHTML = '<option value="">Select a class</option>' +
+        [...classes]
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+          .map(c => `<option value="${c.id}">${escapeHtmlSafe(c.name)}</option>`).join('');
+      if (prev && classes.some(c => c.id === prev)) sel.value = prev;
+
+      document.getElementById('hwCheckName').value = HW_DEFAULT_NAME;
+      document.getElementById('hwCheckPrice').value = 30;
+
+      hwSelections = {};
+      renderHwCheck();
+      Modal.show('hwCheckModal');
+    }
+
+    function changeHwClass() {
+      hwSelections = {};
+      renderHwCheck();
+    }
+
+    function getHwClassStudents() {
+      const classId = document.getElementById('hwCheckClass').value;
+      if (!classId) return [];
+      return students
+        .filter(s => s.classId === classId)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    function renderHwCheck() {
+      const list = document.getElementById('hwCheckList');
+      const classId = document.getElementById('hwCheckClass').value;
+
+      if (!classId) {
+        list.innerHTML = '<p class="text-muted text-center p-4">Choose a class to start 👆</p>';
+        updateHwSummary();
+        return;
+      }
+
+      const classStudents = getHwClassStudents();
+      if (!classStudents.length) {
+        list.innerHTML = '<p class="text-muted text-center p-4">No students in this class</p>';
+        updateHwSummary();
+        return;
+      }
+
+      list.innerHTML = classStudents.map(s => `
+        <div class="nb-row hw-row" data-student-id="${s.id}">${renderHwRow(s)}</div>
+      `).join('');
+
+      updateHwSummary();
+    }
+
+    function renderHwRow(s) {
+      const cur = hwSelections[s.id];
+      const price = getHwPrice();
+      const boxes = HW_OPTIONS.map(o => {
+        let amountLabel;
+        if (o.warning) amountLabel = o.label;
+        else if (o.key === 'custom') amountLabel = cur?.key === 'custom' && Number.isFinite(cur.amount) ? sym + cur.amount : o.label;
+        else amountLabel = sym + (o.key === 'half' ? Math.round(price / 2) : price);
+        return `
+          <button type="button"
+            class="nb-box hw-${o.key} ${cur?.key === o.key ? 'checked' : ''}"
+            onclick="setHwOption('${s.id}', '${o.key}')"
+            title="${o.warning ? 'Warning: No Homework' : o.label}">
+            <span class="nb-box-icon">${o.icon}</span>
+            <span class="nb-box-amount">${amountLabel}</span>
+          </button>`;
+      }).join('');
+
+      const extra = cur && hwOption(cur.key).comment ? `
+        <div class="hw-extra">
+          ${cur.key === 'custom' ? `
+            <input type="number" class="input hw-amount" min="0" step="1" placeholder="${sym}"
+              value="${Number.isFinite(cur.amount) ? cur.amount : ''}"
+              oninput="setHwAmount('${s.id}', this.value)">` : ''}
+          <input type="text" class="input hw-comment" maxlength="120"
+            placeholder="Comment (e.g. you forgot to highlight..., many mistakes)"
+            value="${escapeHtmlSafe(cur.comment || '')}"
+            oninput="setHwComment('${s.id}', this.value)">
+        </div>` : '';
+
+      return `
+        <div class="nb-name">${escapeHtmlSafe(s.name || 'Student')}</div>
+        <div class="nb-options">${boxes}</div>
+        ${extra}`;
+    }
+
+    function rerenderHwRow(studentId) {
+      const row = document.querySelector(`#hwCheckList .hw-row[data-student-id="${studentId}"]`);
+      const s = students.find(st => st.id === studentId);
+      if (row && s) row.innerHTML = renderHwRow(s);
+    }
+
+    // Options are exclusive; clicking the checked one clears it
+    function setHwOption(studentId, key) {
+      const cur = hwSelections[studentId];
+      if (cur?.key === key) {
+        delete hwSelections[studentId];
+      } else {
+        // keep the comment when switching between Half and Other
+        hwSelections[studentId] = { key, comment: hwOption(key).comment ? (cur?.comment || '') : '' };
+      }
+      rerenderHwRow(studentId);
+      if (hwSelections[studentId]?.key === 'custom') {
+        document.querySelector(`#hwCheckList .hw-row[data-student-id="${studentId}"] .hw-amount`)?.focus();
+      }
+      updateHwSummary();
+    }
+
+    function setHwAmount(studentId, value) {
+      const sel = hwSelections[studentId];
+      if (!sel) return;
+      const n = parseInt(value, 10);
+      sel.amount = Number.isFinite(n) && n >= 0 ? n : undefined;
+      const label = document.querySelector(`#hwCheckList .hw-row[data-student-id="${studentId}"] .hw-custom .nb-box-amount`);
+      if (label) label.textContent = sel.amount !== undefined ? sym + sel.amount : 'Other';
+      updateHwSummary();
+    }
+
+    function setHwComment(studentId, value) {
+      const sel = hwSelections[studentId];
+      if (sel) sel.comment = value;
+    }
+
+    // Fills only the students still without a mark
+    function hwFillAll(key) {
+      getHwClassStudents().forEach(s => {
+        if (!hwSelections[s.id]) hwSelections[s.id] = { key, comment: '' };
+      });
+      renderHwCheck();
+    }
+
+    function hwClearAll() {
+      hwSelections = {};
+      renderHwCheck();
+    }
+
+    function updateHwSummary() {
+      const sels = Object.values(hwSelections);
+      const total = sels.reduce((sum, sel) => sum + (getHwAmount(sel) || 0), 0);
+      const warnings = sels.filter(sel => hwOption(sel.key).warning).length;
+      document.getElementById('hwCheckSummary').textContent =
+        sels.length ? `${sels.length} checked · ${sym}${total}${warnings ? ` · ⚠️ ${warnings}` : ''}` : '';
+      document.getElementById('hwCheckSaveBtn').disabled = sels.length === 0;
+    }
+
+    async function saveHwCheck() {
+      const entries = Object.entries(hwSelections);
+      if (!entries.length) return;
+
+      const missingAmount = entries.filter(([, sel]) => getHwAmount(sel) === null);
+      if (missingAmount.length) {
+        const names = missingAmount.map(([id]) => students.find(s => s.id === id)?.name || id);
+        Toast.error(`Enter an amount for: ${names.map(escapeHtmlSafe).join(', ')}`);
+        return;
+      }
+
+      const hwName = getHwName();
+      const btn = document.getElementById('hwCheckSaveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
+
+      const failed = [];
+      let hadWarnings = false;
+      for (const [studentId, sel] of entries) {
+        try {
+          if (hwOption(sel.key).warning) {
+            const reason = hwName === HW_DEFAULT_NAME ? 'No Homework' : `No Homework: ${hwName}`;
+            await DB.createWarning(studentId, reason, '📚', 'no_hw');
+            hadWarnings = true;
+          } else {
+            const comment = hwOption(sel.key).comment ? (sel.comment || '').trim() : '';
+            const reason = comment ? `${hwName} — ${comment}` : hwName;
+            await DB.giveReward(studentId, getHwAmount(sel), reason, '📚');
+          }
+          delete hwSelections[studentId];
+        } catch (error) {
+          console.error('Optional HW error:', error);
+          failed.push(students.find(s => s.id === studentId)?.name || studentId);
+        }
+      }
+
+      try {
+        students = await DB.getStudents();
+        renderStudents();
+        renderStudentSelects();
+        updateStats();
+        renderTopStudents();
+        if (hadWarnings) await refreshWarnings();
+      } catch (e) {
+        console.error('Refresh after optional HW failed:', e);
+      }
+
+      btn.innerHTML = '✅ Save';
+
+      if (failed.length) {
+        Toast.error(`Error for: ${failed.map(escapeHtmlSafe).join(', ')}. Try again.`);
+        renderHwCheck(); // failed students keep their mark
+      } else {
+        Toast.success(`${escapeHtmlSafe(hwName)} saved for ${entries.length} students! 📚`);
+        hwSelections = {};
+        Modal.hide('hwCheckModal');
+      }
+    }
+
     // ========== DEFAULT QUICK REWARDS ==========
     const DEFAULT_QUICK_REWARDS = [
-      { name: 'Optional homework', description: 'Complete the optional homework, strictly handwritten', icon: '📚', amount: 30 },
       { name: 'Clean class', description: 'The class is clean when you leave', icon: '🧹', amount: 5 },
       { name: 'Weekly email', description: 'Send an email to a family member, explaining what you did in class this week', icon: '📧', amount: 50 },
       { name: 'Notebook ok', description: 'Show the notebook for checking', icon: '📒', amount: 10 },

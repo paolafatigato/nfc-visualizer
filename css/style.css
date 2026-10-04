@@ -2421,6 +2421,21 @@ textarea.input {
 .nb-box.nb-best.checked   { border-color: var(--primary);   background: var(--primary-light); box-shadow: var(--shadow-glow); }
 .nb-summary { margin-right: auto; font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--text-secondary); }
 #nbCheckModal .modal-body { max-height: 65vh; }
+
+/* Optional HW modal (reuses the NB check rows/boxes) */
+#hwCheckModal .modal-body { max-height: 70vh; }
+.hw-settings { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.hw-settings .input-group { flex: 1; min-width: 180px; margin-bottom: var(--space-2); }
+.hw-settings .hw-price { flex: 0 0 110px; min-width: 0; }
+.hw-row { flex-wrap: wrap; }
+.hw-extra { flex-basis: 100%; display: flex; gap: var(--space-2); }
+.hw-extra .hw-amount { width: 90px; flex-shrink: 0; }
+.hw-extra .hw-comment { flex: 1; min-width: 0; }
+.nb-box.hw-full.checked   { border-color: var(--success);   background: var(--success-light); }
+.nb-box.hw-half.checked   { border-color: var(--info);      background: var(--info-light); }
+.nb-box.hw-custom.checked { border-color: var(--secondary); background: var(--secondary-light); }
+.nb-box.hw-nohw { border-style: dashed; }
+.nb-box.hw-nohw.checked { border-style: solid; border-color: var(--danger-dark); background: var(--warning-light); }
 @media (max-width: 480px) {
   .nb-box { width: 40px; height: 44px; }  .nb-box-icon { font-size: 1.05rem; }
   .nb-box-amount { font-size: 10px; }
