@@ -4295,10 +4295,10 @@ const CLASS_COLOR_PRESETS = [
     // ========== OPTIONAL HOMEWORK ==========
     const HW_DEFAULT_NAME = 'Optional homework';
     const HW_OPTIONS = [
-      { key: 'full',   label: 'Full', icon: '✅' },
-      { key: 'half',   label: 'Half', icon: '🌗', comment: true },
+      { key: 'nohw',   label: 'No HW', icon: '📚', warning: true },
       { key: 'custom', label: 'Other', icon: '✏️', comment: true },
-      { key: 'nohw',   label: 'No HW', icon: '📚', warning: true }
+      { key: 'half',   label: 'Half', icon: '🌗', comment: true },
+      { key: 'full',   label: 'Full', icon: '✅' }
     ];
     let hwSelections = {}; // studentId -> { key, amount (custom only), comment }
     const hwOption = key => HW_OPTIONS.find(o => o.key === key);
