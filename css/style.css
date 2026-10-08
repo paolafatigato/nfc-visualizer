@@ -2439,9 +2439,13 @@ textarea.input {
 .nb-box.hw-nohw { border-style: dashed; }
 .nb-box.hw-nohw.checked { border-style: solid; border-color: var(--danger-dark); background: var(--warning-light); }
 @media (max-width: 480px) {
-  .nb-box { width: 40px; height: 44px; }  .nb-box-icon { font-size: 1.05rem; }
-  .nb-box-amount { font-size: 10px; }
-  .nb-options { gap: var(--space-1); }
+  .nb-box { width: 30px; height: 34px; gap: 0; border-width: 1.5px; border-radius: var(--radius-sm); }
+  .nb-box-icon { font-size: .85rem; }
+  .nb-box-amount { font-size: 8px; }
+  .nb-box.checked { transform: none; }
+  .nb-box.checked::after { top: -5px; right: -5px; width: 13px; height: 13px; font-size: 8px; }
+  .nb-options { gap: 3px; }
   .nb-name { font-size: var(--text-sm); }
-  .nb-row { padding: var(--space-2); }
+  .nb-row { padding: var(--space-1) var(--space-2); gap: var(--space-2); }
+  #nbCheckModal .modal-body, #hwCheckModal .modal-body { padding-left: var(--space-2); padding-right: var(--space-2); }
 }
