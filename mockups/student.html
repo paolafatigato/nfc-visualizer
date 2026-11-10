@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Balance | 💲CoolBank (anteprima)</title>
+  <link rel="icon" type="image/png" href="../icons/bank.png">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="mock.css">
+</head>
+<body>
+  <div class="student-page">
+    <header class="student-header">
+      <img class="logo" src="../icons/bank.png" alt="">
+      <h1>💲Cool Bank</h1>
+      <p class="school-name" id="schoolName"></p>
+    </header>
+
+    <!-- Compare solo se l'alunno ha più di un prof -->
+    <nav id="subjectNav" class="subject-nav hidden"></nav>
+
+    <div class="deck">
+      <button id="prevBtn" class="deck-arrow prev" aria-label="Previous">‹</button>
+      <button id="nextBtn" class="deck-arrow next" aria-label="Next">›</button>
+      <div id="track" class="deck-track"></div>
+      <div id="dots" class="deck-dots hidden"></div>
+      <p id="hint" class="deck-hint hidden"></p>
+    </div>
+
+    <div class="motivation-quote">💡 Spend your money well!</div>
+  </div>
+
+  <!-- Sola anteprima: simula quanti prof ha l'alunno -->
+  <div class="demo-bar">
+    <span>Demo: l'alunno ha</span>
+    <button data-n="4" class="on">4 prof</button>
+    <button data-n="2">2 prof</button>
+    <button data-n="1">1 solo prof (come oggi)</button>
+  </div>
+
+  <script src="mock-data.js"></script>
+  <script>
+    mockRibbon('· pagina ALUNNO');
+    // Anteprima 👁️ da un docente: ?name=Cognome Nome&class=2A  →  la pagina che si apre all'alunno
+    const qp = new URLSearchParams(location.search);
+    const previewing = qp.has('name');
+    if (previewing) {
+      MOCK.student = { name: qp.get('name'), className: qp.get('class') || MOCK.student.className };
+      document.querySelector('.demo-bar').remove();
+      const bar = document.createElement('div');
+      bar.style.cssText = 'background:#2C2036;color:#fff;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:12px;max-width:420px;width:100%;text-align:center';
+      bar.innerHTML = '👁️ Stai vedendo la pagina di <b>' + esc(MOCK.student.name) + '</b> (' + esc(MOCK.student.className) + ') <u>come la vede l\'alunno</u>';
+      document.querySelector('.student-header').after(bar);
+    }
+    document.getElementById('schoolName').textContent = MOCK.school;
+
+    // Ogni scheda parla la lingua del suo docente
+    const STR = {
+      en: { balance: 'Your balance', cls: 'Class', tx: '📜 Transactions', rw: '🎁 Rewards', from: 'From', req: 'Request', no: 'Not enough',
+            pend: (p, a) => `⏳ ${p} pending approval • ${a} available`, sent: n => `✅ Request sent to ${n}!`, hint: '👆 Swipe to see your other teachers' },
+      it: { balance: 'Il tuo saldo', cls: 'Classe', tx: '📜 Transazioni', rw: '🎁 Premi', from: 'Da', req: 'Richiedi', no: 'Non basta',
+            pend: (p, a) => `⏳ ${p} in attesa di approvazione • ${a} disponibili`, sent: n => `✅ Richiesta inviata a ${n}!`, hint: '👆 Scorri per vedere gli altri prof' }
+    };
+    const track = document.getElementById('track');
+    let teachers = [];
+
+    function sendRequest(ti) {
+      const t = teachers[ti];
+      mockToast(STR[t.lang].sent(t.name));
+    }
+
+    function slideHTML(t, i) {
+      const S = STR[t.lang], k = L(t.lang), cur = t.currency;
+      const avail = t.balance - t.pending;
+      const txs = t.tx.map(x => `
+        <div class="transaction-item ${x.amount >= 0 ? 'reward-earned' : ''}">
+          <div class="transaction-icon">${x.icon}</div>
+          <div class="transaction-info">
+            <div class="transaction-amount ${x.amount < 0 ? 'negative' : ''}">${fmtSigned(cur, x.amount)}</div>
+            <div class="transaction-reason">${esc(x.r[k])}</div>
+            <div class="transaction-meta">${S.from} ${esc(t.name)} • ${x.w[k]}</div>
+          </div>
+        </div>`).join('');
+      const rws = [...t.rewards].sort((a, b) => a.cost - b.cost).map(r => {
+        const ok = avail >= r.cost;
+        return `
+        <div class="reward-item ${ok ? 'affordable' : 'unavailable'}">
+          <div class="reward-icon">${r.icon}</div>
+          <div class="reward-info">
+            <div class="reward-name">${esc(r.name)}</div>
+            <div class="reward-description">${esc(r.description)}</div>
+            <button class="request-btn" style="${ok ? 'background:' + t.color : ''}" ${ok ? `onclick="sendRequest(${i})"` : ''}>${ok ? S.req : S.no}</button>
+          </div>
+          <div class="reward-cost">${fmtMoney(cur, r.cost)}</div>
+        </div>`;
+      }).join('');
+
+      return `
+      <section class="deck-slide" data-i="${i}">
+        <div class="student-main-card" style="--tab-col:${t.color}">
+          <div class="balance-section" style="--tone-b:${t.color};--tone-a:color-mix(in srgb, ${t.color} 72%, black)">
+            ${teachers.length > 1 ? `<div class="teacher-chip">${t.emoji} ${esc(t.name)} · ${esc(t.subject)}</div>` : ''}
+            <h2 class="student-name">${MOCK.student.name}</h2>
+            <p class="student-class">${S.cls} ${MOCK.student.className}</p>
+            <p class="balance-label">${S.balance}</p>
+            <div class="balance-amount ${t.balance < 0 ? 'negative' : ''}">${fmtMoney(cur, t.balance)}</div>
+            ${t.pending ? `<div class="pending-note">${S.pend(fmtMoney(cur, t.pending), fmtMoney(cur, avail))}</div>` : ''}
+          </div>
+          <div class="student-tabs">
+            <button class="student-tab active" data-tab="tx">${S.tx}</button>
+            <button class="student-tab" data-tab="rw">${S.rw}</button>
+          </div>
+          <div class="tab-content active" data-pane="tx">${txs}</div>
+          <div class="tab-content" data-pane="rw">${rws}</div>
+        </div>
+      </section>`;
+    }
+
+    function render(n) {
+      teachers = MOCK.teachers.filter(t => t.classes.includes(MOCK.student.className)).slice(0, n);
+      track.innerHTML = teachers.map(slideHTML).join('');
+      track.scrollTo({ left: 0, behavior: 'auto' });
+
+      track.querySelectorAll('.deck-slide').forEach(slide => {
+        slide.querySelectorAll('.student-tab').forEach(btn => btn.onclick = () => {
+          slide.querySelectorAll('.student-tab').forEach(b => b.classList.toggle('active', b === btn));
+          slide.querySelectorAll('.tab-content').forEach(p => p.classList.toggle('active', p.dataset.pane === btn.dataset.tab));
+        });
+      });
+
+      const multi = n > 1;
+      const nav = document.getElementById('subjectNav');
+      nav.classList.toggle('hidden', !multi);
+      document.getElementById('dots').classList.toggle('hidden', !multi);
+      const hint = document.getElementById('hint');
+      hint.classList.toggle('hidden', !multi);
+      hint.textContent = STR[teachers[0].lang].hint;
+      nav.innerHTML = teachers.map((t, i) => `<button class="subject-pill" data-i="${i}">${t.emoji} ${esc(t.subject)}</button>`).join('');
+      nav.querySelectorAll('button').forEach(b => b.onclick = () => go(+b.dataset.i));
+      document.getElementById('dots').innerHTML = teachers.map(() => '<span class="deck-dot"></span>').join('');
+      sync();
+    }
+
+    function current() { return Math.round(track.scrollLeft / (track.clientWidth + 12)); }
+    function go(i) { track.scrollTo({ left: i * (track.clientWidth + 12), behavior: 'smooth' }); }
+    function sync() {
+      const i = Math.min(current(), teachers.length - 1);
+      document.querySelectorAll('.subject-pill').forEach((p, k) => p.classList.toggle('active', k === i));
+      document.querySelectorAll('.deck-dot').forEach((d, k) => d.classList.toggle('active', k === i));
+      document.getElementById('prevBtn').disabled = i <= 0;
+      document.getElementById('nextBtn').disabled = i >= teachers.length - 1 || teachers.length < 2;
+    }
+    track.addEventListener('scroll', () => requestAnimationFrame(sync));
+    document.getElementById('prevBtn').onclick = () => go(current() - 1);
+    document.getElementById('nextBtn').onclick = () => go(current() + 1);
+    window.addEventListener('resize', sync);
+
+    document.querySelectorAll('.demo-bar button').forEach(b => b.onclick = () => {
+      document.querySelectorAll('.demo-bar button').forEach(x => x.classList.toggle('on', x === b));
+      render(+b.dataset.n);
+    });
+
+    const total = MOCK.teachers.filter(t => t.classes.includes(MOCK.student.className)).length;
+    const first = document.querySelector(".demo-bar button[data-n]");
+    if (first) { first.dataset.n = total; first.textContent = total + " prof"; }
+    render(total);
+  </script>
+</body>
+</html>

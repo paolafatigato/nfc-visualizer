@@ -13,6 +13,12 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+// Keep the login across page closes / browser restarts on the same device
+// (only an explicit logout should require signing in again).
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
+  console.warn('Auth persistence failed:', err.code);
+});
+
 // Enable persistence for offline support
 db.enablePersistence().catch(err => {
   console.warn('Persistence failed:', err.code);

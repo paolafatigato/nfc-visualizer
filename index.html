@@ -353,6 +353,34 @@
       .student-page { padding: var(--space-3); }
       .balance-amount { font-size: 3rem; }
     }
+
+    /* ===== Più docenti: schede scorrevoli ===== */
+    .student-deck-wrap { width: 100%; max-width: 420px; }
+    .pending-note { font-size: var(--text-sm); color: var(--text-muted); margin-top: 4px; }
+    .teacher-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.2); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-3); }
+    .student-tab::after { background: var(--tab-col, var(--primary)); }
+    .student-tab.active { color: var(--tab-col, var(--primary)); }
+
+    .subject-nav { width: 100%; display: flex; gap: 6px; margin-bottom: var(--space-3); overflow-x: auto; scrollbar-width: none; }
+    .subject-nav::-webkit-scrollbar { display: none; }
+    .subject-pill { flex: 1 0 auto; border: 0; cursor: pointer; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.22); color: #fff; font-weight: 600; font-size: var(--text-sm); backdrop-filter: blur(8px); transition: all .2s; white-space: nowrap; }
+    .subject-pill.active { background: #fff; color: var(--text-primary); box-shadow: var(--shadow-md); }
+
+    .deck { width: 100%; position: relative; }
+    .deck-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; gap: 12px; scrollbar-width: none; align-items: flex-start; padding-bottom: 32px; margin-bottom: -32px; }
+    .deck-track::-webkit-scrollbar { display: none; }
+    .deck.single .deck-track { overflow: visible; padding-bottom: 0; margin-bottom: 0; }
+    .deck-slide { flex: 0 0 100%; scroll-snap-align: center; min-width: 0; }
+    .deck .student-main-card { max-width: none; }
+    .deck.single .deck-arrow { display: none; }
+    .deck-hint { color: #fff; text-align: center; font-size: var(--text-xs); margin-top: var(--space-3); opacity: .9; }
+    .deck-dots { display: flex; justify-content: center; gap: 8px; margin-top: var(--space-4); }
+    .deck-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.45); transition: all .2s; }
+    .deck-dot.active { background: #fff; width: 22px; border-radius: 99px; }
+    .deck-arrow { position: absolute; top: 90px; z-index: 5; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.9); box-shadow: var(--shadow-md); cursor: pointer; font-size: 18px; }
+    .deck-arrow.prev { left: -18px; } .deck-arrow.next { right: -18px; }
+    .deck-arrow[disabled] { opacity: 0; pointer-events: none; }
+    @media (max-width: 520px) { .deck-arrow { display: none; } }
   </style>
 </head>
 <body>
@@ -374,49 +402,18 @@
       <p id="errorMessage" class="text-muted">Check the link or contact your teacher.</p>
     </div>
 
-    <main id="mainContent" class="student-main-card hidden">
-      <div id="archivedBanner" class="hidden" style="background: linear-gradient(135deg, var(--secondary-light) 0%, var(--accent-light) 100%); color: var(--text-primary); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); text-align: center; font-weight: var(--font-semibold); font-size: var(--text-sm); margin-bottom: var(--space-4);"></div>
-      <div class="balance-section">
-        <h2 id="studentName" class="student-name">Student Name</h2>
-        <p id="studentClass" class="student-class">Class 1A</p>
-        <p class="balance-label">Your balance</p>
-        <div id="studentBalance" class="balance-amount">$0</div>
-        <div id="pendingRequestsNote" class="hidden" style="font-size: var(--text-sm); color: var(--text-muted); margin-top: 4px;"></div>
-        <div id="subjectBalances" class="subject-balances hidden"></div>
-        <!-- Leaderboard button temporarily disabled until the feature is ready.
-        <button id="leaderboardTabBtn" class="leaderboard-tab-btn hidden" data-tab="leaderboard" onclick="switchTab('leaderboard')" aria-label="Leaderboard">🏆</button>
-        -->
-      </div>
+    <div id="mainContent" class="student-deck-wrap hidden">
+      <!-- Compare solo se l'alunno ha più di un docente -->
+      <nav id="subjectNav" class="subject-nav hidden"></nav>
 
-      <div class="student-tabs">
-        <button class="student-tab active" data-tab="transactions" onclick="switchTab('transactions')">📜 Transactions</button>
-        <button class="student-tab" data-tab="rewards" onclick="switchTab('rewards')">🎁 Rewards</button>
+      <div id="deck" class="deck single">
+        <button id="prevBtn" class="deck-arrow prev" aria-label="Previous">‹</button>
+        <button id="nextBtn" class="deck-arrow next" aria-label="Next">›</button>
+        <div id="track" class="deck-track"></div>
+        <div id="dots" class="deck-dots hidden"></div>
+        <p id="hint" class="deck-hint hidden"></p>
       </div>
-
-      <div id="transactionsTab" class="tab-content active">
-        <div class="transactions-header">
-          <div class="transactions-title">Recent transactions</div>
-          <button class="info-button" onclick="openQuickRewardsInfo()" title="Quick rewards catalog" aria-label="Quick rewards catalog">ℹ️</button>
-        </div>
-        <div id="transactionsList"></div>
-        <div id="noTransactions" class="empty-state hidden">
-          <div class="empty-state-icon">📭</div>
-          <div class="empty-state-title">No transactions</div>
-        </div>
-      </div>
-
-      <div id="rewardsTab" class="tab-content">
-        <div id="rewardsList"></div>
-        <div id="noRewards" class="empty-state hidden">
-          <div class="empty-state-icon">🎁</div>
-          <div class="empty-state-title">No rewards available</div>
-        </div>
-      </div>
-
-      <div id="leaderboardTab" class="tab-content">
-        <div id="leaderboardList"></div>
-      </div>
-    </main>
+    </div>
 
     <div id="motivationQuote" class="motivation-quote hidden"></div>
   </div>
@@ -425,15 +422,15 @@
   <div id="quickRewardsInfoBackdrop" class="modal-backdrop" onclick="closeQuickRewardsInfo()"></div>
   <div id="quickRewardsInfoModal" class="modal">
     <div class="modal-header">
-      <h3 class="modal-title">⚡ Quick rewards catalog</h3>
+      <h3 id="qrTitle" class="modal-title">⚡ Quick rewards catalog</h3>
       <button class="modal-close" onclick="closeQuickRewardsInfo()">×</button>
     </div>
     <div class="modal-body">
-      <p class="text-muted" style="margin-bottom: var(--space-4);">These are the quick rewards a teacher can give you instantly.</p>
+      <p id="qrIntro" class="text-muted" style="margin-bottom: var(--space-4);">These are the quick rewards a teacher can give you instantly.</p>
       <div id="quickRewardsCatalogList" class="quick-rewards-catalog"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeQuickRewardsInfo()">Close</button>
+      <button id="qrClose" class="btn btn-secondary" onclick="closeQuickRewardsInfo()">Close</button>
     </div>
   </div>
 
@@ -441,20 +438,20 @@
   <div id="teacherModal" class="teacher-selection-modal" style="display: none;" onclick="closeTeacherModal()">
     <div class="card" style="max-width: 500px; margin: auto; margin-top: 100px;" onclick="event.stopPropagation()">
       <div class="card-header">
-        <h3 style="margin: 0;">👨‍🏫 Ask the teacher.</h3>
+        <h3 id="reqTitle" style="margin: 0;">👨‍🏫 Ask the teacher.</h3>
       </div>
       <div class="card-body">
         <div style="margin-top: var(--space-4);">
-          <label for="requestMessage" style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-2); color: var(--text);">💬 Message (optional)</label>
-          <textarea 
-            id="requestMessage" 
+          <label id="reqMsgLabel" for="requestMessage" style="display: block; font-weight: var(--font-semibold); margin-bottom: var(--space-2); color: var(--text);">💬 Message (optional)</label>
+          <textarea
+            id="requestMessage"
             placeholder="Example: I would like to listen to 'Imagine' by John Lennon..."
             style="width: 100%; min-height: 80px; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--text-sm); font-family: inherit; resize: vertical;"
           ></textarea>
         </div>
-        
+
         <div style="margin-top: var(--space-4); display: flex; gap: var(--space-3); justify-content: flex-end;">
-          <button onclick="closeTeacherModal()" style="padding: var(--space-3) var(--space-5); border: 1px solid var(--border); background: white; color: var(--text); border-radius: var(--radius-md); cursor: pointer; font-weight: var(--font-semibold);">
+          <button id="reqCancel" onclick="closeTeacherModal()" style="padding: var(--space-3) var(--space-5); border: 1px solid var(--border); background: white; color: var(--text); border-radius: var(--radius-md); cursor: pointer; font-weight: var(--font-semibold);">
             ❌ Cancel
           </button>
           <button id="sendRequestBtn" onclick="sendSelectedRequest()" style="padding: var(--space-3) var(--space-5); border: none; background: var(--primary); color: white; border-radius: var(--radius-md); cursor: pointer; font-weight: var(--font-semibold);" disabled>
@@ -484,23 +481,6 @@
       z-index: 10000;
       position: relative;
     }
-    .teacher-item {
-      padding: 12px;
-      margin-bottom: 8px;
-      background: #f5f5f5;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: all 0.3s ease;
-    }
-    .teacher-item:hover {
-      background: #f0f0f0;
-      transform: translateX(5px);
-      cursor: pointer;
-    }
   </style>
 
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -508,53 +488,96 @@
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script defer src="js/firebase-config.js"></script>
   <script defer src="js/script.js"></script>
+  <script defer src="js/ledger.js"></script>
 
   <script type="module">
-    const MOTIVATION_QUOTES = [
-      "💡 Spend your money well!",
-      "✅ Good choices help you.",
-      "🌟 Time spent learning is always good!",
-      "🚀 Today’s effort builds your tomorrow.",
-      "🎯 Clear goals bring great results!",
-      "💪 Steady work beats talent.",
-      "📚 Knowledge is the real treasure."
-    ];
+    /* =============================================
+       Pagina alunno
+       - Un solo docente (o nessun conto configurato): identica a prima.
+       - Più docenti: una scheda per docente, da scorrere. Ogni scheda ha
+         saldo, transazioni e premi del SUO docente, nella sua lingua,
+         con il suo colore e la sua valuta.
+       ============================================= */
+
+    const MOTIVATION = {
+      en: ["💡 Spend your money well!", "✅ Good choices help you.", "🌟 Time spent learning is always good!", "🚀 Today’s effort builds your tomorrow.", "🎯 Clear goals bring great results!", "💪 Steady work beats talent.", "📚 Knowledge is the real treasure."],
+      it: ["💡 Spendi bene i tuoi soldi!", "✅ Le scelte giuste ti aiutano.", "🌟 Il tempo passato a imparare è sempre ben speso!", "🚀 L'impegno di oggi costruisce il tuo domani.", "🎯 Obiettivi chiari, grandi risultati!", "💪 La costanza batte il talento.", "📚 La conoscenza è il vero tesoro."]
+    };
+
+    // Testi dell'interfaccia: ogni scheda parla la lingua del suo docente
+    const STR = {
+      en: {
+        balance: 'Your balance', cls: 'Class', tx: '📜 Transactions', rw: '🎁 Rewards', recent: 'Recent transactions',
+        noTx: 'No transactions', noRw: 'No rewards available', from: 'From', noReason: 'No reason', teacher: 'Teacher',
+        req: 'Request', notEnough: 'Not enough', pending: (p, a) => `⏳ ${p} pending approval • ${a} available`,
+        hint: '👆 Swipe to see your other teachers', qrTitle: '⚡ Quick rewards catalog', qrIntro: 'These are the quick rewards a teacher can give you instantly.',
+        qrNone: 'No quick rewards available.', qrNoDesc: 'No description', qrFail: 'Unable to load quick rewards.', close: 'Close',
+        askTitle: '👨‍🏫 Ask the teacher.', msgLabel: '💬 Message (optional)', cancel: '❌ Cancel', send: '📤 Send request',
+        placeholder: 'Explain your request (when, how, where, with whom, etc.).',
+        archived: d => `🎓 This class has graduated — this page is a memory snapshot${d ? ' from ' + d : ''}. Nothing changes from here.`,
+        archivedBlock: '🎓 This class has graduated — this page is a read-only memory snapshot, so new requests aren\'t possible.',
+        noTeacher: '❌ No teacher available', sent: n => `✅ Request sent to ${n}!`,
+        notEnoughAlert: (p, a) => `❌ Not enough available balance. You have ${p} tied up in pending requests, leaving ${a} available.`,
+        rejected: (r, why, who) => `❌ Your request "${r}"${who} was rejected${why ? `\n\n👨‍🏫 Teacher message: ${why}` : ''}`,
+        approved: (r, who) => `✅ Your request "${r}"${who} was approved!`,
+        justNow: 'just now', mAgo: n => `${n}m ago`, hAgo: n => `${n}h ago`, dAgo: n => `${n}d ago`, locale: 'en-GB',
+        noPerm: '❌ Permission denied: update your Firestore rules to allow anonymous writes to rewardRequests.\n\nSee firestore.rules in the project.',
+        noAnon: '❌ Anonymous login is not enabled in Firebase Console.\nGo to Authentication → Sign-in methods → Anonymous → Enable.',
+        sendErr: 'Sending error'
+      },
+      it: {
+        balance: 'Il tuo saldo', cls: 'Classe', tx: '📜 Transazioni', rw: '🎁 Premi', recent: 'Ultime transazioni',
+        noTx: 'Nessuna transazione', noRw: 'Nessun premio disponibile', from: 'Da', noReason: 'Nessun motivo', teacher: 'Docente',
+        req: 'Richiedi', notEnough: 'Non basta', pending: (p, a) => `⏳ ${p} in attesa di approvazione • ${a} disponibili`,
+        hint: '👆 Scorri per vedere gli altri prof', qrTitle: '⚡ Catalogo premi rapidi', qrIntro: 'Questi sono i premi rapidi che il docente può darti al volo.',
+        qrNone: 'Nessun premio rapido disponibile.', qrNoDesc: 'Nessuna descrizione', qrFail: 'Impossibile caricare i premi rapidi.', close: 'Chiudi',
+        askTitle: '👨‍🏫 Chiedi al docente.', msgLabel: '💬 Messaggio (facoltativo)', cancel: '❌ Annulla', send: '📤 Invia richiesta',
+        placeholder: 'Spiega la tua richiesta (quando, come, dove, con chi, ecc.).',
+        archived: d => `🎓 Questa classe ha finito il percorso — questa pagina è un ricordo${d ? ' del ' + d : ''}. Da qui non cambia più nulla.`,
+        archivedBlock: '🎓 Questa classe ha finito il percorso — la pagina è solo un ricordo in sola lettura, quindi non si possono fare nuove richieste.',
+        noTeacher: '❌ Nessun docente disponibile', sent: n => `✅ Richiesta inviata a ${n}!`,
+        notEnoughAlert: (p, a) => `❌ Saldo disponibile insufficiente. Hai ${p} bloccati in richieste in attesa, ne restano ${a} disponibili.`,
+        rejected: (r, why, who) => `❌ La tua richiesta "${r}"${who} è stata rifiutata${why ? `\n\n👨‍🏫 Messaggio del docente: ${why}` : ''}`,
+        approved: (r, who) => `✅ La tua richiesta "${r}"${who} è stata approvata!`,
+        justNow: 'adesso', mAgo: n => `${n} min fa`, hAgo: n => `${n} h fa`, dAgo: n => `${n} g fa`, locale: 'it-IT',
+        noPerm: '❌ Permesso negato: aggiorna le regole di Firestore per consentire la scrittura anonima in rewardRequests.',
+        noAnon: '❌ L\'accesso anonimo non è attivo in Firebase Console.',
+        sendErr: 'Errore di invio'
+      }
+    };
+    const DEFAULT_COLOR = '#9333EA';   // viola storico del sito: se è questo, la scheda resta identica a prima
 
     let currentStudent = null;
     let schoolData = null;
-    let currentRewardRequest = null;
-    let teachers = [];
-    let allRewardsCache = [];
-    let pendingRequestsTotal = 0;
+    let teachers = [];            // fallback per il conto storico (utenti docenti/admin)
+    let viewLedgers = [];         // conti mostrati a questo alunno (1 = pagina come sempre)
+    let txAll = [], rewardsAll = [], quickAll = [];
+    let currentRequest = null;    // { ledgerId, rewardId }
+    let currentSlide = 0;
+
+    const S = ledger => STR[ledger.lang === 'it' ? 'it' : 'en'];
+    const L = id => viewLedgers.find(l => l.id === id) || viewLedgers[0];
+    const inLedger = (doc, id) => ((doc && doc.ledgerId) || 'main') === id;
+    const money = (ledger, n) => Ledger.money(ledger.currency, n);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const slideEl = id => document.querySelector(`.deck-slide[data-ledger="${CSS.escape(id)}"]`);
+    const isDefaultColor = ledger => !ledger.color || ledger.color.toLowerCase() === DEFAULT_COLOR.toLowerCase();
 
     async function init() {
-      // Apply random gradient on page load
+      // Random gradient on page load
       const gradients = ['grad1', 'grad2', 'grad3'];
-      const randomGradient = gradients[Math.floor(Math.random() * gradients.length)];
-      document.querySelector('.student-page').classList.add(randomGradient);
+      document.querySelector('.student-page').classList.add(gradients[Math.floor(Math.random() * gradients.length)]);
 
       // Allow Firestore writes via anonymous auth
-      try {
-        await firebase.auth().signInAnonymously();
-      } catch (e) {
-        console.warn('Anonymous auth failed:', e);
-      }
-      
+      try { await firebase.auth().signInAnonymously(); } catch (e) { console.warn('Anonymous auth failed:', e); }
+
       const params = new URLSearchParams(location.search);
       const studentId = params.get('id');
       const nfcTag = params.get('nfc');
-      
-      if (!studentId && !nfcTag) {
-        showError('Missing ID parameter');
-        return;
-      }
+      if (!studentId && !nfcTag) { showError('Missing ID parameter'); return; }
 
       try {
-        if (nfcTag) {
-          await findStudentByNFC(nfcTag);
-        } else {
-          await loadStudentById(studentId);
-        }
+        if (nfcTag) await findStudentByNFC(nfcTag); else await loadStudentById(studentId);
       } catch (error) {
         console.error('Error:', error);
         showError(error.message || 'Loading error');
@@ -564,15 +587,9 @@
     async function findStudentByNFC(nfcTag) {
       const normalizedTag = nfcTag.toUpperCase().trim();
       const schoolsSnap = await db.collection('schools').get();
-      
       for (const schoolDoc of schoolsSnap.docs) {
-        const studentsSnap = await db.collection('schools')
-          .doc(schoolDoc.id)
-          .collection('students')
-          .where('nfcTag', '==', normalizedTag)
-          .limit(1)
-          .get();
-        
+        const studentsSnap = await db.collection('schools').doc(schoolDoc.id).collection('students')
+          .where('nfcTag', '==', normalizedTag).limit(1).get();
         if (!studentsSnap.empty) {
           const studentDoc = studentsSnap.docs[0];
           schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
@@ -581,20 +598,13 @@
           return;
         }
       }
-      
       showError('NFC card not recognized');
     }
 
     async function loadStudentById(studentId) {
       const schoolsSnap = await db.collection('schools').get();
-      
       for (const schoolDoc of schoolsSnap.docs) {
-        const studentDoc = await db.collection('schools')
-          .doc(schoolDoc.id)
-          .collection('students')
-          .doc(studentId)
-          .get();
-        
+        const studentDoc = await db.collection('schools').doc(schoolDoc.id).collection('students').doc(studentId).get();
         if (studentDoc.exists) {
           schoolData = { id: schoolDoc.id, ...schoolDoc.data() };
           currentStudent = { id: studentId, schoolId: schoolDoc.id, ...studentDoc.data() };
@@ -602,229 +612,212 @@
           return;
         }
       }
-      
       showError('Student not found');
     }
 
-    async function loadStudentData() {
-      document.getElementById('schoolNameHeader').textContent = schoolData.config?.name || 'Carducci';
-      document.getElementById('studentName').textContent = currentStudent.name;
-      document.getElementById('studentClass').textContent = `Class ${currentStudent.className || currentStudent.classId || ''}`;
-      
-      const balance = currentStudent.balance || 0;
-      const symbol = schoolData.config?.currencySymbol || '$';
-      const balanceEl = document.getElementById('studentBalance');
-      balanceEl.textContent = `${balance < 0 ? '-' : ''}${symbol}${Math.abs(balance)}`;
-      balanceEl.classList.toggle('negative', balance < 0);
+    /* ---------- Quali docenti vede questo alunno ---------- */
+    async function loadViewLedgers() {
+      const cfg = schoolData.config || {};
+      const schoolCurrency = { symbol: cfg.currencySymbol || '$', name: cfg.currencyName || '' };
+      let list = [];
+      try {
+        const snap = await db.collection('schools').doc(currentStudent.schoolId).collection('ledgers').get();
+        list = Ledger.ledgersForClass(snap.docs.map(d => ({ id: d.id, ...d.data() })), currentStudent.classId);
+      } catch (e) {
+        console.warn('Ledgers not available, using the classic single page:', e.code || e.message);
+      }
+      // Nessun conto configurato per questa classe: pagina di sempre (conto storico)
+      if (!list.length) list = [{ id: 'main', lang: 'en', color: DEFAULT_COLOR, name: '', subject: '', currency: schoolCurrency }];
+      return list.map(l => ({ ...l, currency: l.currency || schoolCurrency, lang: l.lang === 'it' ? 'it' : 'en' }));
+    }
 
-      // A graduated/archived class is frozen: the page is a read-only
-      // snapshot of the last day of school, so no live listeners and no
-      // reward requests - just show what's already there.
+    async function loadStudentData() {
+      const sid = currentStudent.schoolId;
+      document.getElementById('schoolNameHeader').textContent = schoolData.config?.name || 'Carducci';
+
+      viewLedgers = await loadViewLedgers();
+      const multi = viewLedgers.length > 1;
+      const first = viewLedgers[0];
+
+      // Lingua dei testi generali = quella del primo docente
+      document.documentElement.lang = first.lang;
+      applyModalTexts(first);
+
+      // A graduated/archived class is frozen: read-only snapshot, no live listeners, no requests.
       const isArchived = !!currentStudent.archived;
-      const archivedBanner = document.getElementById('archivedBanner');
-      if (archivedBanner) {
-        if (isArchived) {
-          const archivedTs = currentStudent.archivedAt;
-          const archivedDate = archivedTs ? (archivedTs.toDate ? archivedTs.toDate() : new Date(archivedTs)).toLocaleDateString('en-GB') : '';
-          archivedBanner.innerHTML = `🎓 This class has graduated — this page is a memory snapshot${archivedDate ? ' from ' + archivedDate : ''}. Nothing changes from here.`;
-          archivedBanner.classList.remove('hidden');
-        } else {
-          archivedBanner.classList.add('hidden');
-        }
+
+      // Dati di tutti i conti in un colpo solo, poi divisi per conto
+      const [txSnap, rwSnap, qrSnap] = await Promise.all([
+        db.collection('schools').doc(sid).collection('transactions').where('studentId', '==', currentStudent.id).get(),
+        db.collection('schools').doc(sid).collection('rewards').get(),
+        db.collection('schools').doc(sid).collection('quickRewards').get()
+      ]);
+      txAll = txSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+      rewardsAll = rwSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.active !== false);
+      quickAll = qrSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.active !== false);
+      if (!isArchived) await loadTeachers();
+
+      buildDeck(multi, isArchived);
+      for (const ledger of viewLedgers) {
+        renderBalance(ledger);
+        renderTransactions(ledger);
+        await renderRewards(ledger);
       }
-      
-      await loadTransactions();
-      await loadRewards();
-      await loadTeachers();
-      
-      // Leaderboard temporarily disabled until the feature is ready.
-      if (false && schoolData.config?.showLeaderboard && !isArchived) {
-        // document.getElementById('leaderboardTabBtn').classList.remove('hidden');
-        // await loadLeaderboard();
-      }
-      
+
       document.getElementById('loadingState').classList.add('hidden');
       document.getElementById('mainContent').classList.remove('hidden');
-      showMotivation();
+      showMotivation(first);
+      syncDeck();
 
       if (isArchived) return; // Frozen page: skip live listeners entirely
-      
-      // Real-time listener for balance updates
-      db.collection('schools').doc(currentStudent.schoolId)
-        .collection('students').doc(currentStudent.id)
-        .onSnapshot(doc => {
-          if (doc.exists) {
-            const data = doc.data();
-            const bal = data.balance || 0;
-            balanceEl.textContent = `${bal < 0 ? '-' : ''}${symbol}${Math.abs(bal)}`;
-            balanceEl.classList.toggle('negative', bal < 0);
-            loadRewards(); // Refresh affordability against the new balance
-          }
-        });
-      
+
+      // Real-time listener for balance updates (di tutti i conti)
+      db.collection('schools').doc(sid).collection('students').doc(currentStudent.id).onSnapshot(doc => {
+        if (!doc.exists) return;
+        currentStudent = { ...currentStudent, ...doc.data() };
+        viewLedgers.forEach(l => { renderBalance(l); renderRewards(l); });
+      });
+
       // Real-time listener for reward request status changes
-      db.collection('schools').doc(currentStudent.schoolId)
-        .collection('rewardRequests')
+      db.collection('schools').doc(sid).collection('rewardRequests')
         .where('studentId', '==', currentStudent.id)
         .onSnapshot(snapshot => {
-          let shouldRefreshRewards = false;
-
+          const refresh = new Set();
           snapshot.docChanges().forEach(change => {
+            const request = change.doc.data();
+            const ledger = L(request.ledgerId || 'main');
             if (change.type === 'modified') {
-              const request = change.doc.data();
-              
-              // Notify if the request was rejected
+              const who = multi && ledger.name ? ` (${ledger.name})` : '';
               if (request.status === 'rejected') {
-                const rewardName = request.rewardName || 'Reward';
-                let message = `❌ Your request "${rewardName}" was rejected`;
-                
-                if (request.rejectionReason) {
-                  message += `\n\n👨‍🏫 Teacher message: ${request.rejectionReason}`;
-                }
-                
-                alert(message);
-                shouldRefreshRewards = true; // Frees up pending budget
+                alert(S(ledger).rejected(request.rewardName || 'Reward', request.rejectionReason, who));
+                refresh.add(ledger.id);
               }
-              
-              // Notify if the request was approved
               if (request.status === 'approved') {
-                const rewardName = request.rewardName || 'Reward';
-                alert(`✅ Your request "${rewardName}" was approved!`);
-                shouldRefreshRewards = true;
+                alert(S(ledger).approved(request.rewardName || 'Reward', who));
+                refresh.add(ledger.id);
               }
             } else {
-              // 'added' (new request just sent) or 'removed' also change
-              // how much budget is tied up in pending requests
-              shouldRefreshRewards = true;
+              refresh.add(ledger.id); // 'added' or 'removed' change the pending budget
             }
           });
-
-          if (shouldRefreshRewards) loadRewards();
+          refresh.forEach(id => renderRewards(L(id)));
         });
     }
 
-    async function loadTransactions() {
-      const list = document.getElementById('transactionsList');
-      const empty = document.getElementById('noTransactions');
-      const symbol = schoolData.config?.currencySymbol || '$';
-      
-      try {
-        const snapshot = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('transactions')
-          .where('studentId', '==', currentStudent.id)
-          .get();
-        
-        let transactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        // Sort by timestamp descending in JavaScript to avoid index requirement
-        transactions.sort((a, b) => {
-          const timeA = a.timestamp?.toMillis?.() || 0;
-          const timeB = b.timestamp?.toMillis?.() || 0;
-          return timeB - timeA;
-        });
-        
-        // Limit to 30 most recent
-        transactions = transactions.slice(0, 30);
-        
-        console.log('Transactions loaded:', transactions);
-        
-        if (transactions.length === 0) {
-          empty.classList.remove('hidden');
-          return;
-        }
-        
-        empty.classList.add('hidden');
-        list.innerHTML = transactions.map(tx => {
-          console.log('Transaction:', tx);
-          return `
-          <div class="transaction-item ${tx.amount >= 0 ? 'reward-earned' : ''}">
-            <div class="transaction-icon">${tx.icon || '⭐'}</div>
-            <div class="transaction-info">
-              <div class="transaction-amount ${tx.amount < 0 ? 'negative' : ''}">${tx.amount >= 0 ? '+' : ''}${symbol}${Math.abs(tx.amount)}</div>
-              <div class="transaction-reason">${tx.reason || 'No reason'}</div>
-              <div class="transaction-meta">From ${tx.teacherName || 'Teacher'} • ${tx.timestamp ? formatTime(tx.timestamp) : ''}</div>
+    function applyModalTexts(ledger) {
+      const s = S(ledger);
+      document.getElementById('qrTitle').textContent = s.qrTitle;
+      document.getElementById('qrIntro').textContent = s.qrIntro;
+      document.getElementById('qrClose').textContent = s.close;
+      document.getElementById('reqTitle').textContent = s.askTitle;
+      document.getElementById('reqMsgLabel').textContent = s.msgLabel;
+      document.getElementById('reqCancel').textContent = s.cancel;
+      document.getElementById('sendRequestBtn').textContent = s.send;
+    }
+
+    /* ---------- Costruzione delle schede ---------- */
+    function slideHTML(ledger, multi, isArchived) {
+      const s = S(ledger);
+      const styled = !isDefaultColor(ledger);
+      const bg = styled ? ` style="background:linear-gradient(135deg, color-mix(in srgb, ${ledger.color} 72%, black) 0%, ${ledger.color} 100%)"` : '';
+      const tabCol = styled ? ` style="--tab-col:${ledger.color}"` : '';
+      const date = currentStudent.archivedAt ? (currentStudent.archivedAt.toDate ? currentStudent.archivedAt.toDate() : new Date(currentStudent.archivedAt)).toLocaleDateString(s.locale) : '';
+      return `
+      <section class="deck-slide" data-ledger="${esc(ledger.id)}">
+        <div class="student-main-card"${tabCol}>
+          ${isArchived ? `<div style="background: linear-gradient(135deg, var(--secondary-light) 0%, var(--accent-light) 100%); color: var(--text-primary); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); text-align: center; font-weight: var(--font-semibold); font-size: var(--text-sm); margin-bottom: var(--space-4);">${esc(s.archived(date))}</div>` : ''}
+          <div class="balance-section"${bg}>
+            ${multi ? `<div class="teacher-chip">${esc(ledger.emoji || '📘')} ${esc(ledger.name)}${ledger.subject ? ' · ' + esc(ledger.subject) : ''}</div>` : ''}
+            <h2 class="student-name">${esc(currentStudent.name)}</h2>
+            <p class="student-class">${s.cls} ${esc(currentStudent.className || currentStudent.classId || '')}</p>
+            <p class="balance-label">${s.balance}</p>
+            <div class="balance-amount" data-role="balance">0</div>
+            <div class="pending-note hidden" data-role="pending"></div>
+          </div>
+
+          <div class="student-tabs">
+            <button class="student-tab active" data-tab="transactions">${s.tx}</button>
+            <button class="student-tab" data-tab="rewards">${s.rw}</button>
+          </div>
+
+          <div class="tab-content active" data-pane="transactions" style="background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); margin: var(--space-4);">
+            <div class="transactions-header">
+              <div class="transactions-title">${s.recent}</div>
+              <button class="info-button" data-info="${esc(ledger.id)}" title="${esc(s.qrTitle)}" aria-label="${esc(s.qrTitle)}">ℹ️</button>
+            </div>
+            <div data-role="txList"></div>
+            <div data-role="txEmpty" class="empty-state hidden">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-title">${s.noTx}</div>
             </div>
           </div>
-        `;
-        }).join('');
-      } catch (error) {
-        console.error('Transactions error:', error);
-        list.innerHTML = '<p style="color: red; padding: 20px;">Error: ' + error.message + '</p>';
-      }
-    }
 
-    async function loadQuickRewardsCatalog() {
-      const list = document.getElementById('quickRewardsCatalogList');
-      if (!list || !currentStudent) return;
-      list.innerHTML = '<div class="text-center"><div class="spinner spinner-sm"></div></div>';
-
-      try {
-        const snapshot = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('quickRewards')
-          .get();
-
-        const rewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(reward => reward.active !== false);
-
-        if (rewards.length === 0) {
-          list.innerHTML = '<div class="text-muted">No quick rewards available.</div>';
-          return;
-        }
-
-        const symbol = schoolData.config?.currencySymbol || '$';
-        rewards.sort((a, b) => (a.amount || 0) - (b.amount || 0));
-
-        list.innerHTML = rewards.map(reward => {
-          const amount = reward.amount || 0;
-          return `
-            <div class="quick-reward-catalog-item">
-              <div class="quick-reward-catalog-icon">${reward.icon || '⭐'}</div>
-              <div class="quick-reward-catalog-info">
-                <div class="quick-reward-catalog-name">${reward.name || 'Quick reward'}</div>
-                <div class="quick-reward-catalog-desc">${reward.description || 'No description'}</div>
-              </div>
-              <div class="quick-reward-catalog-amount ${amount < 0 ? 'negative' : ''}">${amount >= 0 ? '+' : ''}${symbol}${Math.abs(amount)}</div>
+          <div class="tab-content" data-pane="rewards">
+            <div data-role="rwList"></div>
+            <div data-role="rwEmpty" class="empty-state hidden">
+              <div class="empty-state-icon">🎁</div>
+              <div class="empty-state-title">${s.noRw}</div>
             </div>
-          `;
-        }).join('');
-      } catch (error) {
-        console.error('Quick rewards load error:', error);
-        list.innerHTML = '<div class="text-muted">Unable to load quick rewards.</div>';
-      }
+          </div>
+        </div>
+      </section>`;
     }
 
-    function openQuickRewardsInfo() {
-      document.getElementById('quickRewardsInfoBackdrop').classList.add('active');
-      document.getElementById('quickRewardsInfoModal').classList.add('active');
-      loadQuickRewardsCatalog();
+    function buildDeck(multi, isArchived) {
+      const track = document.getElementById('track');
+      track.innerHTML = viewLedgers.map(l => slideHTML(l, multi, isArchived)).join('');
+      document.getElementById('deck').classList.toggle('single', !multi);
+      document.getElementById('subjectNav').classList.toggle('hidden', !multi);
+      document.getElementById('dots').classList.toggle('hidden', !multi);
+      const hint = document.getElementById('hint');
+      hint.classList.toggle('hidden', !multi);
+      hint.textContent = S(viewLedgers[0]).hint;
+      document.getElementById('subjectNav').innerHTML = viewLedgers.map((l, i) =>
+        `<button class="subject-pill" data-i="${i}">${esc(l.emoji || '📘')} ${esc(l.subject || l.name)}</button>`).join('');
+      document.getElementById('dots').innerHTML = viewLedgers.map(() => '<span class="deck-dot"></span>').join('');
+      document.getElementById('subjectNav').onclick = e => { const b = e.target.closest('.subject-pill'); if (b) goTo(+b.dataset.i); };
     }
 
-    function closeQuickRewardsInfo() {
-      document.getElementById('quickRewardsInfoBackdrop').classList.remove('active');
-      document.getElementById('quickRewardsInfoModal').classList.remove('active');
+    /* ---------- Rendering per conto ---------- */
+    function renderBalance(ledger) {
+      const el = slideEl(ledger.id)?.querySelector('[data-role="balance"]');
+      if (!el) return;
+      const balance = Ledger.balanceOf(currentStudent, ledger.id);
+      el.textContent = money(ledger, balance);
+      el.classList.toggle('negative', balance < 0);
     }
 
-    // Sum the cost of this student's still-pending reward requests.
-    // Pending requests aren't deducted from balance until a teacher approves
-    // them, so this is what keeps a student from requesting more than they
-    // actually have once everything pending gets accepted.
-    async function getPendingRequestsTotal() {
+    function renderTransactions(ledger) {
+      const slide = slideEl(ledger.id);
+      if (!slide) return;
+      const s = S(ledger);
+      const list = slide.querySelector('[data-role="txList"]');
+      const empty = slide.querySelector('[data-role="txEmpty"]');
+      const txs = txAll.filter(t => inLedger(t, ledger.id)).slice(0, 30);
+      if (!txs.length) { empty.classList.remove('hidden'); list.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      list.innerHTML = txs.map(tx => `
+        <div class="transaction-item ${tx.amount >= 0 ? 'reward-earned' : ''}">
+          <div class="transaction-icon">${tx.icon || '⭐'}</div>
+          <div class="transaction-info">
+            <div class="transaction-amount ${tx.amount < 0 ? 'negative' : ''}">${tx.amount >= 0 ? '+' : ''}${money(ledger, Math.abs(tx.amount))}</div>
+            <div class="transaction-reason">${tx.reason || s.noReason}</div>
+            <div class="transaction-meta">${s.from} ${tx.teacherName || ledger.name || s.teacher} • ${tx.timestamp ? formatTime(tx.timestamp, s) : ''}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    // Costo delle richieste ancora in attesa, per conto
+    async function getPendingTotal(ledger) {
       try {
-        const snapshot = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('rewardRequests')
-          .where('studentId', '==', currentStudent.id)
-          .where('status', '==', 'pending')
-          .get();
-
+        const snapshot = await db.collection('schools').doc(currentStudent.schoolId).collection('rewardRequests')
+          .where('studentId', '==', currentStudent.id).where('status', '==', 'pending').get();
         return snapshot.docs.reduce((sum, d) => {
           const data = d.data();
+          if (!inLedger(data, ledger.id)) return sum;
           if (typeof data.cost === 'number') return sum + data.cost;
-          // Fallback for older requests saved before we stored the cost:
-          // look the reward up in the currently loaded catalog.
-          const reward = allRewardsCache.find(r => r.id === data.rewardId);
+          const reward = rewardsAll.find(r => r.id === data.rewardId);   // richieste vecchie senza costo
           return sum + (reward ? (reward.cost || 0) : 0);
         }, 0);
       } catch (error) {
@@ -833,135 +826,158 @@
       }
     }
 
-    async function loadRewards() {
-      const list = document.getElementById('rewardsList');
-      const empty = document.getElementById('noRewards');
-      const balance = currentStudent.balance || 0;
-      const symbol = schoolData.config?.currencySymbol || '$';
+    async function renderRewards(ledger) {
+      const slide = slideEl(ledger.id);
+      if (!slide) return;
+      const s = S(ledger);
+      const list = slide.querySelector('[data-role="rwList"]');
+      const empty = slide.querySelector('[data-role="rwEmpty"]');
+      const pendingNote = slide.querySelector('[data-role="pending"]');
+      const balance = Ledger.balanceOf(currentStudent, ledger.id);
       const isArchived = !!currentStudent.archived;
+      const styled = !isDefaultColor(ledger);
 
-      const pendingNote = document.getElementById('pendingRequestsNote');
-      let availableBalance = balance;
+      let available = balance;
+      if (isArchived) {
+        pendingNote.classList.add('hidden');
+      } else {
+        const pendingTotal = await getPendingTotal(ledger);
+        ledger._pending = pendingTotal;
+        available = balance - pendingTotal;
+        if (pendingTotal > 0) {
+          pendingNote.textContent = s.pending(money(ledger, pendingTotal), money(ledger, available));
+          pendingNote.classList.remove('hidden');
+        } else {
+          pendingNote.classList.add('hidden');
+        }
+      }
+
+      const all = rewardsAll.filter(r => inLedger(r, ledger.id));
+      if (!all.length) { empty.classList.remove('hidden'); list.innerHTML = ''; return; }
+      empty.classList.add('hidden');
 
       if (isArchived) {
-        // Frozen page: no pending-budget math, no requesting - just show
-        // the catalog as it was, read-only.
-        if (pendingNote) pendingNote.classList.add('hidden');
-      } else {
-        pendingRequestsTotal = await getPendingRequestsTotal();
-        availableBalance = balance - pendingRequestsTotal;
-
-        if (pendingNote) {
-          if (pendingRequestsTotal > 0) {
-            pendingNote.textContent = `⏳ ${symbol}${pendingRequestsTotal} pending approval • ${symbol}${availableBalance} available`;
-            pendingNote.classList.remove('hidden');
-          } else {
-            pendingNote.classList.add('hidden');
-          }
-        }
+        // Read-only souvenir view: just what the rewards catalog looked like.
+        list.innerHTML = all.map(r => `
+          <div class="reward-item">
+            <div class="reward-icon">${r.icon || '🎁'}</div>
+            <div class="reward-info"><div class="reward-name">${r.name}</div><div class="reward-description">${r.description || ''}</div></div>
+            <div class="reward-cost">${money(ledger, r.cost)}</div>
+          </div>`).join('');
+        return;
       }
-      
-      try {
-        const snapshot = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('rewards')
-          .get();
-        
-        const allRewards = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(reward => reward.active !== false); // Show all except explicitly disabled
-        allRewardsCache = allRewards;
 
-        if (allRewards.length === 0) {
-          empty.classList.remove('hidden');
-          return;
-        }
-        
-        empty.classList.add('hidden');
-
-        if (isArchived) {
-          // Read-only souvenir view: no sorting into affordable/unavailable,
-          // no buttons - just what the rewards catalog looked like.
-          list.innerHTML = allRewards.map(reward => `
-            <div class="reward-item">
-              <div class="reward-icon">${reward.icon || '🎁'}</div>
-              <div class="reward-info">
-                <div class="reward-name">${reward.name}</div>
-                <div class="reward-description">${reward.description || ''}</div>
-              </div>
-              <div class="reward-cost">${symbol}${reward.cost}</div>
+      const byCost = (a, b) => (a.cost || 0) - (b.cost || 0);
+      const sorted = [...all.filter(r => available >= r.cost).sort(byCost), ...all.filter(r => available < r.cost).sort(byCost)];
+      list.innerHTML = sorted.map(r => {
+        const ok = available >= r.cost;
+        return `
+          <div class="reward-item ${ok ? 'affordable' : 'unavailable'}" ${ok ? '' : `data-info="${esc(ledger.id)}"`}>
+            <div class="reward-icon">${r.icon || '🎁'}</div>
+            <div class="reward-info">
+              <div class="reward-name">${r.name}</div>
+              <div class="reward-description">${r.description || ''}</div>
+              <button class="request-btn ${ok ? '' : 'not-enough-btn'}" ${ok && styled ? `style="background:${ledger.color}"` : ''} data-ledger="${esc(ledger.id)}" data-reward-id="${r.id}" data-reward-name="${esc(r.name)}" data-available="${ok}" ${ok ? '' : 'aria-disabled="true"'}>
+                ${ok ? s.req : s.notEnough}
+              </button>
             </div>
-          `).join('');
-          return;
-        }
-
-        const affordableRewards = allRewards.filter(reward => availableBalance >= reward.cost);
-        const unavailableRewards = allRewards.filter(reward => availableBalance < reward.cost);
-        const sortedRewards = [
-          ...affordableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0)),
-          ...unavailableRewards.sort((a, b) => (a.cost || 0) - (b.cost || 0))
-        ];
-
-        list.innerHTML = sortedRewards.map(reward => {
-          const isAffordable = availableBalance >= reward.cost;
-          return `
-            <div class="reward-item ${isAffordable ? 'affordable' : 'unavailable'}" ${isAffordable ? '' : 'data-open-quick-rewards="true"'}>
-              <div class="reward-icon">${reward.icon || '🎁'}</div>
-              <div class="reward-info">
-                <div class="reward-name">${reward.name}</div>
-                <div class="reward-description">${reward.description || ''}</div>
-                <button class="request-btn ${isAffordable ? '' : 'not-enough-btn'}" data-reward-id="${reward.id}" data-reward-name="${reward.name}" data-available="${isAffordable ? 'true' : 'false'}" ${isAffordable ? '' : 'aria-disabled="true"'}>
-                  ${isAffordable ? 'Request' : 'Not enough'}
-                </button>
-              </div>
-              <div class="reward-cost">${symbol}${reward.cost}</div>
-            </div>
-          `;
-        }).join('');
-        
-        console.log('Rewards loaded, adding event listeners...');
-        // Aggiungi event listeners ai pulsanti
-        const buttons = document.querySelectorAll('.request-btn[data-available="true"]');
-        console.log('Found buttons:', buttons.length);
-        buttons.forEach(btn => {
-          btn.addEventListener('click', () => {
-            console.log('Button clicked, reward ID:', btn.dataset.rewardId);
-            requestReward(btn.dataset.rewardId, btn.dataset.rewardName);
-          });
-        });
-
-        document.querySelectorAll('.reward-item.unavailable[data-open-quick-rewards="true"]').forEach(item => {
-          item.addEventListener('click', () => {
-            openQuickRewardsInfo();
-          });
-        });
-
-        document.querySelectorAll('.not-enough-btn').forEach(btn => {
-          btn.addEventListener('click', (event) => {
-            event.stopPropagation();
-            openQuickRewardsInfo();
-          });
-        });
-      } catch (error) {
-        console.error('Rewards load error:', error);
-        empty.classList.remove('hidden');
-      }
+            <div class="reward-cost">${money(ledger, r.cost)}</div>
+          </div>`;
+      }).join('');
     }
 
+    // Un solo ascoltatore per tutte le schede (richieste, tab, info)
+    document.addEventListener('click', e => {
+      const tab = e.target.closest('.student-tab');
+      if (tab) {
+        const card = tab.closest('.student-main-card');
+        card.querySelectorAll('.student-tab').forEach(t => t.classList.toggle('active', t === tab));
+        card.querySelectorAll('.tab-content').forEach(p => p.classList.toggle('active', p.dataset.pane === tab.dataset.tab));
+        return;
+      }
+      const btn = e.target.closest('.request-btn');
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.available === 'true') requestReward(btn.dataset.ledger, btn.dataset.rewardId, btn.dataset.rewardName);
+        else openQuickRewardsInfo(btn.dataset.ledger);
+        return;
+      }
+      const info = e.target.closest('[data-info]');
+      if (info) openQuickRewardsInfo(info.dataset.info);
+    });
+
+    /* ---------- Premi rapidi (catalogo) ---------- */
+    async function openQuickRewardsInfo(ledgerId) {
+      const ledger = L(ledgerId);
+      const s = S(ledger);
+      applyModalTexts(ledger);
+      document.getElementById('quickRewardsInfoBackdrop').classList.add('active');
+      document.getElementById('quickRewardsInfoModal').classList.add('active');
+      const list = document.getElementById('quickRewardsCatalogList');
+      const rewards = quickAll.filter(r => inLedger(r, ledger.id)).sort((a, b) => (a.amount || 0) - (b.amount || 0));
+      if (!rewards.length) { list.innerHTML = `<div class="text-muted">${s.qrNone}</div>`; return; }
+      list.innerHTML = rewards.map(r => {
+        const amount = r.amount || 0;
+        return `
+          <div class="quick-reward-catalog-item">
+            <div class="quick-reward-catalog-icon">${r.icon || '⭐'}</div>
+            <div class="quick-reward-catalog-info">
+              <div class="quick-reward-catalog-name">${r.name || 'Quick reward'}</div>
+              <div class="quick-reward-catalog-desc">${r.description || s.qrNoDesc}</div>
+            </div>
+            <div class="quick-reward-catalog-amount ${amount < 0 ? 'negative' : ''}">${amount >= 0 ? '+' : ''}${money(ledger, Math.abs(amount))}</div>
+          </div>`;
+      }).join('');
+    }
+    function closeQuickRewardsInfo() {
+      document.getElementById('quickRewardsInfoBackdrop').classList.remove('active');
+      document.getElementById('quickRewardsInfoModal').classList.remove('active');
+    }
+
+    /* ---------- Richieste di premi ---------- */
     async function loadTeachers() {
       try {
         const snapshot = await db.collection('users')
           .where('schoolId', '==', currentStudent.schoolId)
-          .where('role', 'in', ['teacher', 'admin'])
-          .get();
-        teachers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          .where('role', 'in', ['teacher', 'admin']).get();
+        // Per il conto storico: chi è admin viene per primo (è il suo conto)
+        teachers = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.role === 'admin' ? 0 : 1) - (b.role === 'admin' ? 0 : 1));
       } catch (error) {
         console.error('Teachers load error:', error.code, error.message, error);
       }
     }
 
-    function getPlaceholderForReward(rewardName) {
-      // Specific placeholders for default rewards
+    // A chi va la richiesta di un conto: il proprietario del conto, oppure (conto storico) il primo admin
+    function teacherForLedger(ledger) {
+      if (ledger.ownerUid) return { id: ledger.ownerUid, name: ledger.name || (teachers.find(t => t.id === ledger.ownerUid)?.name) || '' };
+      const t = teachers[0];
+      return t ? { id: t.id, name: ledger.name || t.name } : null;
+    }
+
+    async function requestReward(ledgerId, rewardId, rewardName) {
+      const ledger = L(ledgerId);
+      const s = S(ledger);
+      if (currentStudent.archived) { alert(s.archivedBlock); return; }
+      if (!teacherForLedger(ledger)) { alert(s.noTeacher); return; }
+
+      // Re-check the available budget right before opening the modal
+      const reward = rewardsAll.find(r => r.id === rewardId);
+      const pending = await getPendingTotal(ledger);
+      const available = Ledger.balanceOf(currentStudent, ledger.id) - pending;
+      if (reward && available < reward.cost) {
+        alert(s.notEnoughAlert(money(ledger, pending), money(ledger, available)));
+        renderRewards(ledger);
+        return;
+      }
+
+      currentRequest = { ledgerId, rewardId };
+      applyModalTexts(ledger);
+      document.getElementById('requestMessage').placeholder = getPlaceholderForReward(rewardName, ledger);
+      document.getElementById('sendRequestBtn').disabled = false;
+      document.getElementById('teacherModal').style.display = 'flex';
+    }
+
+    function getPlaceholderForReward(rewardName, ledger) {
       const placeholders = {
         '1 week no homework': 'Example: I have a tournament next week and need time ...',
         'Deskmate for 1 week': 'Example: I would like to sit next to Eurydice next week.',
@@ -974,226 +990,87 @@
         'No homework': 'Example: I have training tonight and would like to skip today’s homework.',
         '+1 to grade': 'Example: Please add +1 to my test grade from last week.'
       };
-      
-      // If the reward has a specific placeholder, use it
-      if (placeholders[rewardName]) {
-        return placeholders[rewardName];
-      }
-      
-      // Otherwise use a generic message
-      return 'Explain your request (when, how, where, with whom, etc.).';
+      if (ledger.lang !== 'it' && placeholders[rewardName]) return placeholders[rewardName];
+      return S(ledger).placeholder;
     }
 
-    async function requestReward(rewardId, rewardName) {
-      console.log('requestReward called with ID:', rewardId);
-      console.log('Teachers:', teachers);
-
-      if (currentStudent.archived) {
-        alert('🎓 This class has graduated — this page is a read-only memory snapshot, so new requests aren\'t possible.');
-        return;
-      }
-      
-      if (teachers.length === 0) {
-        alert('❌ No teacher available');
-        return;
-      }
-
-      // Re-check the available budget right before opening the request modal,
-      // in case the balance or other pending requests changed since the page loaded.
-      const rewardForCheck = allRewardsCache.find(r => r.id === rewardId);
-      const freshPendingTotal = await getPendingRequestsTotal();
-      const availableForCheck = (currentStudent.balance || 0) - freshPendingTotal;
-      if (rewardForCheck && availableForCheck < rewardForCheck.cost) {
-        const symbol = schoolData.config?.currencySymbol || '$';
-        alert(`❌ Not enough available balance. You have ${symbol}${freshPendingTotal} tied up in pending requests, leaving ${symbol}${availableForCheck} available.`);
-        loadRewards();
-        return;
-      }
-      
-      currentRewardRequest = rewardId;
-      console.log('Current reward request set to:', currentRewardRequest);
-      
-      // Imposta il placeholder appropriato
-      const messageField = document.getElementById('requestMessage');
-      messageField.placeholder = getPlaceholderForReward(rewardName);
-      
-      // Show modal with teacher list
-      const modal = document.getElementById('teacherModal');
-      console.log('Modal element:', modal);
-      
-      // Auto-select the first available teacher
-      if (teachers.length > 0) {
-        const defaultTeacher = teachers[0];
-        selectedTeacher = { id: defaultTeacher.id, name: defaultTeacher.name };
-        document.getElementById('sendRequestBtn').disabled = false;
-      }
-      
-      console.log('Showing modal...');
-      modal.style.display = 'flex';
-      console.log('Modal display style:', modal.style.display);
-    }
-    
-    let selectedTeacher = null;
-    
-    /*
-    function selectTeacher(teacherId, teacherName) {
-      // Deselect all teachers
-      document.querySelectorAll('.teacher-item').forEach(item => {
-        item.style.background = '';
-        item.style.border = '';
-      });
-      
-      // Select the clicked teacher
-      const selectedItem = document.querySelector(`.teacher-item[data-teacher-id="${teacherId}"]`);
-      if (selectedItem) {
-        selectedItem.style.background = 'var(--primary-light)';
-        selectedItem.style.border = '2px solid var(--primary)';
-      }
-      
-      // Save selection
-      selectedTeacher = { id: teacherId, name: teacherName };
-      
-      // Enable send button
-      document.getElementById('sendRequestBtn').disabled = false;
-    }
-    */
-    
-    async function sendSelectedRequest() {
-      if (!selectedTeacher) {
-        if (teachers.length === 0) {
-          alert('❌ No teacher available');
-          return;
-        }
-        const defaultTeacher = teachers[0];
-        selectedTeacher = { id: defaultTeacher.id, name: defaultTeacher.name };
-      }
-      
-      await sendRewardRequest(selectedTeacher.id, selectedTeacher.name);
-      selectedTeacher = null;
-    }
-    
     function closeTeacherModal() {
-      const modal = document.getElementById('teacherModal');
-      modal.style.display = 'none';
-      currentRewardRequest = null;
-      selectedTeacher = null;
-      // Reset message and button
+      document.getElementById('teacherModal').style.display = 'none';
+      currentRequest = null;
       document.getElementById('requestMessage').value = '';
       document.getElementById('sendRequestBtn').disabled = true;
     }
-    
-    async function sendRewardRequest(teacherId, teacherName) {
-      if (currentStudent.archived) {
-        alert('🎓 This class has graduated — this page is a read-only memory snapshot, so new requests aren\'t possible.');
-        closeTeacherModal();
-        return;
-      }
-      try {
-        // Ensure anonymous auth before writing
-        if (!firebase.auth().currentUser) {
-          await firebase.auth().signInAnonymously();
-        }
 
+    async function sendSelectedRequest() {
+      if (!currentRequest) return;
+      const ledger = L(currentRequest.ledgerId);
+      const s = S(ledger);
+      const target = teacherForLedger(ledger);
+      if (!target) { alert(s.noTeacher); return; }
+      if (currentStudent.archived) { alert(s.archivedBlock); closeTeacherModal(); return; }
+
+      try {
+        if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
         const message = document.getElementById('requestMessage').value.trim();
-        
-        // Get reward name
-        const rewardDoc = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('rewards')
-          .doc(currentRewardRequest)
-          .get();
-        
+
+        const rewardDoc = await db.collection('schools').doc(currentStudent.schoolId).collection('rewards').doc(currentRequest.rewardId).get();
         const rewardData = rewardDoc.exists ? rewardDoc.data() : null;
         const rewardName = rewardData ? rewardData.name : 'Reward';
         const rewardCost = rewardData ? (rewardData.cost || 0) : 0;
 
-        // Final safety check right before writing (covers the gap between
-        // opening the modal and confirming the request).
-        const finalPendingTotal = await getPendingRequestsTotal();
-        const finalAvailable = (currentStudent.balance || 0) - finalPendingTotal;
-        if (rewardData && finalAvailable < rewardCost) {
-          const symbol = schoolData.config?.currencySymbol || '$';
-          alert(`❌ Not enough available balance. You have ${symbol}${finalPendingTotal} tied up in pending requests, leaving ${symbol}${finalAvailable} available.`);
+        // Final safety check right before writing
+        const pending = await getPendingTotal(ledger);
+        const available = Ledger.balanceOf(currentStudent, ledger.id) - pending;
+        if (rewardData && available < rewardCost) {
+          alert(s.notEnoughAlert(money(ledger, pending), money(ledger, available)));
           closeTeacherModal();
-          loadRewards();
+          renderRewards(ledger);
           return;
         }
-        
+
         const requestData = {
           studentId: currentStudent.id,
           studentName: currentStudent.name,
-          rewardId: currentRewardRequest,
-          rewardName: rewardName,
+          rewardId: currentRequest.rewardId,
+          rewardName,
           cost: rewardCost,
-          teacherId: teacherId,
-          teacherName: teacherName,
+          teacherId: target.id,
+          teacherName: target.name,
+          ledgerId: ledger.id,
           status: 'pending',
           requestedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        // Add the message only if not empty
-        if (message) {
-          requestData.message = message;
-        }
-        
-        await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('rewardRequests')
-          .add(requestData);
-        
+        if (message) requestData.message = message;
+
+        await db.collection('schools').doc(currentStudent.schoolId).collection('rewardRequests').add(requestData);
         closeTeacherModal();
-        alert('✅ Request sent to ' + teacherName + '!');
+        alert(s.sent(target.name || s.teacher));
       } catch (error) {
         console.error('sendRewardRequest error:', error.code, error.message, error);
-        if (error.code === 'permission-denied') {
-          alert('❌ Permission denied: update your Firestore rules to allow anonymous writes to rewardRequests.\n\nSee firestore.rules in the project.');
-        } else if (error.code === 'auth/operation-not-allowed') {
-          alert('❌ Anonymous login is not enabled in Firebase Console.\nGo to Authentication → Sign-in methods → Anonymous → Enable.');
-        } else {
-          alert('❌ Sending error: ' + (error.message || error.code || 'unknown'));
-        }
+        if (error.code === 'permission-denied') alert(s.noPerm);
+        else if (error.code === 'auth/operation-not-allowed') alert(s.noAnon);
+        else alert('❌ ' + s.sendErr + ': ' + (error.message || error.code || 'unknown'));
       }
     }
 
-    async function loadLeaderboard() {
-      const list = document.getElementById('leaderboardList');
-      const symbol = schoolData.config?.currencySymbol || '$';
-      
-      try {
-        const snapshot = await db.collection('schools')
-          .doc(currentStudent.schoolId)
-          .collection('students')
-          .where('classId', '==', currentStudent.classId)
-          .orderBy('balance', 'desc')
-          .limit(20)
-          .get();
-        
-        const students = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        list.innerHTML = students.map((student, idx) => `
-          <div class="leaderboard-item ${student.id === currentStudent.id ? 'current-user' : ''}">
-            <div class="leaderboard-rank">${idx + 1}</div>
-            <div class="leaderboard-name">${student.id === currentStudent.id ? '⭐ ' : ''}${student.name}</div>
-            <div class="leaderboard-balance">${symbol}${student.balance || 0}</div>
-          </div>
-        `).join('');
-      } catch (error) {
-        console.error('Leaderboard error:', error);
-      }
+    /* ---------- Scorrimento tra le schede ---------- */
+    function trackStep() { const t = document.getElementById('track'); return t.clientWidth + 12; }
+    function slideIndex() { return Math.round(document.getElementById('track').scrollLeft / trackStep()); }
+    function goTo(i) { document.getElementById('track').scrollTo({ left: i * trackStep(), behavior: 'smooth' }); }
+    function syncDeck() {
+      const i = Math.max(0, Math.min(slideIndex(), viewLedgers.length - 1));
+      currentSlide = i;
+      document.querySelectorAll('.subject-pill').forEach((p, k) => p.classList.toggle('active', k === i));
+      document.querySelectorAll('.deck-dot').forEach((d, k) => d.classList.toggle('active', k === i));
+      document.getElementById('prevBtn').disabled = i <= 0;
+      document.getElementById('nextBtn').disabled = i >= viewLedgers.length - 1 || viewLedgers.length < 2;
     }
-
-    function switchTab(tabName) {
-      document.querySelectorAll('.student-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.tab === tabName);
-      });
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-      });
-      document.getElementById(`${tabName}Tab`).classList.add('active');
-    }
+    document.getElementById('track').addEventListener('scroll', () => requestAnimationFrame(syncDeck));
+    document.getElementById('prevBtn').onclick = () => goTo(slideIndex() - 1);
+    document.getElementById('nextBtn').onclick = () => goTo(slideIndex() + 1);
+    window.addEventListener('resize', syncDeck);
 
     // Expose handlers used by inline onclick attributes
-    window.switchTab = switchTab;
     window.openQuickRewardsInfo = openQuickRewardsInfo;
     window.closeQuickRewardsInfo = closeQuickRewardsInfo;
     window.closeTeacherModal = closeTeacherModal;
@@ -1206,26 +1083,23 @@
       document.getElementById('errorMessage').textContent = message;
     }
 
-    function showMotivation() {
-      const quote = MOTIVATION_QUOTES[Math.floor(Math.random() * MOTIVATION_QUOTES.length)];
+    function showMotivation(ledger) {
+      const quotes = MOTIVATION[ledger.lang === 'it' ? 'it' : 'en'];
       const el = document.getElementById('motivationQuote');
-      el.textContent = quote;
+      el.textContent = quotes[Math.floor(Math.random() * quotes.length)];
       el.classList.remove('hidden');
     }
 
-    function formatTime(timestamp) {
+    function formatTime(timestamp, s) {
       if (!timestamp) return '';
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      const now = new Date();
-      const diff = now - date;
-      const mins = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins}m ago`;
-      if (hours < 24) return `${hours}h ago`;
-      if (days < 7) return `${days}d ago`;
-      return date.toLocaleDateString('en-GB');
+      const diff = new Date() - date;
+      const mins = Math.floor(diff / 60000), hours = Math.floor(diff / 3600000), days = Math.floor(diff / 86400000);
+      if (mins < 1) return s.justNow;
+      if (mins < 60) return s.mAgo(mins);
+      if (hours < 24) return s.hAgo(hours);
+      if (days < 7) return s.dAgo(days);
+      return date.toLocaleDateString(s.locale);
     }
 
     document.addEventListener('DOMContentLoaded', init);

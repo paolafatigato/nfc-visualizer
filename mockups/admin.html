@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione docenti | 💲Cool Bank (anteprima)</title>
+  <link rel="icon" type="image/png" href="../icons/bank.png">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="mock.css">
+  <style>
+    .t-card { background:#fff; border-radius:16px; box-shadow:var(--shadow-md); margin-bottom:12px; overflow:hidden; border-left:6px solid var(--c, #999); }
+    .t-head { display:flex; align-items:center; gap:12px; padding:14px 16px; flex-wrap:wrap; }
+    .t-head .grow { flex:1; min-width:180px; }
+    .t-body { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; padding:0 16px 16px; align-items:end; }
+    .t-body label { font-size:12px; color:var(--text-muted); font-weight:600; display:block; margin-bottom:4px; }
+    .t-body .wide { grid-column: span 2; }
+    @media (max-width:520px) { .t-body .wide { grid-column: span 1; } }
+    input[type=color] { width:100%; height:42px; padding:2px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
+    .lang-pill { font-size:12px; font-weight:700; padding:2px 10px; border-radius:99px; background:var(--background-alt); }
+    .sample { display:inline-flex; gap:8px; align-items:center; color:#fff; border-radius:999px; padding:6px 14px; font-weight:600; font-size:14px; }
+    .sec { font-size:11px; letter-spacing:.8px; text-transform:uppercase; color:var(--text-muted); font-weight:700; grid-column:1/-1; margin-top:4px; }
+  </style>
+</head>
+<body style="background:var(--background)">
+  <div style="max-width:940px;margin:0 auto;padding:24px 16px 80px">
+    <h1 class="page-title" style="margin-bottom:4px">👨‍🏫 Consigli di classe</h1>
+    <p class="text-muted" style="margin-bottom:20px">Solo tu (admin) vedi questa pagina. Per ogni docente puoi sempre cambiare <b>nome visibile, materia, classi, email, colore e valuta</b>, e aprire la sua pagina per sistemare premi e impostazioni al posto suo. Le modifiche si vedono subito nelle altre pagine dell'anteprima.</p>
+
+    <div class="card mb-6">
+      <div class="card-header"><h3 class="card-title">➕ Aggiungi docente</h3></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="input-group"><label class="input-label">Nome visibile</label><input id="fName" class="input" placeholder="Prof Rossi"></div>
+          <div class="input-group"><label class="input-label">Materia</label><input id="fSubj" class="input" placeholder="Italiano" list="subjList"></div>
+          <div class="input-group"><label class="input-label">Classi (virgola)</label><input id="fCls" class="input" placeholder="2A, 3B"></div>
+          <div class="input-group"><label class="input-label">Email Google</label><input id="fMail" class="input" placeholder="rossi@gmail.com"></div>
+          <button class="btn btn-primary" id="addBtn">Aggiungi</button>
+        </div>
+        <p id="autoNote" class="text-muted" style="font-size:var(--text-sm);margin-top:10px">Lingua della pagina: scrivi la materia per vederla.</p>
+        <datalist id="subjList"><option>Italiano</option><option>Matematica</option><option>Storia</option><option>Scienze</option><option>Inglese</option><option>Spagnolo</option><option>Francese</option><option>Tedesco</option></datalist>
+      </div>
+    </div>
+
+    <h3 style="margin:24px 0 10px">Docenti abilitati</h3>
+    <div id="list"></div>
+
+    <div class="card" style="margin-top:24px">
+      <div class="card-header"><h3 class="card-title">🎨 Colori delle classi</h3></div>
+      <div class="card-body">
+        <p class="text-muted mb-4" style="font-size:var(--text-sm)">Il colore di ogni classe lo decidi tu ed è lo stesso per tutti i docenti (pallini, schede alunno, badge). Per ora ho tenuto i colori di Classroom Manager.</p>
+        <div id="classColors"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <div class="card-header"><h3 class="card-title">👀 Cosa vede un alunno</h3></div>
+      <div class="card-body">
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="input-group"><label class="input-label">Classe</label><select id="pv" class="input"></select></div>
+        </div>
+        <div id="preview" class="owner-banner" style="margin:0;display:block"></div>
+      </div>
+    </div>
+    <p class="text-muted" style="font-size:var(--text-sm);margin-top:16px">
+      📚 Lingua: <b>inglese</b> per Inglese, Spagnolo, Francese e Tedesco; <b>italiano</b> per le altre materie (cambiando la materia la lingua si riallinea, ma puoi sempre forzarla).<br>
+      🎁 Ogni docente parte con premi, premi rapidi, NB Check e compiti facoltativi di default (ispirati ai tuoi, nella sua lingua) e poi li personalizza.
+    </p>
+  </div>
+
+  <script src="mock-data.js"></script>
+  <script>
+    mockRibbon('· pagina ADMIN (Paola)');
+    const T = () => MOCK.teachers;
+    const langName = l => l === 'it' ? '🇮🇹 Italiano' : '🇬🇧 English';
+    const parseClasses = s => s.split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
+
+    function draw() {
+      document.getElementById('list').innerHTML = T().map((t, i) => `
+        <div class="t-card" style="--c:${t.color}">
+          <div class="t-head">
+            <span class="sample" style="background:${t.color}">${esc(t.emoji)} ${esc(t.name)}</span>
+            <div class="grow"><b>${esc(t.subject)}</b> · ${t.classes.map(c => `<span class="tag" style="background:${classColor(c)}26;color:${classColor(c)}">${esc(c)}</span>`).join('') || '<small class="text-muted">nessuna classe</small>'}</div>
+            <span class="lang-pill">${langName(t.lang)}</span>
+            <a class="btn btn-secondary btn-sm" href="teacher.html?as=${encodeURIComponent(t.id)}" title="Apri la pagina di questo docente per modificarla">✏️ Apri la sua pagina</a>
+            <button class="btn btn-ghost btn-sm" data-d="${i}" title="Rimuovi">🗑️</button>
+          </div>
+          <div class="t-body">
+            <div class="sec">Identità</div>
+            <div style="max-width:70px"><label>Icona</label><input class="input" style="text-align:center" value="${esc(t.emoji)}" data-i="${i}" data-f="emoji" maxlength="4"></div>
+            <div><label>Nome visibile</label><input class="input" value="${esc(t.name)}" data-i="${i}" data-f="name"></div>
+            <div><label>Materia</label><input class="input" value="${esc(t.subject)}" data-i="${i}" data-f="subject" list="subjList"></div>
+            <div class="wide"><label>Classi (separate da virgola)</label><input class="input" value="${esc(t.classes.join(', '))}" data-i="${i}" data-f="classes"></div>
+            <div class="wide"><label>Email Google</label><input class="input" value="${esc(t.email)}" data-i="${i}" data-f="email"></div>
+            <div><label>Lingua pagina</label>
+              <select class="input" data-i="${i}" data-f="lang"><option value="en" ${t.lang === 'en' ? 'selected' : ''}>English</option><option value="it" ${t.lang === 'it' ? 'selected' : ''}>Italiano</option></select></div>
+
+            <div class="sec">Aspetto e valuta</div>
+            <div><label>Colore</label><input type="color" value="${t.color}" data-i="${i}" data-f="color"></div>
+            <div><label>Simbolo valuta</label><input class="input" value="${esc(t.currency.symbol)}" data-i="${i}" data-f="symbol" maxlength="4"></div>
+            <div><label>Nome valuta</label><input class="input" value="${esc(t.currency.name)}" data-i="${i}" data-f="cname"></div>
+            <div><label>Posizione simbolo</label>
+              <select class="input" data-i="${i}" data-f="pos"><option value="before" ${t.currency.pos === 'before' ? 'selected' : ''}>Prima ($5)</option><option value="after" ${t.currency.pos === 'after' ? 'selected' : ''}>Dopo (5 ⭐)</option></select></div>
+            <div><label>Esempio</label><div style="font-weight:700;font-size:18px;color:${t.color}">${esc(fmtMoney(t.currency, 125))}</div></div>
+            <div><label>&nbsp;</label><button class="btn btn-ghost btn-sm" data-pal="${i}" title="Rimetti il colore della palette">🎨 Colore di palette</button></div>
+          </div>
+        </div>`).join('');
+
+      document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+        if (!confirm('Rimuovere questo docente?')) return;
+        T().splice(+b.dataset.d, 1); saveMock(); draw();
+      });
+      document.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => {
+        T()[+b.dataset.pal].color = PALETTE[+b.dataset.pal % PALETTE.length]; saveMock(); draw();
+      });
+      document.querySelectorAll('[data-f]').forEach(el => el.onchange = () => {
+        const t = T()[+el.dataset.i], f = el.dataset.f, v = el.value;
+        if (f === 'color') t.color = v;
+        else if (f === 'emoji') t.emoji = v || '📘';
+        else if (f === 'name') t.name = v.trim() || t.name;
+        else if (f === 'subject') {
+          t.subject = v.trim() || t.subject;
+          const l = langForSubject(t.subject);
+          if (l !== t.lang) { t.lang = l; mockToast('Lingua riallineata alla materia: ' + langName(l) + ' (modificabile)'); }
+        }
+        else if (f === 'classes') t.classes = parseClasses(v);
+        else if (f === 'email') t.email = v.trim();
+        else if (f === 'symbol') t.currency.symbol = v || '$';
+        else if (f === 'cname') t.currency.name = v;
+        else if (f === 'pos') t.currency.pos = v;
+        else if (f === 'lang') {
+          t.lang = v;
+          if (confirm('Vuoi anche ricaricare i premi di default nella nuova lingua? (sostituisce quelli attuali)')) {
+            const d = buildDefaults(v, t.songLang); Object.assign(t, { rewards: d.rewards, quick: d.quick, nb: d.nb, hw: d.hw });
+          }
+        }
+        saveMock(); draw();
+      });
+
+      const all = [...new Set(T().flatMap(t => t.classes))].sort();
+      const sel = document.getElementById('pv'), keep = sel.value;
+      sel.innerHTML = all.map(c => `<option>${esc(c)}</option>`).join(''); if (all.includes(keep)) sel.value = keep;
+      preview();
+      drawClassColors();
+    }
+
+    function drawClassColors() {
+      document.getElementById('classColors').innerHTML = allClasses().map(c => `
+        <div class="cls-edit"><span class="cdot on" style="--cc:${classColor(c)}">${esc(c)}</span>
+          <input type="color" value="${classColor(c)}" data-cc="${esc(c)}">
+          <span style="flex:1;font-size:var(--text-sm);color:var(--text-muted)">${T().filter(t => t.classes.includes(c)).map(t => esc(t.name)).join(', ') || '—'}</span>
+          <button class="btn btn-ghost btn-sm" data-ccreset="${esc(c)}" title="Colore di default">↺</button></div>`).join('');
+      document.querySelectorAll('[data-cc]').forEach(i => i.onchange = () => { MOCK.classColors[i.dataset.cc] = i.value; saveMock(); draw(); });
+      document.querySelectorAll('[data-ccreset]').forEach(b => b.onclick = () => { delete MOCK.classColors[b.dataset.ccreset]; saveMock(); draw(); });
+    }
+
+    function preview() {
+      const c = document.getElementById('pv').value;
+      const ts = T().filter(t => t.classes.includes(c));
+      document.getElementById('preview').innerHTML = ts.length > 1
+        ? `📱 Gli alunni di <b>${esc(c)}</b> vedono ${ts.length} pagine scorrevoli:<br>` + ts.map(t => `<span class="sample" style="background:${t.color};margin:4px 6px 0 0">${esc(t.emoji)} ${esc(t.name)} · ${esc(fmtMoney(t.currency, 50))}</span>`).join('')
+        : `📱 Gli alunni di <b>${esc(c)}</b> hanno un solo prof (${ts[0] ? esc(ts[0].name) : '—'}): vedono il sito <b>identico a oggi</b>, senza schede.`;
+    }
+    document.getElementById('pv').onchange = preview;
+
+    document.getElementById('fSubj').oninput = e => {
+      const l = langForSubject(e.target.value);
+      document.getElementById('autoNote').innerHTML = e.target.value.trim()
+        ? `Lingua della pagina proposta: <b>${langName(l)}</b> (modificabile dopo).`
+        : 'Lingua della pagina: scrivi la materia per vederla.';
+    };
+
+    document.getElementById('addBtn').onclick = () => {
+      const v = id => document.getElementById(id).value.trim();
+      if (!v('fName') || !v('fMail')) return mockToast('Nome ed email sono obbligatori');
+      const lang = langForSubject(v('fSubj'));
+      const d = buildDefaults(lang, null);
+      T().push({
+        id: 'new' + Date.now(), name: v('fName'), subject: v('fSubj') || '—', emoji: '📘', email: v('fMail'), lang,
+        color: PALETTE[T().length % PALETTE.length], currency: { symbol: '⭐', name: lang === 'it' ? 'Stelline' : 'Stars', pos: 'after' }, songLang: null,
+        classes: parseClasses(v('fCls')), balance: 0, pending: 0, tx: [], rewards: d.rewards, quick: d.quick, nb: d.nb, hw: d.hw, recurring: []
+      });
+      ['fName', 'fSubj', 'fCls', 'fMail'].forEach(id => document.getElementById(id).value = '');
+      mockToast(`✅ Docente aggiunto: pagina in ${langName(lang)}, colore di palette, premi / NB Check / compiti di default`);
+      saveMock(); draw();
+    };
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anteprime multi-docente | 💲Cool Bank</title>
+  <link rel="icon" type="image/png" href="../icons/bank.png">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="mock.css">
+</head>
+<body style="background:var(--background)">
+  <div class="hub">
+    <h1>💲 CoolBank · consiglio di classe</h1>
+    <p class="lead">Pagine <b>fittizie</b> (dati inventati, nessun collegamento a Firebase) per mostrare come funzionerà il conto per ogni docente.</p>
+    <div class="hub-grid">
+      <a class="hub-card" href="student.html"><span class="ic">📱</span><div><h3>Pagina alunno</h3><p>Giulia Verdi, 2A: scorre tra Ms Fatigato → Prof Rossi → Prof Bianchi, ognuno con saldo, transactions e rewards. In basso un selettore demo per vedere il caso “un solo prof” (identico a oggi).</p></div></a>
+      <a class="hub-card" href="teacher.html"><span class="ic">👩‍🏫</span><div><h3>Pagina docente (Prof Rossi)</h3><p>Accesso con Google (prova anche l’account non autorizzato), poi premi rapidi, catalogo, richiami e richieste: tutto limitato al proprio conto.</p></div></a>
+      <a class="hub-card" href="admin.html"><span class="ic">⚙️</span><div><h3>Gestione docenti (tu)</h3><p>Dove inserisci nome, materia, classi ed email Google di ogni docente, con anteprima di cosa vedono gli alunni.</p></div></a>
+    </div>
+  </div>
+  <p style="text-align:center;margin-top:28px"><button class="btn btn-ghost btn-sm" onclick="resetMock()">↩︎ Azzera le modifiche fatte nell'anteprima</button></p>
+  <script src="mock-data.js"></script>
+  <script>mockRibbon('');</script>
+</body>
+</html>

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagina docente | 💲Cool Bank (anteprima)</title>
+  <link rel="icon" type="image/png" href="../icons/bank.png">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="mock.css">
+  <style>
+    .admin-bar { background:#2C2036; color:#fff; border-radius:12px; padding:10px 14px; font-size:var(--text-sm); margin-bottom:var(--space-4); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .admin-bar a { color:var(--secondary-light); margin-left:auto; }
+    .rec-bar { display:flex; flex-direction:column; gap:8px; margin-bottom:var(--space-4); }
+    .rec-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background:rgba(var(--primary-rgb), .1); border-left:4px solid var(--primary); font-size:var(--text-sm); flex-wrap:wrap; }
+    .rec-item .grow { flex:1; min-width:160px; }
+    .day-chip { border:1px solid var(--border); background:#fff; border-radius:999px; padding:6px 12px; cursor:pointer; font-size:var(--text-sm); }
+    .day-chip.on { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .custom-row { display:flex; gap:var(--space-3); flex-wrap:wrap; }
+    .nb-name small { color:var(--text-muted); font-weight:400; }
+    .hw-extra { width:100%; display:flex; gap:8px; margin-top:6px; }
+    .hw-row { flex-wrap:wrap; }
+    .set-grid { display:grid; grid-template-columns:56px 1fr 90px 110px; gap:8px; align-items:center; margin-bottom:8px; }
+    @media (max-width:560px) { .set-grid { grid-template-columns:48px 1fr 70px; } .set-grid .hide-sm { display:none; } }
+  </style>
+</head>
+<body>
+
+<!-- ============ 1) ACCESSO CON GOOGLE ============ -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <img src="../icons/bank.png" alt="" width="64">
+    <h1>💲CoolBank</h1>
+    <p>Area docenti</p>
+    <button class="g-btn" id="googleBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+      Accedi con Google
+    </button>
+    <div id="accounts" class="account-pick hidden"></div>
+    <p id="denied" class="denied hidden">⛔ Questa email non è tra i docenti abilitati.<br>Chiedi alla prof. Fatigato di aggiungerti.</p>
+    <p style="margin-top:18px;font-size:12px;color:var(--text-muted)">(Anteprima: la scelta dell'account Google vera si apre in un popup, qui è simulata. Prova docenti diversi per vedere lingua, colore e valuta.)</p>
+  </div>
+</div>
+
+<!-- ============ 2) DASHBOARD DOCENTE ============ -->
+<div id="app" class="app-container hidden">
+  <aside class="sidebar">
+    <div class="sidebar-header"><span class="sidebar-logo">🏦</span><span class="sidebar-brand">💲Cool Bank</span></div>
+    <nav class="sidebar-nav" id="nav"></nav>
+    <div class="sidebar-footer">
+      <div class="user-menu" onclick="location.href='teacher.html'" title="Sign out">
+        <div class="avatar" id="avatar"></div>
+        <div class="user-info"><div class="user-name" id="uName"></div><div class="user-role" id="uRole"></div></div>
+        <span style="font-size:1.2rem;">🚪</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="main-header">
+      <div>
+        <h1 id="pageTitle" class="page-title"></h1>
+        <p class="text-muted" id="subTitle" style="font-size:var(--text-sm)"></p>
+      </div>
+    </header>
+    <div class="main-body">
+      <div id="adminBar" class="admin-bar hidden"></div>
+      <div class="owner-banner" id="ownerBanner"></div>
+      <div id="classSwitch" class="class-switch"></div>
+      <div id="view"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Finestra generica -->
+<div id="mBackdrop" class="modal-backdrop" onclick="closeModal()"></div>
+<div id="mModal" class="modal"></div>
+
+<script src="mock-data.js"></script>
+<script>
+  mockRibbon('· pagina DOCENTE');
+
+  // ---------- testi dell'interfaccia: [inglese, italiano] ----------
+  const TXT = {
+    give: ['Give Rewards', 'Assegna premi'], students: ['Students', 'Alunni'], catalog: ['Prices Catalog', 'Catalogo premi'],
+    quick: ['Quick Rewards', 'Premi rapidi'], warnings: ['Warnings', 'Richiami'], requests: ['Requests', 'Richieste'], history: ['History', 'Storico'],
+    settings: ['Settings', 'Impostazioni'], checkset: ['Check settings', 'Impostazioni check'], teachers: ['Teachers', 'Docenti'], secSys: ['System (admin)', 'Sistema (admin)'],
+    viewAs: ['See the student\'s page', 'Vedi la pagina dell\'alunno'],
+    searchOne: ['Search student', 'Cerca alunno'], topTitle: ['Top students', 'Classifica'], topSub: ['Ranking by balance', 'In base al saldo'], allStudents: ['All students (A–Z by surname)', 'Tutti gli alunni (A–Z per cognome)'],
+    customCap: ['Custom Reward', 'Premio personalizzato'], findStud: ['Find students', 'Cerca alunni'], searchPh: ['Type a name or NFC tag', 'Scrivi un nome o un tag NFC'],
+    allCls: ['All', 'Tutte'], selStud: ['Select Students', 'Seleziona alunni'], giveReward: ['⭐ Give Reward', '⭐ Assegna premio'], noMatch: ['No students found', 'Nessun alunno trovato'],
+    // impostazioni scuola (solo admin)
+    scSchool: ['⚙️ School settings', '⚙️ Impostazioni della scuola'], scName: ['School name', 'Nome della scuola'], scLb: ['Show leaderboard', 'Mostra la classifica'],
+    scCurHint: ['Currency is set per teacher (Teachers page); this is only the default for new teachers.', 'La valuta si imposta per docente (pagina Docenti); questa è solo quella di partenza per i nuovi.'],
+    scDefSym: ['Default currency symbol', 'Simbolo valuta di partenza'], scDefName: ['Default currency name', 'Nome valuta di partenza'],
+    scClasses: ['🎨 Class colors', '🎨 Colori delle classi'], scClassesHint: ['The admin decides each class color. It is the same for every teacher and appears on the dots, student cards and badges.', 'Il colore di ogni classe lo decide l\'admin. È lo stesso per tutti i docenti e compare nei pallini, nelle schede alunno e nei badge.'],
+    scLinks: ['🔗 Links', '🔗 Collegamenti'], scLinksTxt: ['Connect to Classroom Manager to import classes and students (read-only). Balances, NFC tags and history stay in CoolBank.', 'Collega Classroom Manager per importare classi e alunni (sola lettura). Saldi, NFC e storico restano in CoolBank.'],
+    scConnect: ['🔗 Connected to Classroom Manager', '🔗 Collegato a Classroom Manager'], scSync: ['🔄 Import / sync classes and students', '🔄 Importa / sincronizza classi e alunni'],
+    scTools: ['🧹 Maintenance', '🧹 Manutenzione'], scRecon: ['🔍 Compare names with Classroom Manager', '🔍 Confronta nomi con Classroom Manager'],
+    scMissing: ['👀 Check missing / moved students', '👀 Verifica alunni scomparsi o spostati'], scDup: ['🔍 Find duplicate classes / students', '🔍 Cerca classi e alunni duplicati'],
+    scDanger: ['⚠️ Danger zone', '⚠️ Zona pericolosa'], scDangerTxt: ['At the start of a new school year, reset every student balance (all teachers) to zero. A CSV snapshot downloads first.', 'A inizio anno azzera i saldi di tutti gli alunni (di tutti i docenti). Prima scarica un CSV di backup.'],
+    scReset: ['🔄 Reset all balances (new school year)', '🔄 Azzera tutti i saldi (nuovo anno)'], scFake: ['(preview only — nothing happens here)', '(anteprima — qui non succede nulla)'],
+    scTeachersCard: ['👨‍🏫 Teachers', '👨‍🏫 Docenti'], scTeachersTxt: ['Add colleagues, change their name, subject, classes, color and currency, or open their page.', 'Aggiungi colleghi, cambia nome, materia, classi, colore e valuta, o apri la loro pagina.'], scTeachersBtn: ['Manage teachers →', 'Gestisci i docenti →'],
+    secOver: ['Overview', 'Panoramica'], secMine: ['My rewards', 'I miei premi'], secAct: ['Activity', 'Attività'],
+    owner: ['🔒 You only see and edit <b>your own account</b> ({s}). Balances and rewards of your colleagues are separate.',
+            '🔒 Qui vedi e modifichi <b>solo il tuo conto</b> ({s}). Saldi e premi dei colleghi sono separati.'],
+    pickStud: ['Select students', 'Seleziona gli alunni'], selected: ['selected', 'selezionati'], selAll: ['✅ Select all', '✅ Seleziona tutti'],
+    tip: ['Select students, then tap a quick reward: it is credited to your {c} account.', 'Seleziona gli alunni e tocca un premio rapido: viene accreditato sul tuo conto in {c}.'],
+    needStud: ['Select at least one student first', 'Seleziona prima almeno un alunno'],
+    given: ['given to', 'assegnato a'], pupils: ['student(s)', 'alunno/i'],
+    customT: ['Custom reward', 'Premio personalizzato'], reason: ['Reason', 'Motivo'], giveBtn: ['⭐ Give reward', '⭐ Assegna'], needAmt: ['Enter an amount', 'Inserisci un importo'],
+    nbBtn: ['📓 NB Check', '📓 Check quaderni'], hwBtn: ['📚 Optional HW', '📚 Compiti facoltativi'],
+    redeemable: ['Redeemable rewards', 'Premi riscattabili'], quickTitle: ['Quick rewards', 'Premi rapidi'],
+    add: ['+ Add', '+ Aggiungi'], defaults: ['📋 Load defaults', '📋 Carica default'], defDone: ['Defaults loaded — now edit them as you like', 'Default caricati — ora modificali come vuoi'],
+    defAsk: ['Replace your current list with the defaults?', 'Sostituire la lista attuale con i default?'],
+    editHint: ['Edit any field directly: changes apply to your students only.', 'Modifica i campi direttamente: valgono solo per i tuoi alunni.'],
+    name: ['Name', 'Nome'], cost: ['Cost', 'Costo'], amount: ['Amount', 'Importo'], saved: ['Saved', 'Salvato'],
+    newReward: ['New reward', 'Nuovo premio'],
+    warnTitle: ['Warnings', 'Richiami'], addWarn: ['+ Warning', '+ Richiamo'], warnAdded: ['Warning added to', 'Richiamo aggiunto a'], last: ['Last', 'Ultimo'],
+    warnNote: ['Warnings are per subject: yours do not mix with other teachers\'.', 'I richiami sono per materia: i tuoi non si mescolano con quelli degli altri docenti.'],
+    noWarn: ['No warnings', 'Nessun richiamo'],
+    reqTitle: ['Reward requests', 'Richieste di premi'], noReq: ['No pending requests', 'Nessuna richiesta in attesa'],
+    approved: ['Approved', 'Approvata'], rejected: ['Rejected request from', 'Rifiutata la richiesta di'],
+    histTitle: ['History', 'Storico'], balanceOf: ['Balance', 'Saldo'], redeemed: ['Redeemed', 'Riscattato'], justNow: ['just now', 'adesso'],
+    // finestre
+    cancel: ['Cancel', 'Annulla'], save: ['✅ Save', '✅ Salva'], saveSimple: ['Save', 'Salva'], chooseClass: ['Choose a class to start 👆', 'Scegli una classe per iniziare 👆'],
+    selClass: ['Select a class', 'Scegli una classe'], checkedN: ['checked', 'controllati'], warnShort: ['warning', 'richiamo'],
+    nbTitle: ['📒 Notebook Check', '📒 Check quaderni'], hwTitle: ['📚 Optional Homework', '📚 Compiti facoltativi'],
+    allOk: ['📒 All ok', '📒 Tutti ok'], allFull: ['✅ All full', '✅ Tutti completi'], clear: ['🧽 Clear', '🧽 Azzera'],
+    hwName: ['Homework', 'Compiti'], hwIcon: ['Icon', 'Icona'], hwPrice: ['Reward', 'Premio'],
+    hwFull: ['Full', 'Completo'], hwHalf: ['Half', 'Metà'], hwOther: ['Other', 'Altro'], hwNo: ['No HW', 'No comp.'], comment: ['Comment', 'Commento'], enterAmt: ['Enter an amount for', 'Inserisci un importo per'],
+    saved2: ['Saved', 'Salvato'], upgradeNote: ['(2× Pretty)', '(2× Bello)'],
+    // premi ripetuti
+    recTitle: ['Recurring rewards', 'Premi che si ripetono'],
+    recHint: ['Schedule a quick reward for a class on specific weekdays. On those days you will be asked to confirm ✓ or skip ✗.', 'Programma un premio rapido per una classe in certi giorni della settimana. In quei giorni ti verrà chiesto di confermare ✓ o saltare ✗.'],
+    recNone: ['No recurring rewards scheduled', 'Nessun premio ripetuto programmato'], recNew: ['🔁 Recurring reward', '🔁 Premio ripetuto'],
+    recQuick: ['Quick reward *', 'Premio rapido *'], recClass: ['Class *', 'Classe *'], recWho: ['Who gets it', 'Chi lo riceve'], recWhole: ['Whole class', 'Tutta la classe'],
+    recRepeat: ['Repeat on *', 'Ripeti il *'], recActive: ['Active', 'Attivo'], recDays: ['Select at least one day', 'Scegli almeno un giorno'], recNoQuick: ['Create a quick reward first', 'Crea prima un premio rapido'],
+    recToday: ['for {c} ({w}) today?', 'per {c} ({w}) oggi?'], recGiven: ['Reward given!', 'Premio assegnato!'], recSkipped: ['Skipped for today', 'Saltato per oggi'],
+    dayN: [['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']],
+    nStud: ['{n} student(s)', '{n} alunno/i'],
+    // impostazioni
+    setNb: ['📒 Notebook check — grades', '📒 Check quaderni — voti'], setNbHint: ['Same for everyone by default. Change names and amounts to fit your subject.', 'Uguale per tutti di default. Cambia nomi e importi per la tua materia.'],
+    setHw: ['📚 Optional homework — defaults', '📚 Compiti facoltativi — default'], setReset: ['↩︎ Restore defaults', '↩︎ Ripristina i default'],
+    resetAsk: ['Restore the default notebook-check and homework settings?', 'Ripristinare le impostazioni di default di check quaderni e compiti?'],
+    warnType: ['warning', 'richiamo'],
+    adminMode: ['👑 Admin mode: you are editing the page of', '👑 Modalità admin: stai modificando la pagina di'], backAdmin: ['← back to teachers', '← torna ai docenti']
+  };
+  let me = null, isAdmin = false;
+  const tx = key => TXT[key][L(me.lang)];
+  const dayName = d => TXT.dayN[L(me.lang)][d === 0 ? 6 : d - 1];   // d: 0 = domenica
+  const money = n => fmtMoney(me.currency, n);
+
+  // ---------- alunni fittizi per classe ----------
+  const classStudents = {
+    '2A': ['Verdi Giulia', 'Neri Marco', 'Conti Sara', 'Ferri Luca', 'Greco Anna', 'Riva Paolo'],
+    '3B': ['Bruno Elena', 'Marino Davide', 'Gallo Chiara', 'Costa Matteo'],
+    '1C': ['Rinaldi Sofia', 'Leone Tommaso', 'Fabbri Alice', 'Serra Nicolò']
+  };
+  // I nomi sono nel formato «Cognome Nome» (come nel sito vero): l'ordine alfabetico è quindi per cognome
+  const byName = (a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' });
+  const studentsOf = c => [...(classStudents[c] || ['Alunno 1', 'Alunno 2', 'Alunno 3'].map(n => `${n} (${c})`))].sort(byName);
+  const seeds = [42, 18, 77, 5, 120, 31, 64, 9, 53, 27];
+  const balances = {};
+  [...Object.values(classStudents).flat()].forEach((n, i) => balances[n] = seeds[i % 10]);
+  const bal = n => (balances[n] === undefined ? (balances[n] = 20) : balances[n]);
+
+  let history = [], requests = [], warnings = [];
+  let section = 'give', cls = null, picked = new Set(), decidedToday = new Set();
+  let custom = { icon: '⭐', amount: '', reason: '' };
+
+  // ---------- login simulato ----------
+  const ownerOf = t => (t.email === 'fatigato@gmail.com');
+  const accts = MOCK.teachers.map(t => ({ email: t.email, name: t.name, sub: `${t.subject} · ${t.lang === 'it' ? 'pagina in italiano' : 'page in English'}${ownerOf(t) ? ' · admin' : ''}` }));
+  accts.push({ email: 'qualcuno@gmail.com', name: 'Qualcun Altro', sub: 'non autorizzato' });
+  document.getElementById('accounts').innerHTML = accts.map((a, i) =>
+    `<button data-i="${i}"><span class="avatar">${esc(a.name.split(' ').map(w => w[0]).join('').slice(0, 2))}</span><span><b>${esc(a.name)}</b><small>${esc(a.email)} · ${esc(a.sub)}</small></span></button>`).join('');
+  document.getElementById('googleBtn').onclick = () => document.getElementById('accounts').classList.toggle('hidden');
+  document.querySelectorAll('#accounts button').forEach(b => b.onclick = () => {
+    const a = accts[+b.dataset.i];
+    const t = MOCK.teachers.find(x => x.email === a.email);
+    document.getElementById('denied').classList.toggle('hidden', !!t);
+    if (t) start(t, false);
+  });
+
+  function start(t, asAdmin) {
+    me = t; isAdmin = asAdmin; cls = t.classes[0] || null; isSchoolAdmin = asAdmin || ownerOf(t);
+    document.documentElement.lang = t.lang;
+    const root = document.documentElement.style;
+    root.setProperty('--primary', t.color);
+    root.setProperty('--primary-dark', `color-mix(in srgb, ${t.color} 78%, black)`);
+    root.setProperty('--primary-light', `color-mix(in srgb, ${t.color} 55%, white)`);
+    root.setProperty('--primary-rgb', hexToRgb(t.color));
+
+    // compatibilità con dati salvati prima di queste funzioni
+    if (!t.nb || !t.hw) { const d = buildDefaults(t.lang, t.songLang); t.nb = t.nb || d.nb; t.hw = t.hw || d.hw; }
+    if (!t.recurring) t.recurring = [];
+
+    // un premio ripetuto d'esempio, attivo anche OGGI, così si vede la barra di conferma
+    if (!t.recurring.length && cls && t.quick[0]) {
+      const today = new Date().getDay();
+      t.recurring.push({ id: 'r' + Date.now(), name: t.quick[0].name, icon: t.quick[0].icon, amount: t.quick[0].amount, cls, target: 'class', studentIds: [], days: [...new Set([2, 4, today])], active: true });
+      saveMock();
+    }
+    const st = studentsOf(cls || '2A');
+    const r0 = t.rewards[3] || t.rewards[0] || { name: '', cost: 0 }, r1 = t.rewards[0] || { name: '', cost: 0 };
+    requests = cls ? [
+      { who: st[0], cls, reward: r0.name, cost: r0.cost, msg: t.lang === 'it' ? 'Posso scegliere io?' : 'Can I pick it myself?' },
+      { who: st[1], cls, reward: r1.name, cost: r1.cost, msg: '' }
+    ] : [];
+    history = t.tx.slice(0, 3).map((x, i) => ({ icon: x.icon, who: st[i] || st[0], amt: x.amount, why: x.r[L(t.lang)], when: x.w[L(t.lang)] }));
+    warnings = cls ? [{ who: st[3] || st[0], cls, n: 3, last: t.tx.find(x => x.amount < 0)?.r[L(t.lang)] || '-' }] : [];
+
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('avatar').textContent = asAdmin ? '👑' : t.name.split(' ').map(w => w[0]).join('').slice(0, 2);
+    document.getElementById('uName').textContent = t.name;
+    document.getElementById('uRole').textContent = t.subject;
+    document.getElementById('subTitle').textContent = `${MOCK.school} · ${t.name} · ${t.subject} · ${t.currency.name}`;
+    document.getElementById('ownerBanner').innerHTML = tx('owner').replace('{s}', esc(t.subject));
+    const ab = document.getElementById('adminBar');
+    ab.classList.toggle('hidden', !asAdmin);
+    ab.innerHTML = `<span>${tx('adminMode')} <b>${esc(t.name)}</b></span><a href="admin.html">${tx('backAdmin')}</a>`;
+    document.getElementById('ownerBanner').classList.toggle('hidden', asAdmin);
+    draw();
+  }
+
+  const icons = { give: '⭐', students: '👥', catalog: '🎁', quick: '⚡', checkset: '📒', settings: '⚙️', teachers: '👨‍🏫', warnings: '⚠️', requests: '📬', history: '📜' };
+  // Le Impostazioni della scuola le vede solo l'admin (Paola, o chi apre una pagina in modalità admin)
+  let isSchoolAdmin = false;
+  function buildNav() {
+    const sec = (title, keys) => `<div class="nav-section"><div class="nav-section-title">${tx(title)}</div>${keys.map(k =>
+      `<button class="nav-item ${section === k ? 'active' : ''}" data-nav="${k}"><span class="nav-item-icon">${icons[k]}</span> ${tx(k)}${k === 'requests' && requests.length ? `<span class="nav-item-badge">${requests.length}</span>` : ''}</button>`).join('')}</div>`;
+    const nav = document.getElementById('nav');
+    nav.innerHTML = sec('secOver', ['give', 'students']) + sec('secMine', ['catalog', 'quick', 'checkset']) + sec('secAct', ['warnings', 'requests', 'history'])
+      + (isSchoolAdmin ? sec('secSys', ['settings', 'teachers']) : '');
+    nav.querySelectorAll('.nav-item').forEach(b => b.onclick = () => {
+      if (b.dataset.nav === 'teachers') { location.href = 'admin.html'; return; }
+      section = b.dataset.nav; picked.clear(); viewSearch = ''; draw();
+    });
+  }
+  function setViewCls(c) { cls = c; picked.clear(); draw(); }
+
+  function draw() {
+    if (section === 'settings' && !isSchoolAdmin) section = 'give';
+    buildNav();
+    document.getElementById('pageTitle').textContent = tx(section);
+    const needsClass = ['students', 'warnings'].includes(section);   // "give" ha i suoi pallini dentro la pagina
+    const sw = document.getElementById('classSwitch');
+    sw.classList.toggle('hidden', !needsClass);
+    sw.innerHTML = classDots(me.classes, cls, 'setViewCls') + `<input id="viewSearch" class="input class-search" placeholder="🔍 ${tx('searchOne')}" value="${esc(viewSearch)}">`;
+    document.getElementById('viewSearch').oninput = e => { viewSearch = e.target.value; renderView(); };
+    renderView();
+  }
+  let viewSearch = '';
+  const matchSearch = n => !viewSearch.trim() || n.toLowerCase().includes(viewSearch.trim().toLowerCase());
+  function renderView() {
+    const needsClass = ['students', 'warnings'].includes(section);
+    document.getElementById('view').innerHTML = (needsClass && !cls) ? '<div class="empty-state"><div class="empty-state-icon">🏫</div><div class="empty-state-title">Nessuna classe assegnata</div></div>' : views[section]();
+    if (!(needsClass && !cls) && after[section]) after[section]();
+  }
+
+  // ---------- finestre ----------
+  function openModal(title, body, footer, width) {
+    const m = document.getElementById('mModal');
+    m.style.maxWidth = (width || 560) + 'px';
+    m.innerHTML = `<div class="modal-header"><h3 class="modal-title">${title}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+      <div class="modal-body" id="mBody">${body}</div><div class="modal-footer" id="mFoot">${footer || ''}</div>`;
+    m.classList.add('active'); document.getElementById('mBackdrop').classList.add('active');
+  }
+  function closeModal() { document.getElementById('mModal').classList.remove('active'); document.getElementById('mBackdrop').classList.remove('active'); }
+  const nowLabel = () => tx('justNow');
+
+  function giveTo(name, amount, why, icon) {
+    balances[name] = bal(name) + amount;
+    history.unshift({ icon, who: name, amt: amount, why, when: nowLabel() });
+  }
+  function addWarning(name, c, reason) {
+    const w = warnings.find(x => x.who === name && x.cls === c);
+    if (w) { w.n++; w.last = reason; } else warnings.push({ who: name, cls: c, n: 1, last: reason });
+  }
+
+  // =============================================================
+  //  NB CHECK
+  // =============================================================
+  let nbCls = '', nbSel = {};
+  const nbGrade = k => me.nb.find(g => g.key === k);
+  function openNb() { nbCls = cls || ''; nbSel = {}; openModal(tx('nbTitle'), '<div id="nbInner"></div>', '', 660); renderNb(); }
+  function setNbCls(c) { nbCls = c; nbSel = {}; renderNb(); }
+  function nbLabel(g) { return g.warning ? g.label : money(g.amount); }
+  function renderNb() {
+    const students = nbCls ? studentsOf(nbCls) : [];
+    const legend = me.nb.map(g => `<span>${g.icon} ${esc(g.label)} = ${g.warning ? tx('warnShort') : money(g.amount)}${g.hidden ? ' ' + tx('upgradeNote') : ''}</span>`).join('');
+    const rows = !nbCls ? `<p class="text-muted text-center p-4">${tx('chooseClass')}</p>`
+      : students.map(n => `<div class="nb-row"><div class="nb-name">${esc(n)}</div><div class="nb-options">${nbOptions(n)}</div></div>`).join('');
+    document.getElementById('nbInner').innerHTML = `
+      <div class="nb-toolbar">${classDots(me.classes, nbCls, 'setNbCls')}
+        <button class="btn btn-ghost btn-sm" onclick="nbFill()">${tx('allOk')}</button><button class="btn btn-ghost btn-sm" onclick="nbSel={};renderNb()">${tx('clear')}</button></div>
+      <div class="nb-legend">${legend}</div><div class="nb-list" style="display:grid;gap:6px">${rows}</div>`;
+    const keys = Object.values(nbSel).flat();
+    const total = keys.reduce((s, k) => s + (nbGrade(k).warning ? 0 : nbGrade(k).amount), 0);
+    const w = keys.filter(k => nbGrade(k).warning).length;
+    const n = Object.keys(nbSel).length;
+    document.getElementById('mFoot').innerHTML = `<span class="nb-summary">${n ? `${n} ${tx('checkedN')} · ${money(total)}${w ? ` · ⚠️ ${w}` : ''}` : ''}</span>
+      <button class="btn btn-secondary" onclick="closeModal()">${tx('cancel')}</button><button class="btn btn-primary" onclick="saveNb()" ${n ? '' : 'disabled'}>${tx('save')}</button>`;
+  }
+  function nbOptions(name) {
+    const cur = nbSel[name] || [];
+    return me.nb.filter(g => !g.hidden).map(base => {
+      const g = base.upgrade && cur.includes(base.upgrade) ? nbGrade(base.upgrade) : base;
+      return `<button type="button" class="nb-box nb-${g.key} ${cur.includes(g.key) ? 'checked' : ''}" data-n="${esc(name)}" onclick="nbSet(this.dataset.n,'${base.key}')" title="${esc(g.reason)}">
+        <span class="nb-box-icon">${g.icon}</span><span class="nb-box-amount">${esc(nbLabel(g))}</span></button>`;
+    }).join('');
+  }
+  function nbSet(name, key) {
+    const cur = nbSel[name] || [], g = nbGrade(key);
+    let next;
+    if (g.warning) { const w = cur.filter(k => nbGrade(k).warning); next = w.includes(key) ? w.filter(k => k !== key) : [...w, key]; }
+    else if (cur.includes(key) && g.upgrade) next = [g.upgrade];
+    else if (cur.includes(key) || (g.upgrade && cur.includes(g.upgrade))) next = [];
+    else next = [key];
+    if (next.length) nbSel[name] = next; else delete nbSel[name];
+    renderNb();
+  }
+  function nbFill() { studentsOf(nbCls).forEach(n => { if (!nbSel[n]) nbSel[n] = ['ok']; }); renderNb(); }
+  function saveNb() {
+    let money_ = 0, wcount = 0;
+    Object.entries(nbSel).forEach(([n, keys]) => keys.forEach(k => {
+      const g = nbGrade(k);
+      if (g.warning) { addWarning(n, nbCls, g.reason); wcount++; }
+      else { giveTo(n, g.amount, g.reason, g.icon); money_ += g.amount; }
+    }));
+    closeModal(); mockToast(`📒 ${tx('saved2')}: ${money(money_)}${wcount ? ` · ⚠️ ${wcount}` : ''}`); draw();
+  }
+
+  // =============================================================
+  //  COMPITI FACOLTATIVI
+  // =============================================================
+  let hwCls = '', hwSel = {}, hwCfg = null;
+  const HW_OPTS = ['nohw', 'custom', 'half', 'full'];
+  const HW_ICON = { nohw: '📚', custom: '✏️', half: '🌗', full: '✅' };
+  const HW_LABEL = { nohw: 'hwNo', custom: 'hwOther', half: 'hwHalf', full: 'hwFull' };
+  function openHw() { hwCls = cls || ''; hwSel = {}; hwCfg = { ...me.hw }; openModal(tx('hwTitle'), '<div id="hwInner"></div>', '', 700); renderHw(); }
+  const hwAmount = s => s.key === 'full' ? hwCfg.price : s.key === 'half' ? Math.round(hwCfg.price / 2) : s.key === 'custom' ? (Number.isFinite(s.amount) ? s.amount : null) : 0;
+  function renderHw() {
+    const students = hwCls ? studentsOf(hwCls) : [];
+    const rows = !hwCls ? `<p class="text-muted text-center p-4">${tx('chooseClass')}</p>` : students.map(n => hwRow(n)).join('');
+    const keepFocus = document.activeElement && document.activeElement.id;
+    document.getElementById('hwInner').innerHTML = `
+      <div class="nb-toolbar">${classDots(me.classes, hwCls, 'setHwCls')}</div>
+      <div class="hw-settings">
+        <div class="input-group hw-icon"><label class="input-label">${tx('hwIcon')}</label><input id="hwI" class="input" value="${esc(hwCfg.icon)}" maxlength="4" onchange="hwCfg.icon=this.value||'📚'"></div>
+        <div class="input-group"><label class="input-label">${tx('hwName')}</label><input id="hwN" class="input" value="${esc(hwCfg.name)}" onchange="hwCfg.name=this.value||me.hw.name"></div>
+        <div class="input-group hw-price"><label class="input-label">${tx('hwPrice')} (${esc(me.currency.symbol)})</label><input id="hwP" type="number" min="0" class="input" value="${hwCfg.price}" onchange="hwCfg.price=Math.max(0,parseInt(this.value)||0);renderHw()"></div>
+      </div>
+      <div class="nb-toolbar"><button class="btn btn-ghost btn-sm" onclick="hwFill()">${tx('allFull')}</button><button class="btn btn-ghost btn-sm" onclick="hwSel={};renderHw()">${tx('clear')}</button></div>
+      <div class="nb-list" style="display:grid;gap:6px">${rows}</div>`;
+    const entries = Object.values(hwSel);
+    const total = entries.reduce((s, x) => s + (hwAmount(x) || 0), 0);
+    document.getElementById('mFoot').innerHTML = `<span class="nb-summary">${entries.length ? `${entries.length} ${tx('checkedN')} · ${money(total)}` : ''}</span>
+      <button class="btn btn-secondary" onclick="closeModal()">${tx('cancel')}</button><button class="btn btn-primary" onclick="saveHw()" ${entries.length ? '' : 'disabled'}>${tx('save')}</button>`;
+  }
+  function setHwCls(c) { hwCls = c; hwSel = {}; renderHw(); }
+  function hwRow(n) {
+    const cur = hwSel[n];
+    const boxes = HW_OPTS.map(k => {
+      const lab = k === 'nohw' ? tx('hwNo') : k === 'custom' ? (cur?.key === 'custom' && Number.isFinite(cur.amount) ? money(cur.amount) : tx('hwOther')) : money(k === 'half' ? Math.round(hwCfg.price / 2) : hwCfg.price);
+      return `<button type="button" class="nb-box hw-${k} ${cur?.key === k ? 'checked' : ''}" data-n="${esc(n)}" onclick="hwSet(this.dataset.n,'${k}')"><span class="nb-box-icon">${HW_ICON[k]}</span><span class="nb-box-amount">${esc(lab)}</span></button>`;
+    }).join('');
+    const extra = cur && (cur.key === 'custom' || cur.key === 'half') ? `<div class="hw-extra">
+      ${cur.key === 'custom' ? `<input type="number" class="input" style="max-width:110px" placeholder="${esc(me.currency.symbol)}" value="${Number.isFinite(cur.amount) ? cur.amount : ''}" data-n="${esc(n)}" onchange="hwAmt(this.dataset.n,this.value)">` : ''}
+      <input class="input" placeholder="${tx('comment')}" value="${esc(cur.comment || '')}" data-n="${esc(n)}" onchange="hwSel[this.dataset.n].comment=this.value"></div>` : '';
+    return `<div class="nb-row hw-row"><div class="nb-name">${esc(n)}</div><div class="nb-options">${boxes}</div>${extra}</div>`;
+  }
+  function hwSet(n, k) { if (hwSel[n]?.key === k) delete hwSel[n]; else hwSel[n] = { key: k, comment: hwSel[n]?.comment || '' }; renderHw(); }
+  function hwAmt(n, v) { const x = parseInt(v, 10); hwSel[n].amount = Number.isFinite(x) && x >= 0 ? x : undefined; renderHw(); }
+  function hwFill() { studentsOf(hwCls).forEach(n => { if (!hwSel[n]) hwSel[n] = { key: 'full', comment: '' }; }); renderHw(); }
+  function saveHw() {
+    const miss = Object.entries(hwSel).filter(([, s]) => hwAmount(s) === null).map(([n]) => n);
+    if (miss.length) return mockToast(`${tx('enterAmt')}: ${miss.join(', ')}`);
+    let tot = 0, wc = 0;
+    Object.entries(hwSel).forEach(([n, s]) => {
+      if (s.key === 'nohw') { addWarning(n, hwCls, hwCfg.name === me.hw.name ? TXT.hwNo[L(me.lang)] : `${tx('hwNo')}: ${hwCfg.name}`); wc++; }
+      else { const a = hwAmount(s); giveTo(n, a, s.comment ? `${hwCfg.name} — ${s.comment}` : hwCfg.name, hwCfg.icon); tot += a; }
+    });
+    closeModal(); mockToast(`📚 ${tx('saved2')}: ${money(tot)}${wc ? ` · ⚠️ ${wc}` : ''}`); draw();
+  }
+
+  // =============================================================
+  //  PREMI CHE SI RIPETONO
+  // =============================================================
+  let rrEdit = null;   // regola in modifica
+  function ruleWho(r) { return r.target === 'students' ? tx('nStud').replace('{n}', r.studentIds.length) : tx('recWhole'); }
+  function renderRecList() {
+    if (!me.recurring.length) return `<p class="text-muted">${tx('recNone')}</p>`;
+    return me.recurring.map((r, i) => `
+      <div class="row-item"><span style="font-size:1.5rem">${r.icon}</span>
+        <div class="grow"><b>${esc(r.name)}</b> <span style="color:var(--success);font-weight:700">${fmtSigned(me.currency, r.amount)}</span>
+          <small>${esc(r.cls)} • ${ruleWho(r)} • ${r.days.slice().sort((a, b) => ((a || 7) - (b || 7))).map(dayName).join(', ')}</small></div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer"><input type="checkbox" ${r.active ? 'checked' : ''} data-i="${i}" data-act> ${tx('recActive')}</label>
+        <button class="btn btn-ghost btn-sm" data-edit="${i}">✏️</button><button class="btn btn-ghost btn-sm" data-delr="${i}">🗑️</button></div>`).join('');
+  }
+  function openRec(i) {
+    if (!me.quick.length) return mockToast(tx('recNoQuick'));
+    const r = i === undefined ? { quickIdx: 0, cls: me.classes[0] || '', target: 'class', studentIds: [], days: [1, 3], active: true } : { ...me.recurring[i], quickIdx: Math.max(0, me.quick.findIndex(q => q.name === me.recurring[i].name)), studentIds: [...me.recurring[i].studentIds], days: [...me.recurring[i].days] };
+    rrEdit = { i, r };
+    openModal(tx('recNew'), '<div id="rrInner"></div>', '', 520); renderRec();
+  }
+  function renderRec() {
+    const r = rrEdit.r;
+    const picker = r.target === 'students' ? `<div style="margin-top:8px;max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px">
+      ${studentsOf(r.cls).map(n => `<label style="display:flex;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" ${r.studentIds.includes(n) ? 'checked' : ''} data-stu="${esc(n)}"> ${esc(n)}</label>`).join('')}</div>` : '';
+    document.getElementById('rrInner').innerHTML = `
+      <div class="input-group"><label class="input-label">${tx('recQuick')}</label>
+        <select class="input" id="rrQ">${me.quick.map((q, k) => `<option value="${k}" ${k === r.quickIdx ? 'selected' : ''}>${q.icon} ${esc(q.name)} (${fmtSigned(me.currency, q.amount)})</option>`).join('')}</select></div>
+      <div class="input-group"><label class="input-label">${tx('recClass')}</label>
+        ${classDots(me.classes, r.cls, 'setRecCls')}</div>
+      <div class="input-group"><label class="input-label">${tx('recWho')}</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="rrW" ${r.target === 'class' ? 'checked' : ''}> ${tx('recWhole')}</label>${picker}</div>
+      <div class="input-group"><label class="input-label">${tx('recRepeat')}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button type="button" class="day-chip ${r.days.includes(d) ? 'on' : ''}" data-day="${d}">${dayName(d)}</button>`).join('')}</div></div>
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="rrA" ${r.active ? 'checked' : ''}> ${tx('recActive')}</label>`;
+    document.getElementById('mFoot').innerHTML = `<button class="btn btn-secondary" onclick="closeModal()">${tx('cancel')}</button><button class="btn btn-primary" onclick="saveRec()">${tx('saveSimple')}</button>`;
+    document.getElementById('rrQ').onchange = e => r.quickIdx = +e.target.value;
+    document.getElementById('rrW').onchange = e => { r.target = e.target.checked ? 'class' : 'students'; renderRec(); };
+    document.getElementById('rrA').onchange = e => r.active = e.target.checked;
+    document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { const d = +b.dataset.day; r.days = r.days.includes(d) ? r.days.filter(x => x !== d) : [...r.days, d]; renderRec(); });
+    document.querySelectorAll('[data-stu]').forEach(c => c.onchange = () => { const n = c.dataset.stu; r.studentIds = c.checked ? [...r.studentIds, n] : r.studentIds.filter(x => x !== n); });
+  }
+  function setRecCls(c) { rrEdit.r.cls = c; rrEdit.r.studentIds = []; renderRec(); }
+  function saveRec() {
+    const r = rrEdit.r;
+    if (!r.days.length) return mockToast(tx('recDays'));
+    const q = me.quick[r.quickIdx];
+    const rule = { id: r.id || 'r' + Date.now(), name: q.name, icon: q.icon, amount: q.amount, cls: r.cls, target: r.target, studentIds: r.target === 'students' ? r.studentIds : [], days: r.days, active: r.active };
+    if (rrEdit.i === undefined) me.recurring.push(rule); else me.recurring[rrEdit.i] = rule;
+    saveMock(); closeModal(); draw();
+  }
+  function recBar() {
+    const today = new Date().getDay();
+    const due = me.recurring.filter(r => r.active && r.days.includes(today) && !decidedToday.has(r.id));
+    if (!due.length) return '';
+    return `<div class="rec-bar">${due.map(r => `<div class="rec-item"><span style="font-size:1.4rem">${r.icon}</span>
+      <span class="grow"><b>${esc(r.name)}</b> ${tx('recToday').replace('{c}', esc(r.cls)).replace('{w}', ruleWho(r))}</span>
+      <b style="color:var(--success)">${fmtSigned(me.currency, r.amount)}</b>
+      <button class="btn btn-success btn-sm" data-rec-ok="${r.id}">✓</button><button class="btn btn-danger btn-sm" data-rec-no="${r.id}">✗</button></div>`).join('')}</div>`;
+  }
+
+  // =============================================================
+  //  EDITOR DI LISTE (catalogo / premi rapidi)
+  // =============================================================
+  function editRows(list, key) {
+    return list.map((r, i) => `
+      <div class="row-item">
+        <input class="input" style="width:56px;text-align:center" value="${esc(r.icon)}" data-f="icon" data-i="${i}" maxlength="2">
+        <input class="input grow" value="${esc(r.name)}" data-f="name" data-i="${i}" placeholder="${tx('name')}">
+        <input class="input" style="width:90px" type="number" value="${r[key]}" data-f="${key}" data-i="${i}" title="${key === 'cost' ? tx('cost') : tx('amount')} (${esc(me.currency.name)})">
+        <span style="min-width:28px">${esc(me.currency.symbol)}</span>
+        <button class="btn btn-ghost btn-sm" data-del="${i}">🗑️</button>
+      </div>`).join('');
+  }
+  function editor(list, key, title, extra) {
+    return `<div class="card"><div class="card-header"><h3 class="card-title">${title}</h3>
+      <div style="display:flex;gap:8px"><button class="btn btn-secondary" id="defBtn">${tx('defaults')}</button><button class="btn btn-primary" id="addBtn">${tx('add')}</button></div></div>
+      <div class="card-body"><p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('editHint')}</p>${editRows(list, key)}</div></div>${extra || ''}`;
+  }
+  function wireEditor(list, key, kind) {
+    document.querySelectorAll('[data-f]').forEach(inp => inp.onchange = () => {
+      const r = list[+inp.dataset.i], f = inp.dataset.f;
+      r[f] = (f === 'cost' || f === 'amount') ? Number(inp.value) : inp.value;
+      saveMock(); mockToast('✓ ' + tx('saved'));
+    });
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); saveMock(); draw(); });
+    document.getElementById('addBtn').onclick = () => { list.push({ icon: '⭐', name: tx('newReward'), description: '', [key]: 10 }); saveMock(); draw(); };
+    document.getElementById('defBtn').onclick = () => {
+      if (!confirm(tx('defAsk'))) return;
+      const d = buildDefaults(me.lang, me.songLang);
+      list.splice(0, list.length, ...d[kind]); saveMock(); mockToast(tx('defDone')); draw();
+    };
+  }
+
+  // =============================================================
+  //  GRIGLIA ALUNNI (Assegna premi): filtro a pallini + ricerca
+  // =============================================================
+  let giveFilter = '', giveSearch = '';
+  function keepCustom() { custom = { icon: document.getElementById('cIcon').value, amount: document.getElementById('cAmt').value, reason: document.getElementById('cWhy').value }; }
+  // 👁️ apre in una nuova scheda la pagina che vede l'alunno (la stessa per tutti i docenti)
+  function viewAsStudent(name, c) { window.open('student.html?name=' + encodeURIComponent(name) + '&class=' + encodeURIComponent(c), '_blank', 'noopener'); }
+  function setGiveCls(c) { keepCustom(); giveFilter = c; draw(); }
+  function visibleStudents() {
+    const q = giveSearch.trim().toLowerCase();
+    return (giveFilter ? [giveFilter] : me.classes).flatMap(c => studentsOf(c).map(n => ({ n, c }))).sort((x, y) => byName(x.n, y.n))
+      .filter(x => !q || x.n.toLowerCase().includes(q));
+  }
+  function renderGrid() {
+    const vis = visibleStudents();
+    document.getElementById('gGrid').innerHTML = vis.length ? vis.map(x => `
+      <div class="student-select-card ${picked.has(x.n) ? 'selected' : ''}" style="--cc:${classColor(x.c)}" data-n="${esc(x.n)}">
+        <div class="student-select-name">${esc(x.n)} <button type="button" class="eye-btn" data-eye="${esc(x.n)}" data-c="${esc(x.c)}" title="${tx('viewAs')}">👁️</button></div>
+        <div class="student-select-balance"><span class="cdot-sm" style="--cc:${classColor(x.c)}"></span>${esc(x.c)} · ${esc(money(bal(x.n)))}</div>
+      </div>`).join('') : `<p class="text-muted">${tx('noMatch')}</p>`;
+    document.querySelectorAll('#gGrid .eye-btn').forEach(b => b.onclick = e => { e.stopPropagation(); viewAsStudent(b.dataset.eye, b.dataset.c); });
+    document.querySelectorAll('#gGrid .student-select-card').forEach(c => c.onclick = () => {
+      picked.has(c.dataset.n) ? picked.delete(c.dataset.n) : picked.add(c.dataset.n); renderGrid();
+    });
+    document.getElementById('pickedCount').textContent = picked.size ? `(${picked.size} ${tx('selected')})` : '';
+    document.getElementById('selAllBox').textContent = vis.length && vis.every(x => picked.has(x.n)) ? '✅' : '⬜';
+  }
+
+  // =============================================================
+  //  VISTE
+  // =============================================================
+  const views = {
+    give() {
+      return `
+      ${recBar()}
+      <div class="card"><div class="card-header"><h3 class="card-title">⭐ ${tx('give')}</h3>
+        <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" id="nbBtn">${tx('nbBtn')}</button><button class="btn btn-secondary btn-sm" id="hwBtn">${tx('hwBtn')}</button></div></div>
+      <div class="card-body">
+        <div class="input-group"><label class="input-label">${tx('quickTitle')}</label>
+          <div class="quick-rewards">${me.quick.map((q, i) => `
+            <button class="quick-reward-btn ${q.amount < 0 ? 'negative' : ''}" data-q="${i}">
+              <span class="quick-reward-icon">${q.icon}</span>
+              <span class="quick-reward-name">${esc(q.name)}</span>
+              <span class="quick-reward-amount">${esc(fmtSigned(me.currency, q.amount))}</span>
+            </button>`).join('')}</div></div>
+
+        <div style="text-align:center;margin:var(--space-4) 0;color:var(--text-muted)">${L(me.lang) ? 'oppure' : 'or'}</div>
+
+        <div class="input-group"><label class="input-label">${tx('customCap')}</label>
+          <div class="custom-row">
+            <input id="cIcon" class="input" value="${esc(custom.icon)}" maxlength="2" style="width:50px;height:50px;text-align:center;font-size:1.5rem;border-radius:50%;padding:0;flex-shrink:0">
+            <input id="cAmt" type="number" class="input" placeholder="10" value="${esc(custom.amount)}" style="width:90px;flex-shrink:0">
+            <input id="cWhy" class="input" placeholder="${tx('reason')}" value="${esc(custom.reason)}" style="flex:1;min-width:140px">
+          </div></div>
+
+        <div class="input-group"><label class="input-label">${tx('findStud')}</label>
+          <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center">
+            <input id="gSearch" class="input" style="flex:1;min-width:200px" placeholder="${tx('searchPh')}" value="${esc(giveSearch)}">
+            <div id="gDots">${classDots(me.classes, giveFilter, 'setGiveCls', tx('allCls'))}</div>
+          </div></div>
+
+        <div class="input-group">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);gap:8px;flex-wrap:wrap">
+            <label class="input-label" style="margin:0">${tx('selStud')} <span id="pickedCount" class="text-muted" style="font-weight:400"></span></label>
+            <div style="display:flex;gap:12px;align-items:center"><button class="sel-all" id="selAll"><span id="selAllBox">✅</span> ${L(me.lang) ? 'Seleziona tutti' : 'Select All'}</button><button class="btn btn-primary btn-sm" id="giveCustom">${tx('giveReward')}</button></div></div>
+          <div id="gGrid" class="student-select-grid"></div></div>
+        <p class="text-muted" style="font-size:var(--text-sm)">${tx('tip').replace('{c}', esc(me.currency.name))}</p>
+      </div></div>`;
+    },
+    students() {
+      const medals = ['🥇', '🥈', '🥉', '4', '5'];
+      const top = [...studentsOf(cls)].sort((a, b) => bal(b) - bal(a)).slice(0, 5);
+      const list = studentsOf(cls).filter(matchSearch);
+      return `
+      <div class="card mb-6"><div class="card-header"><div><h3 class="card-title">🏆 ${tx('topTitle')} · ${esc(cls)}</h3><p class="text-muted" style="font-size:var(--text-sm);margin:0">${tx('topSub')} (${esc(me.subject)})</p></div></div><div class="card-body">
+        ${top.map((n, i) => `<div class="rank-row"><span class="rank-medal">${medals[i]}</span><div class="grow" style="flex:1"><b>${esc(n)}</b></div><b style="color:var(--primary)">${esc(money(bal(n)))}</b></div>`).join('')}
+      </div></div>
+      <div class="card"><div class="card-header"><h3 class="card-title">👥 ${tx('students')} ${esc(cls)} · ${tx('allStudents')}</h3></div><div class="card-body">
+        ${list.length ? list.map(n => `
+          <div class="row-item"><span class="avatar" style="background:linear-gradient(135deg, var(--primary), ${classColor(cls)})">${esc(n.slice(0, 1))}</span><div class="grow"><b>${esc(n)}</b></div><b>${esc(money(bal(n)))}</b><button class="btn btn-ghost btn-sm" data-eye="${esc(n)}" title="${tx('viewAs')}">👁️</button></div>`).join('') : `<p class="text-muted">${tx('noMatch')}</p>`}
+      </div></div>`;
+    },
+    catalog() { return editor(me.rewards, 'cost', '🎁 ' + tx('redeemable')); },
+    quick() {
+      const rec = `<div class="card mt-6"><div class="card-header"><h3 class="card-title">🔁 ${tx('recTitle')}</h3><button class="btn btn-primary" id="recAdd">${tx('add')}</button></div>
+        <div class="card-body"><p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('recHint')}</p><div id="recList">${renderRecList()}</div></div></div>`;
+      return editor(me.quick, 'amount', '⚡ ' + tx('quickTitle'), rec);
+    },
+    checkset() {
+      return `<div class="card"><div class="card-header"><h3 class="card-title">${tx('setNb')}</h3><button class="btn btn-secondary btn-sm" id="setReset">${tx('setReset')}</button></div>
+        <div class="card-body"><p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('setNbHint')}</p>
+        ${me.nb.map((g, i) => `<div class="set-grid">
+          <input class="input" style="text-align:center" value="${esc(g.icon)}" data-nb="icon" data-i="${i}" maxlength="2">
+          <input class="input" value="${esc(g.label)}" data-nb="label" data-i="${i}">
+          ${g.warning ? `<span class="badge badge-warning">${tx('warnType')}</span>` : `<input class="input" type="number" value="${g.amount}" data-nb="amount" data-i="${i}">`}
+          <span class="hide-sm text-muted" style="font-size:12px">${g.hidden ? tx('upgradeNote') : ''}</span></div>`).join('')}</div></div>
+        <div class="card mt-6"><div class="card-header"><h3 class="card-title">${tx('setHw')}</h3></div><div class="card-body">
+          <div class="set-grid"><input class="input" style="text-align:center" value="${esc(me.hw.icon)}" data-hw="icon" maxlength="4">
+            <input class="input" value="${esc(me.hw.name)}" data-hw="name">
+            <input class="input" type="number" min="0" value="${me.hw.price}" data-hw="price"><span class="hide-sm">${esc(me.currency.symbol)}</span></div>
+        </div></div>`;
+    },
+    settings() {
+      const classes_ = allClasses();
+      const fake = `<small class="text-muted">${tx('scFake')}</small>`;
+      return `
+      <div class="card"><div class="card-header"><h3 class="card-title">${tx('scSchool')}</h3></div><div class="card-body">
+        <div class="input-group"><label class="input-label">${tx('scName')}</label><input class="input" value="${esc(MOCK.school)}" id="scName"></div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:8px">${tx('scCurHint')}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)">
+          <div class="input-group"><label class="input-label">${tx('scDefSym')}</label><input class="input" value="$" maxlength="3"></div>
+          <div class="input-group"><label class="input-label">${tx('scDefName')}</label><input class="input" value="Dollars"></div></div>
+        <div class="input-group"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox"> ${tx('scLb')}</label></div>
+        <button class="btn btn-primary" id="scSave">💾 ${tx('saveSimple')}</button></div></div>
+
+      <div class="card mt-6"><div class="card-header"><h3 class="card-title">${tx('scClasses')}</h3></div><div class="card-body">
+        <p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('scClassesHint')}</p>
+        ${classes_.map(c => `<div class="cls-edit"><span class="cdot on" style="--cc:${classColor(c)}">${esc(c)}</span>
+          <input type="color" value="${classColor(c)}" data-cc="${esc(c)}">
+          <span class="grow" style="flex:1;font-size:var(--text-sm);color:var(--text-muted)">${MOCK.teachers.filter(t => t.classes.includes(c)).map(t => esc(t.name)).join(', ') || '—'}</span>
+          <button class="btn btn-ghost btn-sm" data-ccreset="${esc(c)}" title="Default">↺</button></div>`).join('')}
+      </div></div>
+
+      <div class="card mt-6"><div class="card-header"><h3 class="card-title">${tx('scTeachersCard')}</h3></div><div class="card-body">
+        <p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('scTeachersTxt')}</p>
+        <a class="btn btn-secondary" href="admin.html">${tx('scTeachersBtn')}</a></div></div>
+
+      <div class="card mt-6"><div class="card-header"><h3 class="card-title">${tx('scLinks')}</h3></div><div class="card-body">
+        <p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('scLinksTxt')}</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="badge badge-success">${tx('scConnect')}</span>
+          <button class="btn btn-secondary btn-sm" data-fake>${tx('scSync')}</button></div></div></div>
+
+      <div class="card mt-6"><div class="card-header"><h3 class="card-title">${tx('scTools')}</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" data-fake>${tx('scRecon')}</button>
+        <button class="btn btn-secondary btn-sm" data-fake>${tx('scMissing')}</button>
+        <button class="btn btn-secondary btn-sm" data-fake>${tx('scDup')}</button></div></div>
+
+      <div class="card mt-6" style="border:1px solid var(--danger-light)"><div class="card-header"><h3 class="card-title" style="color:var(--danger)">${tx('scDanger')}</h3></div><div class="card-body">
+        <p class="text-muted mb-4" style="font-size:var(--text-sm)">${tx('scDangerTxt')}</p>
+        <button class="btn btn-danger" data-fake>${tx('scReset')}</button> ${fake}</div></div>`;
+    },
+    warnings() {
+      const w = warnings.filter(x => x.cls === cls && matchSearch(x.who));
+      return `<div class="card"><div class="card-header"><h3 class="card-title">⚠️ ${tx('warnTitle')} · ${esc(cls)}</h3></div><div class="card-body">
+        ${w.length ? w.map(x => `<div class="row-item"><span class="badge badge-danger">${x.n}</span><div class="grow"><b>${esc(x.who)}</b><small>${tx('last')}: ${esc(x.last)}</small></div><button class="btn btn-secondary btn-sm" data-warn="${esc(x.who)}">${tx('addWarn')}</button></div>`).join('') : `<div class="empty-state"><div class="empty-state-icon">🙂</div><div class="empty-state-title">${tx('noWarn')}</div></div>`}
+        <p class="text-muted" style="font-size:var(--text-sm);margin-top:12px">${tx('warnNote')}</p>
+      </div></div>`;
+    },
+    requests() {
+      return `<div class="card"><div class="card-header"><h3 class="card-title">📬 ${tx('reqTitle')}</h3></div><div class="card-body">
+        ${requests.length ? requests.map((r, i) => `<div class="row-item"><span style="font-size:1.6rem">🎁</span><div class="grow"><b>${esc(r.who)}</b> (${esc(r.cls)}) · ${esc(r.reward)} · ${esc(money(r.cost))}${r.msg ? `<small>“${esc(r.msg)}”</small>` : ''}</div>
+          <button class="btn btn-success btn-sm" data-ok="${i}">✓</button><button class="btn btn-danger btn-sm" data-no="${i}">✗</button></div>`).join('') : `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-title">${tx('noReq')}</div></div>`}
+      </div></div>`;
+    },
+    history() {
+      return `<div class="card"><div class="card-header"><h3 class="card-title">📜 ${tx('histTitle')}</h3></div><div class="card-body">
+        ${history.map(h => `<div class="row-item"><span style="font-size:1.4rem">${h.icon}</span><div class="grow"><b>${esc(h.who)}</b><small>${esc(h.why)} · ${esc(h.when)}</small></div><b style="color:var(--${h.amt < 0 ? 'danger' : 'success'})">${esc(fmtSigned(me.currency, h.amt))}</b></div>`).join('')}
+      </div></div>`;
+    }
+  };
+
+  const after = {
+    give() {
+      document.getElementById('nbBtn').onclick = openNb;
+      document.getElementById('hwBtn').onclick = openHw;
+      ['cIcon', 'cAmt', 'cWhy'].forEach(id => document.getElementById(id).oninput = keepCustom);
+      document.getElementById('gSearch').oninput = e => { giveSearch = e.target.value; renderGrid(); };
+      document.getElementById('selAll').onclick = () => {
+        const vis = visibleStudents();
+        if (vis.length && vis.every(x => picked.has(x.n))) vis.forEach(x => picked.delete(x.n)); else vis.forEach(x => picked.add(x.n));
+        renderGrid();
+      };
+      renderGrid();
+      document.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+        if (!picked.size) return mockToast(tx('needStud'));
+        const q = me.quick[+b.dataset.q];
+        picked.forEach(n => giveTo(n, q.amount, q.name, q.icon));
+        mockToast(`${q.icon} ${fmtSigned(me.currency, q.amount)} ${tx('given')} ${picked.size} ${tx('pupils')}`);
+        picked.clear(); draw();
+      });
+      document.getElementById('giveCustom').onclick = () => {
+        keepCustom();
+        if (!picked.size) return mockToast(tx('needStud'));
+        const a = parseInt(custom.amount, 10);
+        if (!Number.isFinite(a) || a === 0) return mockToast(tx('needAmt'));
+        const ic = custom.icon || '⭐', why = custom.reason.trim() || tx('customT');
+        picked.forEach(n => giveTo(n, a, why, ic));
+        mockToast(`${ic} ${fmtSigned(me.currency, a)} ${tx('given')} ${picked.size} ${tx('pupils')}`);
+        picked.clear(); custom = { icon: '⭐', amount: '', reason: '' }; draw();
+      };
+      document.querySelectorAll('[data-rec-ok]').forEach(b => b.onclick = () => {
+        const r = me.recurring.find(x => x.id === b.dataset.recOk);
+        const targets = r.target === 'students' ? r.studentIds : studentsOf(r.cls);
+        targets.forEach(n => giveTo(n, r.amount, r.name, r.icon));
+        decidedToday.add(r.id); mockToast('🔁 ' + tx('recGiven')); draw();
+      });
+      document.querySelectorAll('[data-rec-no]').forEach(b => b.onclick = () => { decidedToday.add(b.dataset.recNo); mockToast(tx('recSkipped')); draw(); });
+    },
+    students() { document.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => viewAsStudent(b.dataset.eye, cls)); },
+    catalog() { wireEditor(me.rewards, 'cost', 'rewards'); },
+    quick() {
+      wireEditor(me.quick, 'amount', 'quick');
+      document.getElementById('recAdd').onclick = () => openRec();
+      document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openRec(+b.dataset.edit));
+      document.querySelectorAll('[data-delr]').forEach(b => b.onclick = () => { me.recurring.splice(+b.dataset.delr, 1); saveMock(); draw(); });
+      document.querySelectorAll('[data-act]').forEach(c => c.onchange = () => { me.recurring[+c.dataset.i].active = c.checked; saveMock(); });
+    },
+    settings() {
+      document.getElementById('scSave').onclick = () => { MOCK.school = document.getElementById('scName').value || MOCK.school; mockToast('✓ ' + tx('saved')); };
+      document.querySelectorAll('[data-cc]').forEach(i => i.onchange = () => { MOCK.classColors[i.dataset.cc] = i.value; saveMock(); draw(); });
+      document.querySelectorAll('[data-ccreset]').forEach(b => b.onclick = () => { delete MOCK.classColors[b.dataset.ccreset]; saveMock(); draw(); });
+      document.querySelectorAll('[data-fake]').forEach(b => b.onclick = () => mockToast(tx('scFake')));
+    },
+    checkset() {
+      document.querySelectorAll('[data-nb]').forEach(inp => inp.onchange = () => {
+        const g = me.nb[+inp.dataset.i], f = inp.dataset.nb;
+        g[f] = f === 'amount' ? Number(inp.value) : inp.value; saveMock(); mockToast('✓ ' + tx('saved'));
+      });
+      document.querySelectorAll('[data-hw]').forEach(inp => inp.onchange = () => {
+        const f = inp.dataset.hw; me.hw[f] = f === 'price' ? Math.max(0, Number(inp.value) || 0) : inp.value; saveMock(); mockToast('✓ ' + tx('saved'));
+      });
+      document.getElementById('setReset').onclick = () => {
+        if (!confirm(tx('resetAsk'))) return;
+        const d = buildDefaults(me.lang, me.songLang); me.nb = d.nb; me.hw = d.hw; saveMock(); draw();
+      };
+    },
+    warnings() {
+      document.querySelectorAll('[data-warn]').forEach(b => b.onclick = () => {
+        addWarning(b.dataset.warn, cls, tx('warnType')); mockToast(`${tx('warnAdded')} ${b.dataset.warn}`); draw();
+      });
+    },
+    requests() {
+      document.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => {
+        const r = requests.splice(+b.dataset.ok, 1)[0];
+        giveTo(r.who, -r.cost, tx('redeemed') + ': ' + r.reward, '🎁');
+        mockToast(`✅ ${tx('approved')}: ${r.who} → ${r.reward}`); draw();
+      });
+      document.querySelectorAll('[data-no]').forEach(b => b.onclick = () => {
+        const r = requests.splice(+b.dataset.no, 1)[0]; mockToast(`❌ ${tx('rejected')} ${r.who}`); draw();
+      });
+    }
+  };
+
+  // Modalità admin: ?as=<id docente> salta l'accesso
+  (function () {
+    const as = new URLSearchParams(location.search).get('as');
+    const t = as && MOCK.teachers.find(x => x.id === as);
+    if (t) start(t, true);
+  })();
+</script>
+</body>
+</html>

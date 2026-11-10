@@ -10,6 +10,21 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin'];
     }
 
+    // Helper: profilo dell'utente che fa la richiesta
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdminOf(schoolId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && me().schoolId == schoolId
+        && me().role == 'admin';
+    }
+    // Conto (ledger) del docente: chi non ha il campo ledgerId usa il conto storico 'main'
+    function ownsLedger(schoolId, ledgerId) {
+      return isTeacherOrAdmin(schoolId) && me().get('ledgerId', 'main') == ledgerId;
+    }
+
     // Users collection: public read (teacher names/roles needed by student pages).
     // Only teachers/admins can write.
     match /users/{userId} {
@@ -28,7 +43,20 @@ service cloud.firestore {
       // Exceptions below override this for rewardRequests.
       match /{collection}/{docId} {
         allow read: if true;
-        allow write: if isTeacherOrAdmin(schoolId);
+        // 'ledgers' (conti dei docenti) ha regole proprie qui sotto
+        allow write: if collection != 'ledgers' && isTeacherOrAdmin(schoolId);
+      }
+
+      // Conti dei docenti (nome, materia, colore, valuta, lingua, classi, NB check, compiti):
+      //   - lettura pubblica: la pagina alunno ne ha bisogno
+      //   - l'admin modifica tutto
+      //   - un docente può cambiare SOLO le impostazioni check/compiti del proprio conto
+      match /ledgers/{ledgerId} {
+        allow read: if true;
+        allow create, delete: if isAdminOf(schoolId);
+        allow update: if isAdminOf(schoolId)
+          || (ownsLedger(schoolId, ledgerId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nb', 'hw', 'ownerUid', 'updatedAt']));
       }
 
       // Reward requests:

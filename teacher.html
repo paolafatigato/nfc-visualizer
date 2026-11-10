@@ -8,6 +8,65 @@
   <link rel="apple-touch-icon" href="icons/bank.png">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ---- funzioni solo admin ---- */
+    body:not(.is-admin) .admin-only { display: none !important; }
+
+    /* ---- pallini delle classi (al posto dei menu a tendina) ---- */
+    .cdots-wrap { display: inline-block; vertical-align: middle; }
+    .cdots { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .cdot {
+      min-width: 44px; height: 44px; padding: 0 10px; border-radius: 999px; border: 0; cursor: pointer;
+      background: color-mix(in srgb, var(--cc) 48%, white); color: #fff; font-weight: 800; font-size: 14px; font-family: inherit;
+      transition: all .15s; text-shadow: 0 1px 2px rgba(0,0,0,.22);
+    }
+    .cdot:hover { background: color-mix(in srgb, var(--cc) 75%, white); }
+    .cdot.on { background: var(--cc); box-shadow: 0 0 0 3px var(--surface, #fff), 0 0 0 5px var(--cc); transform: scale(1.05); }
+    .nb-toolbar .cdots-wrap, .give-rewards-filters .cdots-wrap { flex: 1 1 100%; }
+    @media (max-width: 768px) {
+      /* classi: pallini piccoli, tutti sulla stessa riga */
+      .cdots-wrap { display: block; max-width: 100%; }
+      .cdots { flex-wrap: nowrap; gap: 4px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none; }
+      .cdots::-webkit-scrollbar { display: none; }
+      .cdot { width: 34px; min-width: 34px; height: 34px; min-height: 34px; flex: 0 0 auto; padding: 0; border-radius: 50%; font-size: 11px; line-height: 1; }
+      .cdot.on { box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 3px var(--cc); transform: none; }
+      /* quick rewards: una riga scorrevole destra/sinistra */
+      .quick-rewards {
+        display: flex !important; flex-wrap: nowrap; gap: var(--space-2);
+        overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+        padding-bottom: 6px; margin: 0 -2px;
+      }
+      .quick-rewards .quick-reward-btn {
+        flex: 0 0 auto; width: auto; min-width: 84px; max-width: 110px;
+        flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+        padding: var(--space-2) var(--space-3); scroll-snap-align: start;
+      }
+      .quick-rewards .quick-reward-icon { font-size: 1.4rem; order: 1; }
+      .quick-rewards .quick-reward-amount { order: 2; font-size: var(--text-sm); }
+      .quick-rewards .quick-reward-name { order: 3; flex: none; max-width: 100%; text-align: center; font-size: 11px; }
+    }
+    .nb-name.expanded { white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word; }
+    .eye-btn { border: 0; background: transparent; cursor: pointer; font-size: 14px; padding: 0 2px; float: right; opacity: .55; }
+    .eye-btn:hover { opacity: 1; }
+
+    /* ---- barra "admin sulla pagina di un collega" ---- */
+    .as-admin-bar { background: #2C2036; color: #fff; border-radius: 12px; padding: 10px 14px; font-size: var(--text-sm); margin-bottom: var(--space-4); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .as-admin-bar a { color: var(--secondary-light); margin-left: auto; }
+
+    /* ---- gestione docenti ---- */
+    .ledger-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--background-alt); margin-bottom: 10px; border-left: 6px solid var(--lc, var(--primary)); }
+    .ledger-card.inactive { opacity: .55; }
+    .ledger-card .grow { flex: 1; min-width: 200px; }
+    .ledger-card small { display: block; color: var(--text-muted); }
+    .ledger-chip { display: inline-flex; gap: 6px; align-items: center; color: #fff; border-radius: 999px; padding: 4px 12px; font-weight: 600; font-size: var(--text-sm); background: var(--lc, var(--primary)); }
+    .ledger-tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 700; margin: 2px 3px 0 0; }
+    .tm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+    .tm-grid .full { grid-column: 1 / -1; }
+    .tm-colors { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tm-colors input[type=color] { width: 44px; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 10px; background: #fff; cursor: pointer; }
+    .ck-row { display: grid; grid-template-columns: 56px 1fr 90px 1.4fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+    @media (max-width: 640px) { .ck-row { grid-template-columns: 48px 1fr 70px; } .ck-row .ck-reason { display: none; } .tm-grid { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
   <div class="app-container">
@@ -28,8 +87,11 @@
           <button class="nav-item" data-nav="students" onclick="showSection('students')">
             <span class="nav-item-icon">👥</span> Students
           </button>
-          <button class="nav-item" data-nav="classes" onclick="showSection('classes')">
+          <button class="nav-item admin-only" data-nav="classes" onclick="showSection('classes')">
             <span class="nav-item-icon">🏫</span> Classes
+          </button>
+          <button class="nav-item admin-only" data-nav="teachers" onclick="showSection('teachers')">
+            <span class="nav-item-icon">👨‍🏫</span> Teachers
           </button>
           <button class="nav-item" onclick="window.open('https://paolafatigato.github.io/PanoramicaProf/?view=schoolbank', '_blank', 'noopener')" title="Apre Panoramica Prof in una nuova scheda">
             <span class="nav-item-icon">📊</span> Statistics
@@ -45,6 +107,9 @@
           </button>
           <button class="nav-item" data-nav="quickrewards" onclick="showSection('quickrewards')">
             <span class="nav-item-icon">⚡</span> Quick Rewards
+          </button>
+          <button class="nav-item" data-nav="checkset" onclick="showSection('checkset')">
+            <span class="nav-item-icon">📒</span> Check settings
           </button>
         </div>
         <div class="nav-section">
@@ -62,7 +127,7 @@
         </div>
         <div class="nav-section">
           <div class="nav-section-title">System</div>
-          <button class="nav-item" data-nav="settings" onclick="showSection('settings')">
+          <button class="nav-item admin-only" data-nav="settings" onclick="showSection('settings')">
             <span class="nav-item-icon">⚙️</span> Settings
           </button>
         </div>
@@ -96,6 +161,7 @@
       </header>
 
       <div class="main-body">
+        <div id="asAdminBar" class="as-admin-bar hidden"></div>
         <!-- Dashboard -->
         <section id="dashboardSection" class="page-section">
           <div class="stats-grid">
@@ -149,10 +215,10 @@
                   <input id="studentsSearchInput" type="search" class="input" placeholder="Search student name" oninput="handleStudentSearch()">
                 </div>
                 <select id="classFilter" class="input" style="width:150px;" onchange="renderStudents()"><option value="">All</option></select>
-                <button class="btn btn-primary" onclick="openStudentModal()">+ Add</button>
-                <button class="btn btn-secondary" onclick="openBulkImportStudentModal()">📥 Bulk Import</button>
-                <button class="btn btn-ghost" onclick="openRepairNamesModal()" title="Repair student names that were shifted due to a class edit bug">🔧 Repair Names</button>
-                <button class="btn btn-ghost" onclick="openStudentTrash()" title="Alunni archiviati (es. non più su Classroom Manager)">🗑️ Cestino</button>
+                <button class="btn btn-primary admin-only" onclick="openStudentModal()">+ Add</button>
+                <button class="btn btn-secondary admin-only" onclick="openBulkImportStudentModal()">📥 Bulk Import</button>
+                <button class="btn btn-ghost admin-only" onclick="openRepairNamesModal()" title="Repair student names that were shifted due to a class edit bug">🔧 Repair Names</button>
+                <button class="btn btn-ghost admin-only" onclick="openStudentTrash()" title="Alunni archiviati (es. non più su Classroom Manager)">🗑️ Cestino</button>
               </div>
             </div>
             <div class="card-body" id="studentsContainer"></div>
@@ -386,6 +452,34 @@
           </div>
         </section>
 
+        <!-- Check settings (NB check + compiti facoltativi): ogni docente modifica i suoi -->
+        <section id="checksetSection" class="page-section hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📒 Notebook check — grades</h3>
+              <div style="display:flex;gap:var(--space-2);">
+                <button class="btn btn-secondary btn-sm" onclick="resetCheckSettings()">↩︎ Restore defaults</button>
+                <button class="btn btn-primary btn-sm" onclick="saveCheckSettings()">💾 Save</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <p class="text-muted mb-4" style="font-size:var(--text-sm);">Same for everyone by default. Change names and amounts to fit your subject.</p>
+              <div id="checkNbEditor"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: var(--space-4);">
+            <div class="card-header"><h3 class="card-title">📚 Optional homework — defaults</h3></div>
+            <div class="card-body">
+              <div class="ck-row">
+                <input id="ckHwIcon" class="input" style="text-align:center" maxlength="4">
+                <input id="ckHwName" class="input">
+                <input id="ckHwPrice" class="input" type="number" min="0">
+                <span class="text-muted ck-reason" style="font-size:var(--text-xs);">icon · name · reward</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Settings -->
         <section id="settingsSection" class="page-section hidden">
           <div class="card">
@@ -498,7 +592,7 @@
            ora da un solo punto (Classroom Manager). Elemento lasciato nel
            DOM ma nascosto, per non rompere renderClassColorSwatches() e
            poterlo riattivare in futuro con un solo cambio. -->
-      <div class="input-group" hidden>
+      <div class="input-group">
         <label class="input-label">Class Color</label>
         <div id="classColorSwatches" class="color-swatch-row"></div>
         <input type="color" id="classColorCustomInput" style="display:none;" onchange="selectClassColor(this.value)">
@@ -578,18 +672,30 @@
 
   <!-- Teacher Modal -->
   <div id="teacherModalBackdrop" class="modal-backdrop"></div>
-  <div id="teacherModal" class="modal">
-    <div class="modal-header"><h3 class="modal-title">👨‍🏫 New Teacher</h3><button class="modal-close" onclick="Modal.hide('teacherModal')">×</button></div>
+  <div id="teacherModal" class="modal" style="max-width:640px;">
+    <div class="modal-header"><h3 class="modal-title" id="teacherModalTitle">👨‍🏫 New Teacher</h3><button class="modal-close" onclick="Modal.hide('teacherModal')">×</button></div>
     <div class="modal-body">
-      <div class="input-group"><label class="input-label">Full Name *</label><input type="text" id="teacherName" class="input" placeholder="Mario Rossi" required></div>
-      <div class="input-group"><label class="input-label">Email *</label><input type="email" id="teacherEmail" class="input" placeholder="mario.rossi@school.com" required></div>
-      <div class="input-group"><label class="input-label">Password *</label><input type="password" id="teacherPassword" class="input" placeholder="Min 6 characters" required><p class="input-hint">The teacher can change it at first login</p></div>
-      <div class="input-group">
-        <label class="input-label">Assigned Classes</label>
-        <div id="teacherClassesContainer" style="display:flex;flex-wrap:wrap;gap:var(--space-2);"></div>
+      <div class="tm-grid">
+        <div class="input-group"><label class="input-label">Visible name *</label><input type="text" id="tmName" class="input" placeholder="Prof Rossi"></div>
+        <div class="input-group"><label class="input-label">Subject *</label><input type="text" id="tmSubject" class="input" placeholder="Italiano" list="tmSubjects" oninput="teacherSubjectChanged()"></div>
+        <div class="input-group full"><label class="input-label">Google email *</label><input type="email" id="tmEmail" class="input" placeholder="rossi@gmail.com"><p class="input-hint" id="tmEmailHint">The teacher signs in with this Google account — no password needed.</p></div>
+        <div class="input-group"><label class="input-label">Icon</label><input type="text" id="tmEmoji" class="input" maxlength="4" value="📘" style="text-align:center"></div>
+        <div class="input-group"><label class="input-label">Page language</label>
+          <select id="tmLang" class="input"><option value="en">English</option><option value="it">Italiano</option></select></div>
+        <div class="input-group full"><label class="input-label">Color</label>
+          <div class="tm-colors" id="tmColors"></div></div>
+        <div class="input-group"><label class="input-label">Currency symbol</label><input type="text" id="tmSymbol" class="input" maxlength="4" placeholder="⭐"></div>
+        <div class="input-group"><label class="input-label">Currency name</label><input type="text" id="tmCurrency" class="input" placeholder="Stelline"></div>
+        <div class="input-group full"><label class="input-label">Foreign language taught (optional)</label><input type="text" id="tmSongLang" class="input" placeholder="Spanish — adds “Choose a song in Spanish”"></div>
+        <div class="input-group full">
+          <label class="input-label">Classes</label>
+          <label id="tmAllWrap" class="hidden" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);font-weight:normal;cursor:pointer;"><input type="checkbox" id="tmAllClasses" onchange="document.getElementById('tmClasses').style.opacity = this.checked ? .4 : 1"> All classes</label>
+          <div id="tmClasses" style="display:flex;flex-wrap:wrap;gap:var(--space-2);"></div>
+        </div>
       </div>
+      <datalist id="tmSubjects"><option>Italiano</option><option>Matematica</option><option>Storia</option><option>Scienze</option><option>Inglese</option><option>Spagnolo</option><option>Francese</option><option>Tedesco</option></datalist>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('teacherModal')">Cancel</button><button class="btn btn-primary" id="saveTeacherBtn" onclick="saveTeacher()">Create Teacher</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="Modal.hide('teacherModal')">Cancel</button><button class="btn btn-primary" id="saveTeacherBtn" onclick="saveTeacher()">Save</button></div>
   </div>
 
   <!-- Bulk Import Classes Modal -->
@@ -814,6 +920,8 @@ ALLMETA REINA\t240\t10\t5
   <script src="js/firebase-config.js"></script>
   <script src="js/script.js"></script>
   <script src="js/universaladmin.js"></script>
+  <script src="js/ledger.js"></script>
+  <script src="js/i18n.js"></script>
 
   <script>
     let students=[], classes=[], rewards=[], quickRewards=[], teachers=[], config={}, sym='$';
@@ -1179,7 +1287,7 @@ ALLMETA REINA\t240\t10\t5
       try {
         const [roster, allStudents, allTransactions] = await Promise.all([
           ClassroomBridge.fetchRoster(),
-          DB.getStudents(null, true),
+          DB.getStudentsRaw(null, true),
           DB.getTransactions({}, 5000)
         ]);
 
@@ -1402,7 +1510,7 @@ ALLMETA REINA\t240\t10\t5
       try {
         const [roster, allStudents] = await Promise.all([
           ClassroomBridge.fetchRoster(),
-          DB.getStudents(null, false) // solo alunni di classi attive
+          DB.getStudentsRaw(null, false) // solo alunni di classi attive
         ]);
 
         if (!roster.length) {
@@ -1642,7 +1750,7 @@ ALLMETA REINA\t240\t10\t5
       try {
         const [allClasses, allStudents] = await Promise.all([
           DB.getClasses(true),
-          DB.getStudents(null, true)
+          DB.getStudentsRaw(null, true)
         ]);
 
         const groups = new Map();
@@ -1712,7 +1820,7 @@ ALLMETA REINA\t240\t10\t5
         // classe: DB.getStudents(classId, ...) richiederebbe un indice
         // composito Firestore (classId + name) non sempre presente, mentre
         // così basta l'indice semplice già usato ovunque nell'app.
-        const allStudents = await DB.getStudents(null, true);
+        const allStudents = await DB.getStudentsRaw(null, true);
 
         for (const group of dedupPlan) {
           const keepNames = new Set(
@@ -1767,7 +1875,7 @@ ALLMETA REINA\t240\t10\t5
       resultEl.innerHTML = '<p class="text-muted"><span class="spinner spinner-sm"></span> Ricerca in corso…</p>';
 
       try {
-        const allStudents = await DB.getStudents(null, true);
+        const allStudents = await DB.getStudentsRaw(null, true);
 
         // Raggruppa per (classId, nome normalizzato)
         const groups = new Map();
@@ -1910,8 +2018,11 @@ ALLMETA REINA\t240\t10\t5
 
     async function init() {
       await Dashboard.init();
-      if (!Auth.requireAuth(['admin'])) return;
+      // Admin e docenti: ognuno lavora sul proprio conto (ledger)
+      if (!Auth.requireAuth(['admin', 'teacher'])) return;
       UserManager.init();
+      await Ledger.init();
+      setupLedgerUI();
       const historySearchInput = document.getElementById('historySearchInput');
       if (historySearchInput) {
         historySearchInput.addEventListener('input', () => applyHistoryFilter());
@@ -1939,9 +2050,17 @@ ALLMETA REINA\t240\t10\t5
       ]);
 
       config = school?.config || {};
-      sym = config.currencySymbol || '$';
+      // La valuta è quella del conto del docente (se non configurata, quella della scuola)
+      sym = Ledger.currency?.symbol || config.currencySymbol || '$';
       students = studentsData;
       classes = classesData;
+      // Un docente lavora solo sulle classi del suo conto (l'admin con "tutte le classi" non è limitato)
+      const lc = Ledger.data;
+      if (lc && lc.allClasses !== true) {
+        const mine = new Set(lc.classes || []);
+        students = students.filter(s => mine.has(s.classId));
+        classes = classes.filter(c => mine.has(c.id));
+      }
       archivedClasses = allClassesData.filter(c => c.archived);
       rewards = rewardsData;
       quickRewards = quickRewardsData;
@@ -1963,6 +2082,7 @@ ALLMETA REINA\t240\t10\t5
       renderWarningStudentSelects();
       updateWarningButton();
       renderRecurringRewards();
+      setupClassDots();
       // Run secondary data in background without blocking initial render
       renderTopStudents();
       refreshRequestBadges();
@@ -1987,8 +2107,7 @@ ALLMETA REINA\t240\t10\t5
     async function refreshRequestBadges() {
       if (!Auth.currentUser) return;
       try {
-        const snapshot = await DB.school('rewardRequests')
-          .where('teacherId', '==', Auth.currentUser.uid)
+        const snapshot = await DB.requestsQuery()
           .where('status', '==', 'pending')
           .get();
         updateRequestBadges(snapshot.size || 0);
@@ -2043,6 +2162,8 @@ ALLMETA REINA\t240\t10\t5
       if (searchTerm) {
         list = Search.filter(list, searchTerm, ['name', 'nfcTag']);
       }
+      // Nomi nel formato "Cognome Nome": l'ordine alfabetico è per cognome
+      list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' }));
 
       const container = document.getElementById('studentsContainer');
       
@@ -2056,9 +2177,9 @@ ALLMETA REINA\t240\t10\t5
             <td class="${s.balance<0?'text-danger':'text-success'}" style="font-weight:bold;">${sym}${s.balance||0}</td>
             <td><code style="font-size:var(--text-xs);">${s.nfcTag||'-'}</code></td>
             <td><div class="actions">
-              <button class="btn btn-ghost btn-sm" onclick="editStudent('${s.id}')">✏️</button>
-              <button class="btn btn-ghost btn-sm" onclick="window.open('index.html?id=${s.id}')">👁️</button>
-              <button class="btn btn-ghost btn-sm text-danger" onclick="deleteStudent('${s.id}')">🗑️</button>
+              ${isAdminUser() ? `<button class="btn btn-ghost btn-sm" onclick="editStudent('${s.id}')">✏️</button>` : ''}
+              <button class="btn btn-ghost btn-sm" onclick="window.open('index.html?id=${s.id}')" title="See the student's page">👁️</button>
+              ${isAdminUser() ? `<button class="btn btn-ghost btn-sm text-danger" onclick="deleteStudent('${s.id}')">🗑️</button>` : ''}
             </div></td>
           </tr>`;
         }).join('')}
@@ -2265,7 +2386,7 @@ const CLASS_COLOR_PRESETS = [
       grid.innerHTML = sorted.map(student => `
         <div class="student-select-card ${selectedStudents.has(student.id) ? 'selected' : ''}" data-student-id="${student.id}" onclick="toggleStudentSelection('${student.id}')">
           <div class="avatar"${avatarStyleAttr(student.classId)}>${UI.getInitials(student.name)}</div>
-          <div class="student-select-name"><strong>${student.name || 'Student'}</strong></div>
+          <div class="student-select-name"><strong>${student.name || 'Student'}</strong><button type="button" class="eye-btn" onclick="event.stopPropagation();window.open('index.html?id=${student.id}')" title="See the student's page">👁️</button></div>
           <div class="student-select-balance">${sym}${student.balance || 0}</div>
         </div>
       `).join('');
@@ -2904,7 +3025,7 @@ const CLASS_COLOR_PRESETS = [
       container.innerHTML = '<div class="text-center"><div class="spinner"></div></div>';
 
       try {
-        const transactions = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, limit);
+        const transactions = await DB.getLedgerTransactions(limit);
 
         if (transactions.length === 0) {
           window.transactionGroupsAll = [];
@@ -3140,9 +3261,7 @@ const CLASS_COLOR_PRESETS = [
       if (!container || !empty) return;
 
       try {
-        const snapshot = await DB.school('rewardRequests')
-          .where('teacherId', '==', Auth.currentUser.uid)
-          .get();
+        const snapshot = await DB.requestsQuery().get();
 
         let allRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -3173,7 +3292,7 @@ const CLASS_COLOR_PRESETS = [
         });
 
         // Add negative transactions as accepted requests history
-        const txs = await DB.getTransactions({ teacherId: Auth.currentUser.uid }, 200);
+        const txs = await DB.getLedgerTransactions(200);
         const negativeTxs = txs.filter(tx => tx.amount < 0);
         const extraHandled = negativeTxs.map(tx => {
           const reason = tx.reason || '';
@@ -3387,8 +3506,9 @@ const CLASS_COLOR_PRESETS = [
       const earningsByStudent = {};
       snapshot.docs.forEach(doc => {
         const data = doc.data();
+        if (!DB._inLedger(data)) return; // solo le transazioni del conto corrente
         const { studentId, amount, timestamp } = data;
-        
+
         if (studentId && amount > 0) {
           // If filtering by current school year, check if timestamp is in current school year
           if (topStudentsShowCurrentYear && timestamp) {
@@ -4213,7 +4333,7 @@ const CLASS_COLOR_PRESETS = [
     }
 
     // ========== NOTEBOOK CHECK ==========
-    const NB_GRADES = [
+    let NB_GRADES = [
       { key: 'missing', label: 'No NB', icon: '⚠️', amount: 0, reason: 'No Notebook', warning: true, warningIcon: '📓', warningType: 'no_notebook' },
       { key: 'nohw',    label: 'No HW', icon: '📚', amount: 0, reason: 'No Homework', warning: true, warningIcon: '📚', warningType: 'no_hw' },
       { key: 'ugly',   label: 'Ugly',   icon: '😬', amount: 0,   reason: 'Notebook ugly' },
@@ -4274,7 +4394,7 @@ const CLASS_COLOR_PRESETS = [
 
       list.innerHTML = classStudents.map(s => `
         <div class="nb-row" data-student-id="${s.id}">
-          <div class="nb-name">${escapeHtmlSafe(s.name || 'Student')}</div>
+          <div class="nb-name" onclick="this.classList.toggle('expanded')" style="cursor:pointer;">${escapeHtmlSafe(s.name || 'Student')}</div>
           <div class="nb-options">${renderNbOptions(s.id)}</div>
         </div>
       `).join('');
@@ -4399,8 +4519,9 @@ const CLASS_COLOR_PRESETS = [
     }
 
     // ========== OPTIONAL HOMEWORK ==========
-    const HW_DEFAULT_NAME = 'Optional homework';
-    const HW_DEFAULT_ICON = '📚';
+    let HW_DEFAULT_NAME = 'Optional homework';
+    let HW_DEFAULT_ICON = '📚';
+    let HW_DEFAULT_PRICE = 30;
     const HW_OPTIONS = [
       { key: 'nohw',   label: 'No HW', icon: '📚', warning: true },
       { key: 'custom', label: 'Other', icon: '✏️', comment: true },
@@ -4438,7 +4559,7 @@ const CLASS_COLOR_PRESETS = [
 
       document.getElementById('hwCheckName').value = HW_DEFAULT_NAME;
       document.getElementById('hwCheckIcon').value = HW_DEFAULT_ICON;
-      document.getElementById('hwCheckPrice').value = 30;
+      document.getElementById('hwCheckPrice').value = HW_DEFAULT_PRICE;
 
       hwSelections = {};
       renderHwCheck();
@@ -4720,129 +4841,270 @@ const CLASS_COLOR_PRESETS = [
     }
 
     // ========== TEACHERS ==========
+    // ========== LEDGER: conto per docente ==========
+    const isAdminUser = () => Auth.getEffectiveRole() === 'admin';
+
+    // Applica al volo il conto del docente: colore, valuta, lingua, impostazioni NB e compiti
+    function setupLedgerUI() {
+      Ledger.applyTheme();
+      document.documentElement.lang = Ledger.lang;
+      document.body.classList.toggle('is-admin', isAdminUser());
+      NB_GRADES = Ledger.nb.map(g => ({ ...g }));
+      HW_DEFAULT_NAME = Ledger.hw.name;
+      HW_DEFAULT_ICON = Ledger.hw.icon;
+      HW_DEFAULT_PRICE = Number(Ledger.hw.price) || 0;
+
+      const roleEl = document.getElementById('userRole');
+      if (roleEl && Ledger.data?.subject) roleEl.textContent = Ledger.data.subject;
+
+      const schoolEl = document.getElementById('schoolName');
+      if (schoolEl && Ledger.data) schoolEl.textContent = [schoolEl.textContent, Ledger.data.name, Ledger.data.subject].filter(Boolean).join(' · ');
+
+      const bar = document.getElementById('asAdminBar');
+      if (bar && Ledger.asAdmin && Ledger.data) {
+        bar.innerHTML = `<span>👑 Admin mode: you are editing the page of <b>${escapeHtmlSafe(Ledger.data.name)}</b> (${escapeHtmlSafe(Ledger.data.subject || '')})</span><a href="teacher.html">← back to my page</a>`;
+        bar.classList.remove('hidden');
+      }
+      I18N.setLang(Ledger.lang);
+    }
+
+    // ---------- Pallini delle classi al posto dei menu a tendina ----------
+    // Il <select> resta nel DOM (nascosto) e continua a pilotare il resto del codice:
+    // cliccando un pallino si imposta il suo valore e si scatena il suo evento "change".
+    function enhanceClassSelect(id, withAllDot) {
+      const sel = document.getElementById(id);
+      if (!sel || sel.dataset.dots) return;
+      sel.dataset.dots = '1';
+      sel.style.display = 'none';
+      const wrap = document.createElement('div');
+      wrap.className = 'cdots-wrap';
+      sel.after(wrap);
+      const render = () => {
+        const dots = [...sel.options].filter(o => o.value || withAllDot).map(o => {
+          const color = o.value ? (getClassColor(o.value) || '#C084FC') : '#6B5B7A';
+          const label = o.value ? o.textContent : I18N.t('All');
+          return `<button type="button" class="cdot ${sel.value === o.value ? 'on' : ''}" style="--cc:${color}" data-v="${o.value}" title="${escapeHtmlSafe(o.textContent)}">${escapeHtmlSafe(label)}</button>`;
+        });
+        wrap.innerHTML = `<div class="cdots">${dots.join('')}</div>`;
+      };
+      wrap.addEventListener('click', e => {
+        const b = e.target.closest('.cdot');
+        if (!b) return;
+        sel.value = b.dataset.v;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        render();
+      });
+      sel.addEventListener('change', render);
+      new MutationObserver(render).observe(sel, { childList: true });
+      render();
+    }
+    function setupClassDots() {
+      [['classFilter', true], ['giveRewardsClassFilter', true], ['warningsClassFilter', true], ['warningGiveClassFilter', true],
+       ['nbCheckClass', false], ['hwCheckClass', false], ['rrClassId', false]].forEach(([id, all]) => enhanceClassSelect(id, all));
+    }
+
+    // ---------- Docenti (solo admin) ----------
+    function classNamesOf(l) {
+      if (l.allClasses) return ['All classes'];
+      return (l.classes || []).map(cId => classes.find(c => c.id === cId)?.name || cId);
+    }
+
     function renderTeachers() {
       const container = document.getElementById('teachersContainer');
-      
-      if (!teachers.length) {
+      if (!container) return;
+      if (!isAdminUser()) { container.innerHTML = ''; return; }
+      const list = Ledger.all || [];
+      if (!list.length) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><div class="empty-state-title">No teachers</div><p class="text-muted">Add the first teacher</p></div>';
         return;
       }
-      
-      container.innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Teacher</th><th>Email</th><th>Classes</th><th>Actions</th></tr></thead><tbody>
-        ${teachers.map(t => {
-          const assignedClasses = (t.classes || []).map(cId => classes.find(c=>c.id===cId)?.name || cId).join(', ');
-          return `<tr>
-            <td><div style="display:flex;align-items:center;gap:var(--space-2);"><div class="avatar avatar-sm">${UI.getInitials(t.name)}</div>${t.name}</div></td>
-            <td>${t.email}</td>
-            <td>${assignedClasses || '<span class="text-muted">None</span>'}</td>
-            <td><div class="actions">
-              <button class="btn btn-ghost btn-sm" onclick="editTeacherClasses('${t.id}')">✏️</button>
-              <button class="btn btn-ghost btn-sm text-danger" onclick="deleteTeacher('${t.id}')">🗑️</button>
-            </div></td>
-          </tr>`;
-        }).join('')}
-      </tbody></table></div>`;
+      container.innerHTML = list.map(l => {
+        const cls = l.allClasses
+          ? '<span class="ledger-tag" style="background:rgba(0,0,0,.08)">All classes</span>'
+          : (l.classes || []).map(cId => {
+              const c = classes.find(x => x.id === cId);
+              const col = c?.color || '#C084FC';
+              return `<span class="ledger-tag" style="background:${hexToRgba(col, 0.18)};color:${col}">${escapeHtmlSafe(c?.name || cId)}</span>`;
+            }).join('') || '<small>No classes</small>';
+        const isMain = l.id === 'main';
+        return `<div class="ledger-card ${l.active === false ? 'inactive' : ''}" style="--lc:${l.color || '#9333EA'}">
+          <span class="ledger-chip">${escapeHtmlSafe(l.emoji || '📘')} ${escapeHtmlSafe(l.name || '')}</span>
+          <div class="grow"><b>${escapeHtmlSafe(l.subject || '')}</b> ${cls}
+            <small>${escapeHtmlSafe(l.ownerEmail || (isMain ? 'Main account' : ''))} · ${escapeHtmlSafe(l.currency?.symbol || '$')} ${escapeHtmlSafe(l.currency?.name || '')} · ${l.lang === 'it' ? 'Italiano' : 'English'}${l.active === false ? ' · hidden from students' : ''}</small></div>
+          <div class="actions">
+            <button class="btn btn-secondary btn-sm" onclick="openTeacherModal('${l.id}')" title="Edit name, subject, classes, color, currency">✏️ Edit</button>
+            <button class="btn btn-ghost btn-sm" onclick="window.open('teacher.html?as=${encodeURIComponent(l.id)}')" title="Open this teacher's page to edit rewards and settings">👁️ Open page</button>
+            ${isMain ? '' : `<button class="btn btn-ghost btn-sm" onclick="toggleLedgerActive('${l.id}')" title="Hide / show this teacher's tab for students">${l.active === false ? '▶️' : '⏸️'}</button>`}
+          </div>
+        </div>`;
+      }).join('');
     }
 
-    function openTeacherModal() {
-      document.getElementById('teacherName').value = '';
-      document.getElementById('teacherEmail').value = '';
-      document.getElementById('teacherPassword').value = '';
-      
-      // Render class checkboxes
-      const container = document.getElementById('teacherClassesContainer');
-      container.innerHTML = classes.map(c => `
+    let editingLedgerId = null;
+    let tmColor = '#9333EA';
+
+    function renderTeacherColorPicker() {
+      const box = document.getElementById('tmColors');
+      box.innerHTML = Ledger.PALETTE.map(hex => `<div class="color-swatch ${tmColor.toLowerCase() === hex.toLowerCase() ? 'selected' : ''}" style="background:${hex};" onclick="pickTeacherColor('${hex}')" title="${hex}"></div>`).join('')
+        + `<input type="color" value="${tmColor}" onchange="pickTeacherColor(this.value)" title="Custom color">`;
+    }
+    function pickTeacherColor(hex) { tmColor = hex; renderTeacherColorPicker(); }
+
+    function teacherSubjectChanged() {
+      // Per un nuovo docente la lingua si propone da sola dalla materia (modificabile)
+      if (editingLedgerId) return;
+      const lang = Ledger.langForSubject(document.getElementById('tmSubject').value);
+      document.getElementById('tmLang').value = lang;
+    }
+
+    function openTeacherModal(ledgerId = null) {
+      editingLedgerId = ledgerId;
+      const l = ledgerId ? (Ledger.all || []).find(x => x.id === ledgerId) : null;
+      const isMain = ledgerId === 'main';
+      document.getElementById('teacherModalTitle').textContent = l ? '✏️ Edit teacher' : '👨‍🏫 New Teacher';
+      document.getElementById('tmName').value = l?.name || '';
+      document.getElementById('tmSubject').value = l?.subject || '';
+      const emailEl = document.getElementById('tmEmail');
+      emailEl.value = l?.ownerEmail || '';
+      emailEl.disabled = isMain;
+      document.getElementById('tmEmoji').value = l?.emoji || '📘';
+      document.getElementById('tmLang').value = l?.lang || 'it';
+      tmColor = l?.color || Ledger.colorForIndex((Ledger.all || []).length);
+      renderTeacherColorPicker();
+      document.getElementById('tmSymbol').value = l?.currency?.symbol || '⭐';
+      document.getElementById('tmCurrency').value = l?.currency?.name || 'Stelline';
+      document.getElementById('tmSongLang').value = l?.songLang || '';
+
+      const all = document.getElementById('tmAllClasses');
+      all.checked = !!l?.allClasses;
+      document.getElementById('tmAllWrap').classList.toggle('hidden', !isMain);
+      document.getElementById('tmAllWrap').style.display = isMain ? 'flex' : 'none';
+      const chosen = new Set(l?.classes || []);
+      const box = document.getElementById('tmClasses');
+      box.style.opacity = isMain && all.checked ? .4 : 1;
+      box.innerHTML = classes.map(c => `
         <label style="display:flex;align-items:center;gap:var(--space-1);padding:var(--space-2);background:var(--background-alt);border-radius:var(--radius-md);">
-          <input type="checkbox" value="${c.id}" class="teacher-class-checkbox"> ${c.name}
-        </label>
-      `).join('');
-      
+          <input type="checkbox" value="${c.id}" class="teacher-class-checkbox" ${chosen.has(c.id) ? 'checked' : ''}>
+          <span class="class-color-dot" style="background:${c.color || '#C084FC'}"></span> ${escapeHtmlSafe(c.name)}
+        </label>`).join('');
       Modal.show('teacherModal');
     }
 
     async function saveTeacher() {
-      const name = document.getElementById('teacherName').value.trim();
-      const email = document.getElementById('teacherEmail').value.trim();
-      const password = document.getElementById('teacherPassword').value;
-      
-      if (!name || !email || !password) {
-        Toast.warning('Fill in all required fields');
-        return;
+      const name = document.getElementById('tmName').value.trim();
+      const subject = document.getElementById('tmSubject').value.trim();
+      const email = document.getElementById('tmEmail').value.trim().toLowerCase();
+      const isMain = editingLedgerId === 'main';
+      if (!name || !subject || (!isMain && !email)) { Toast.warning('Fill in name, subject and Google email'); return; }
+      if (!isMain && !Validate.email(email)) { Toast.warning('Invalid email'); return; }
+
+      const classIds = Array.from(document.querySelectorAll('.teacher-class-checkbox:checked')).map(cb => cb.value);
+      const lang = document.getElementById('tmLang').value;
+      const data = {
+        name, subject,
+        emoji: document.getElementById('tmEmoji').value.trim() || '📘',
+        lang,
+        color: tmColor,
+        currency: {
+          symbol: document.getElementById('tmSymbol').value.trim() || '$',
+          name: document.getElementById('tmCurrency').value.trim() || ''
+        },
+        songLang: document.getElementById('tmSongLang').value.trim() || null,
+        classes: classIds,
+        allClasses: isMain ? document.getElementById('tmAllClasses').checked : false
+      };
+      if (!isMain) data.ownerEmail = email;
+      if (!editingLedgerId) {
+        data.active = true;
+        data.order = (Ledger.all || []).length;
       }
-      
-      if (password.length < 6) {
-        Toast.warning('Password must be at least 6 characters');
-        return;
-      }
-      
-      // Get selected classes
-      const selectedClasses = Array.from(document.querySelectorAll('.teacher-class-checkbox:checked'))
-        .map(cb => cb.value);
-      
+
       const btn = document.getElementById('saveTeacherBtn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner spinner-sm"></span> Creating...';
-      
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Saving...';
       try {
-        await UserManager.createUser(
-          email,
-          password,
-          name,
-          'teacher',
-          Auth.getEffectiveSchoolId(),
-          selectedClasses
-        );
-        
-        // Show instructions
-        alert(`✅ Teacher "${name}" created!\n\n📧 Email: ${email}\n🔑 Password: ${password}\n\n✅ The user is ACTIVE and can log in now.\n\nThe teacher can now log in with the details above.`);
-        
+        await Ledger.saveLedger(editingLedgerId, data, { classIds });
+        await Ledger.loadAll();
         Modal.hide('teacherModal');
-        Toast.success(`Teacher ${name} created!`);
-        await loadData();
-        
+        Toast.success(editingLedgerId ? 'Teacher updated' : `Teacher ${name} added — they can sign in with Google (${email})`);
+        // Se ho modificato il mio stesso conto, aggiorno subito colore/valuta/lingua
+        if (editingLedgerId && editingLedgerId === Ledger.id) {
+          Ledger.data = { ...Ledger.data, ...data };
+          setupLedgerUI();
+          await loadData();
+        } else {
+          renderTeachers();
+        }
       } catch (error) {
-        console.error('Teacher creation error:', error);
-        Toast.error(error.message || 'Error creating teacher');
+        console.error('Teacher save error:', error);
+        Toast.error(error.message || 'Error saving teacher');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Create Teacher';
+        btn.textContent = 'Save';
       }
     }
 
-    async function editTeacherClasses(teacherId) {
-      const teacher = teachers.find(t => t.id === teacherId);
-      if (!teacher) return;
-      
-      const currentClasses = teacher.classes || [];
-      
-      // Simple prompt-based editing (could be improved with a modal)
-      const classOptions = classes.map((c, i) => `${i+1}. ${c.name} ${currentClasses.includes(c.id) ? '✓' : ''}`).join('\n');
-      const input = prompt(`Classes for ${teacher.name}:\n${classOptions}\n\nEnter class numbers separated by commas (e.g., 1,3,5):`);
-      
-      if (input === null) return;
-      
-      const selectedIndexes = input.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < classes.length);
-      const selectedClassIds = selectedIndexes.map(i => classes[i].id);
-      
+    async function toggleLedgerActive(ledgerId) {
+      const l = (Ledger.all || []).find(x => x.id === ledgerId);
+      if (!l) return;
       try {
-        await UserManager.updateTeacherClasses(teacherId, selectedClassIds);
-        Toast.success('Classes updated!');
-        await loadData();
+        await Ledger.ref(ledgerId).update({ active: l.active === false });
+        await Ledger.loadAll();
+        renderTeachers();
       } catch (error) {
         Toast.error('Update error');
       }
     }
 
-    async function deleteTeacher(teacherId) {
-      const teacher = teachers.find(t => t.id === teacherId);
-      if (!await Modal.confirm(`Delete teacher ${teacher?.name}?`)) return;
-      
+    // ---------- Impostazioni check (NB check + compiti facoltativi): per ogni docente ----------
+    function renderCheckSettings() {
+      const box = document.getElementById('checkNbEditor');
+      if (!box) return;
+      box.innerHTML = NB_GRADES.map((g, i) => `
+        <div class="ck-row">
+          <input class="input" style="text-align:center" value="${escapeHtmlSafe(g.icon)}" data-ck="icon" data-i="${i}" maxlength="4">
+          <input class="input" value="${escapeHtmlSafe(g.label)}" data-ck="label" data-i="${i}">
+          ${g.warning ? '<span class="badge badge-warning">warning</span>' : `<input class="input" type="number" value="${g.amount}" data-ck="amount" data-i="${i}">`}
+          <input class="input ck-reason" value="${escapeHtmlSafe(g.reason)}" data-ck="reason" data-i="${i}" title="Text saved in the student's transactions">
+        </div>`).join('');
+      document.getElementById('ckHwIcon').value = HW_DEFAULT_ICON;
+      document.getElementById('ckHwName').value = HW_DEFAULT_NAME;
+      document.getElementById('ckHwPrice').value = HW_DEFAULT_PRICE;
+    }
+
+    async function saveCheckSettings() {
+      const nb = NB_GRADES.map(g => ({ ...g }));
+      document.querySelectorAll('[data-ck]').forEach(inp => {
+        const g = nb[+inp.dataset.i], f = inp.dataset.ck;
+        g[f] = f === 'amount' ? (Number(inp.value) || 0) : inp.value;
+      });
+      const hw = {
+        icon: document.getElementById('ckHwIcon').value.trim() || '📚',
+        name: document.getElementById('ckHwName').value.trim() || Ledger.buildDefaults(Ledger.lang).hw.name,
+        price: Math.max(0, Number(document.getElementById('ckHwPrice').value) || 0)
+      };
       try {
-        await UserManager.deleteUser(teacherId);
-        Toast.success('Teacher deleted');
-        await loadData();
+        await Ledger.saveConfig({ nb, hw });
+        NB_GRADES = nb.map(g => ({ ...g }));
+        HW_DEFAULT_NAME = hw.name; HW_DEFAULT_ICON = hw.icon; HW_DEFAULT_PRICE = hw.price;
+        Toast.success('Settings saved!');
       } catch (error) {
-        Toast.error(error.message || 'Delete error');
+        console.error('Check settings error:', error);
+        Toast.error('Error saving settings');
+      }
+    }
+
+    async function resetCheckSettings() {
+      if (!await Modal.confirm('Restore the default notebook-check and homework settings?')) return;
+      const d = Ledger.buildDefaults(Ledger.lang, Ledger.data?.songLang);
+      try {
+        await Ledger.saveConfig({ nb: d.nb, hw: d.hw });
+        NB_GRADES = d.nb.map(g => ({ ...g }));
+        HW_DEFAULT_NAME = d.hw.name; HW_DEFAULT_ICON = d.hw.icon; HW_DEFAULT_PRICE = d.hw.price;
+        renderCheckSettings();
+        Toast.success('Defaults restored');
+      } catch (error) {
+        Toast.error('Error restoring defaults');
       }
     }
 
@@ -5065,6 +5327,8 @@ const CLASS_COLOR_PRESETS = [
     }
 
     function showSection(id) {
+      // Classi, Docenti e Impostazioni sono solo per l'admin
+      if (['classes', 'teachers', 'settings'].includes(id) && !isAdminUser()) return;
       closeMobileSidebar(); // Close mobile sidebar when navigating
       document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
       document.getElementById(id+'Section')?.classList.remove('hidden');
@@ -5072,9 +5336,11 @@ const CLASS_COLOR_PRESETS = [
         document.getElementById('giveRewardsSection')?.classList.remove('hidden');
       }
       UI.setActiveNav(id);
-      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',checkset:'Check settings',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
+      if (id === 'teachers') renderTeachers();
+      if (id === 'checkset') renderCheckSettings();
       if (id === 'requests') {
         loadPendingRequests();
       }
@@ -5536,6 +5802,8 @@ const CLASS_COLOR_PRESETS = [
     */
 
     function showSection(id) {
+      // Classi, Docenti e Impostazioni sono solo per l'admin
+      if (['classes', 'teachers', 'settings'].includes(id) && !isAdminUser()) return;
       closeMobileSidebar(); // Close mobile sidebar when navigating
       document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
       document.getElementById(id+'Section')?.classList.remove('hidden');
@@ -5543,9 +5811,11 @@ const CLASS_COLOR_PRESETS = [
         document.getElementById('giveRewardsSection')?.classList.remove('hidden');
       }
       UI.setActiveNav(id);
-      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
+      const titles = {dashboard:'Home',students:'Students',classes:'Classes',teachers:'Teachers',giveRewards:'Give Rewards',rewards:'Rewards',quickrewards:'Quick Rewards',checkset:'Check settings',history:'History',requests:'Requests',warnings:'Warnings',settings:'Settings'};
       document.getElementById('pageTitle').textContent = titles[id] || 'Home';
       if (id === 'history') loadHistory();
+      if (id === 'teachers') renderTeachers();
+      if (id === 'checkset') renderCheckSettings();
       if (id === 'requests') {
         loadPendingRequests();
       }

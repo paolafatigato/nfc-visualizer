@@ -32,7 +32,8 @@ const Auth = {
       
       if (doc.exists) {
         this.userProfile = { uid, ...doc.data() };
-        
+        this.cacheProfile();
+
         // Load impersonation state from localStorage
         const savedImpersonation = localStorage.getItem('schoolbank_impersonation');
         if (savedImpersonation && this.userProfile.role === 'superadmin') {
@@ -61,6 +62,7 @@ const Auth = {
           role: pendingData.role,
           schoolId: pendingData.schoolId || null,
           classes: pendingData.classes || [],
+          ledgerId: pendingData.ledgerId || null,
           status: 'active',
           createdAt: pendingData.createdAt || firebase.firestore.FieldValue.serverTimestamp(),
           linkedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -87,7 +89,27 @@ const Auth = {
       
     } catch (error) {
       console.error('Error loading user profile:', error);
+      // Transient failure (network, Firestore not ready): the Firebase session is
+      // still valid, so reuse the last known profile instead of kicking the user
+      // back to the login page.
+      const cached = this.readCachedProfile(uid);
+      if (cached) this.userProfile = cached;
     }
+  },
+
+  cacheProfile() {
+    try {
+      const { uid, ...rest } = this.userProfile;
+      const plain = JSON.parse(JSON.stringify(rest));
+      localStorage.setItem('schoolbank_profile_' + uid, JSON.stringify({ uid, ...plain }));
+    } catch (e) { /* storage unavailable or non-serializable fields: ignore */ }
+  },
+
+  readCachedProfile(uid) {
+    try {
+      const raw = localStorage.getItem('schoolbank_profile_' + uid);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
   },
   
   // Get effective school ID (handles impersonation)
@@ -168,6 +190,9 @@ const Auth = {
   // Logout
   async logout() {
     this.stopImpersonation();
+    if (this.currentUser) {
+      try { localStorage.removeItem('schoolbank_profile_' + this.currentUser.uid); } catch (e) {}
+    }
     await firebase.auth().signOut();
     this.currentUser = null;
     this.userProfile = null;
@@ -224,6 +249,11 @@ const Auth = {
    ============================================= */
 
 const DB = {
+  // Conto (ledger) su cui sta lavorando la pagina. 'main' = conto storico, senza ledgerId nei documenti.
+  _lid() { return (typeof Ledger !== 'undefined' && Ledger.id) ? Ledger.id : 'main'; },
+  // Vero se il documento appartiene al conto indicato (senza ledgerId = 'main')
+  _inLedger(doc, lid) { return ((doc && doc.ledgerId) || 'main') === (lid || this._lid()); },
+
   // Get reference to school collection
   school(collectionName) {
     const schoolId = Auth.getEffectiveSchoolId();
@@ -247,12 +277,21 @@ const DB = {
   // Students
   // includeArchived=false (default) hides students from a graduated/archived
   // class - used everywhere in the active dashboard (lists, dropdowns, stats).
-async getStudents(classId = null, includeArchived = false) {
-  const snapshot = await this.school('students').orderBy('name').get();
-  let list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  if (classId) list = list.filter(s => s.classId === classId);
-  return includeArchived ? list : list.filter(s => !s.archived);
-},
+// "balance" è il saldo del conto corrente (per un conto non-main viene preso da balances.{id}).
+  // Per leggere/scrivere i dati grezzi (strumenti di manutenzione) usare getStudentsRaw().
+  async getStudents(classId = null, includeArchived = false) {
+    const list = await this.getStudentsRaw(classId, includeArchived);
+    const lid = this._lid();
+    if (lid === 'main') return list;
+    return list.map(s => ({ ...s, _mainBalance: s.balance || 0, balance: (s.balances && s.balances[lid]) || 0 }));
+  },
+
+  async getStudentsRaw(classId = null, includeArchived = false) {
+    const snapshot = await this.school('students').orderBy('name').get();
+    let list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (classId) list = list.filter(s => s.classId === classId);
+    return includeArchived ? list : list.filter(s => !s.archived);
+  },
   
   async getStudent(studentId) {
     const doc = await this.school('students').doc(studentId).get();
@@ -362,19 +401,20 @@ async getStudents(classId = null, includeArchived = false) {
   },
   
   // Rewards
-  async getRewards() {
+  async getRewards(ledgerId = null) {
     const snapshot = await this.school('rewards').orderBy('cost').get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => this._inLedger(r, ledgerId));
   },
-  
-  async getQuickRewards() {
+
+  async getQuickRewards(ledgerId = null) {
     const snapshot = await this.school('quickRewards').orderBy('amount', 'desc').get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => this._inLedger(r, ledgerId));
   },
-  
+
   async createReward(data) {
     const ref = await this.school('rewards').add({
       ...data,
+      ledgerId: this._lid(),
       active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -384,6 +424,7 @@ async getStudents(classId = null, includeArchived = false) {
   async createQuickReward(data) {
     const ref = await this.school('quickRewards').add({
       ...data,
+      ledgerId: this._lid(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
@@ -392,14 +433,15 @@ async getStudents(classId = null, includeArchived = false) {
   // Recurring Rewards - a quick reward scheduled on specific weekdays
   // (e.g. "Clean class" every Tue+Thu for a given class). daysOfWeek uses
   // JS Date.getDay() convention: 0=Sun ... 6=Sat.
-  async getRecurringRewards() {
+  async getRecurringRewards(ledgerId = null) {
     const snapshot = await this.school('recurringRewards').orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => this._inLedger(r, ledgerId));
   },
 
   async createRecurringReward(data) {
     const ref = await this.school('recurringRewards').add({
       ...data,
+      ledgerId: this._lid(),
       active: data.active !== false,
       createdBy: Auth.currentUser?.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -442,12 +484,25 @@ async getStudents(classId = null, includeArchived = false) {
   // Transactions
   async createTransaction(data) {
     const ref = await this.school('transactions').add({
+      ledgerId: this._lid(),
       ...data,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       teacherId: Auth.currentUser?.uid,
       teacherName: Auth.userProfile?.name || 'System'
     });
     return ref.id;
+  },
+
+  // Transazioni del conto corrente (per lo Storico e per le richieste già approvate).
+  // Conto storico: come prima, per teacherId (così non servono indici nuovi né migrazioni).
+  // Altri conti: per ledgerId.
+  async getLedgerTransactions(limit = 50) {
+    const lid = this._lid();
+    if (lid === 'main') return this.getTransactions({ teacherId: Auth.currentUser.uid }, limit);
+    const snapshot = await this.school('transactions').where('ledgerId', '==', lid).get();
+    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    list.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+    return list.slice(0, limit);
   },
   
   async getTransactions(filters = {}, limit = 50) {
@@ -486,23 +541,24 @@ async getStudents(classId = null, includeArchived = false) {
   },
   
   // Give reward to student
-  async giveReward(studentId, amount, reason, icon = '⭐', subjectId = null) {
+  async giveReward(studentId, amount, reason, icon = '⭐', subjectId = null, ledgerId = null) {
     const batch = db.batch();
     const schoolId = Auth.getEffectiveSchoolId();
-    
-    // Update student balance
+    const lid = ledgerId || this._lid();
+
+    // Update student balance (del conto giusto)
     const studentRef = db.collection('schools').doc(schoolId)
       .collection('students').doc(studentId);
-    
+
     const studentDoc = await studentRef.get();
     if (!studentDoc.exists) throw new Error('Student not found');
-    
-    const newBalance = (studentDoc.data().balance || 0) + amount;
-    batch.update(studentRef, { 
-      balance: newBalance,
+
+    const newBalance = (lid === 'main' ? (studentDoc.data().balance || 0) : ((studentDoc.data().balances || {})[lid] || 0)) + amount;
+    batch.update(studentRef, {
+      [lid === 'main' ? 'balance' : 'balances.' + lid]: newBalance,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    
+
     // Create transaction
     const txRef = db.collection('schools').doc(schoolId)
       .collection('transactions').doc();
@@ -515,12 +571,13 @@ async getStudents(classId = null, includeArchived = false) {
       reason,
       icon,
       subjectId,
+      ledgerId: lid,
       type: amount >= 0 ? 'reward' : 'penalty',
       teacherId: Auth.currentUser?.uid,
       teacherName: Auth.userProfile?.name || 'System',
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-    
+
     await batch.commit();
     return { newBalance, transactionId: txRef.id };
   },
@@ -529,6 +586,7 @@ async getStudents(classId = null, includeArchived = false) {
   async giveRewardWithDate(studentId, amount, reason, icon = '⭐', date, subjectId = null) {
     const batch = db.batch();
     const schoolId = Auth.getEffectiveSchoolId();
+    const lid = this._lid();
 
     const studentRef = db.collection('schools').doc(schoolId)
       .collection('students').doc(studentId);
@@ -536,9 +594,9 @@ async getStudents(classId = null, includeArchived = false) {
     const studentDoc = await studentRef.get();
     if (!studentDoc.exists) throw new Error('Student not found');
 
-    const newBalance = (studentDoc.data().balance || 0) + amount;
+    const newBalance = (lid === 'main' ? (studentDoc.data().balance || 0) : ((studentDoc.data().balances || {})[lid] || 0)) + amount;
     batch.update(studentRef, {
-      balance: newBalance,
+      [lid === 'main' ? 'balance' : 'balances.' + lid]: newBalance,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -557,6 +615,7 @@ async getStudents(classId = null, includeArchived = false) {
       reason,
       icon,
       subjectId,
+      ledgerId: lid,
       type: amount >= 0 ? 'reward' : 'penalty',
       teacherId: Auth.currentUser?.uid,
       teacherName: Auth.userProfile?.name || 'System',
@@ -595,12 +654,20 @@ async getStudents(classId = null, includeArchived = false) {
   },
   
   // Reward Requests
+  requestsQuery() {
+    const lid = this._lid();
+    const col = this.school('rewardRequests');
+    return lid === 'main'
+      ? col.where('teacherId', '==', Auth.currentUser.uid)
+      : col.where('ledgerId', '==', lid);
+  },
+
   async getRewardRequests(status = 'pending') {
     const snapshot = await this.school('rewardRequests')
       .where('status', '==', status)
       .orderBy('requestedAt', 'desc')
       .get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => this._inLedger(r));
   },
   
   async approveRewardRequest(requestId) {
@@ -647,11 +714,14 @@ async getStudents(classId = null, includeArchived = false) {
 
     try {
       // Deduct cost from student
+      // La richiesta nasce da un conto preciso: il costo va scalato da quel conto
       await this.giveReward(
         request.studentId,
         -reward.cost,
         `Redeem: ${reward.name}`,
-        reward.icon || '🎁'
+        reward.icon || '🎁',
+        null,
+        request.ledgerId || 'main'
       );
 
       // Update request status
@@ -701,11 +771,11 @@ async getStudents(classId = null, includeArchived = false) {
     }
     
     const tx = txDoc.data();
-    
-    // Reverse the balance change
+
+    // Reverse the balance change (sul conto a cui apparteneva la transazione)
     const studentRef = this.school('students').doc(tx.studentId);
     await studentRef.update({
-      balance: firebase.firestore.FieldValue.increment(-tx.amount)
+      [Ledger.balanceField(tx.ledgerId)]: firebase.firestore.FieldValue.increment(-tx.amount)
     });
     
     // Delete transaction
@@ -727,7 +797,7 @@ async getStudents(classId = null, includeArchived = false) {
       .orderBy('timestamp', 'desc')
       .limit(limit)
       .get();
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(w => this._inLedger(w));
   },
 
   async createWarning(studentId, reason, icon = '⚠️', type = 'general') {
@@ -750,6 +820,7 @@ async getStudents(classId = null, includeArchived = false) {
       reason,
       icon,
       type,
+      ledgerId: this._lid(),
       teacherId: Auth.currentUser?.uid,
       teacherName: Auth.userProfile?.name || 'System',
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -759,10 +830,10 @@ async getStudents(classId = null, includeArchived = false) {
   },
 
   // Adjust student balance
-  async adjustStudentBalance(studentId, amount) {
+  async adjustStudentBalance(studentId, amount, ledgerId = null) {
     const studentRef = this.school('students').doc(studentId);
     await studentRef.update({
-      balance: firebase.firestore.FieldValue.increment(amount)
+      [Ledger.balanceField(ledgerId || this._lid())]: firebase.firestore.FieldValue.increment(amount)
     });
   },
 
@@ -775,7 +846,7 @@ async getStudents(classId = null, includeArchived = false) {
   async resetAllBalances(reason = 'New school year reset') {
     const snapshot = await this.school('students').get();
     const studentDocs = snapshot.docs;
-    const CHUNK_SIZE = 200; // up to 2 writes/student -> max 400 writes/batch
+    const CHUNK_SIZE = 100; // fino a 1 + (n. conti) scritture per alunno, resta sotto il limite di 500 per batch
     let resetCount = 0;
 
     for (let i = 0; i < studentDocs.length; i += CHUNK_SIZE) {
@@ -784,26 +855,31 @@ async getStudents(classId = null, includeArchived = false) {
 
       chunk.forEach(doc => {
         const data = doc.data();
-        const balance = data.balance || 0;
-        if (balance === 0) return;
+        // Tutti i conti dell'alunno: quello storico (balance) e quelli dei colleghi (balances.{id})
+        const entries = [['main', data.balance || 0]];
+        Object.entries(data.balances || {}).forEach(([lid, v]) => entries.push([lid, v || 0]));
+        const nonZero = entries.filter(([, v]) => v !== 0);
+        if (!nonZero.length) return;
 
-        batch.update(doc.ref, {
-          balance: 0,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        const update = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        nonZero.forEach(([lid]) => { update[Ledger.balanceField(lid)] = 0; });
+        batch.update(doc.ref, update);
 
-        const txRef = this.school('transactions').doc();
-        batch.set(txRef, {
-          studentId: doc.id,
-          studentName: data.name,
-          classId: data.classId || null,
-          amount: -balance,
-          reason,
-          icon: '🔄',
-          type: 'reset',
-          teacherId: Auth.currentUser?.uid,
-          teacherName: Auth.userProfile?.name || 'System',
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        nonZero.forEach(([lid, balance]) => {
+          const txRef = this.school('transactions').doc();
+          batch.set(txRef, {
+            studentId: doc.id,
+            studentName: data.name,
+            classId: data.classId || null,
+            amount: -balance,
+            reason,
+            icon: '🔄',
+            type: 'reset',
+            ledgerId: lid,
+            teacherId: Auth.currentUser?.uid,
+            teacherName: Auth.userProfile?.name || 'System',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
         });
 
         resetCount++;
