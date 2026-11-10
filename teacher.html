@@ -81,17 +81,8 @@
           <button class="nav-item active" data-nav="dashboard" onclick="showSection('dashboard')">
             <span class="nav-item-icon">🏠</span> Home
           </button>
-        </div>
-        <div class="nav-section">
-          <div class="nav-section-title">Management</div>
           <button class="nav-item" data-nav="students" onclick="showSection('students')">
             <span class="nav-item-icon">👥</span> Students
-          </button>
-          <button class="nav-item admin-only" data-nav="classes" onclick="showSection('classes')">
-            <span class="nav-item-icon">🏫</span> Classes
-          </button>
-          <button class="nav-item admin-only" data-nav="teachers" onclick="showSection('teachers')">
-            <span class="nav-item-icon">👨‍🏫</span> Teachers
           </button>
           <button class="nav-item" onclick="window.open('https://paolafatigato.github.io/PanoramicaProf/?view=schoolbank', '_blank', 'noopener')" title="Apre Panoramica Prof in una nuova scheda">
             <span class="nav-item-icon">📊</span> Statistics
@@ -125,8 +116,14 @@
             <span class="nav-item-icon">📜</span> History
           </button>
         </div>
-        <div class="nav-section">
-          <div class="nav-section-title">System</div>
+        <div class="nav-section admin-only">
+          <div class="nav-section-title">ADMIN</div>
+          <button class="nav-item admin-only" data-nav="classes" onclick="showSection('classes')">
+            <span class="nav-item-icon">🏫</span> Classes
+          </button>
+          <button class="nav-item admin-only" data-nav="teachers" onclick="showSection('teachers')">
+            <span class="nav-item-icon">👨‍🏫</span> Teachers
+          </button>
           <button class="nav-item admin-only" data-nav="settings" onclick="showSection('settings')">
             <span class="nav-item-icon">⚙️</span> Settings
           </button>
